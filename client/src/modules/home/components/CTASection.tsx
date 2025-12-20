@@ -1,7 +1,7 @@
 "use client"
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { Button } from "./ui/Button";
+import { Button } from "../../../components/ui/Button";
 
 export default function CTASection() {
   return (

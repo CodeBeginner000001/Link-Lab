@@ -1,6 +1,6 @@
 import { Github, Instagram, Twitter } from "lucide-react";
-import { footerLinks } from "../utils/content";
-import Logo from "./Logo";
+import { footerLinks } from "../../utils/content";
+import Logo from "../Logo";
 
 export default function Footer() {
 

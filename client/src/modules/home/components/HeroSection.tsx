@@ -1,9 +1,9 @@
 "use client";
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
-import { Button } from "./ui/Button";
 import Link from "next/link";
-import { heroContent } from "../utils/content";
+import { Button } from "../../../components/ui/Button";
+import { heroContent } from "../../../utils/content";
 
 export default function HeroSection() {
   return (

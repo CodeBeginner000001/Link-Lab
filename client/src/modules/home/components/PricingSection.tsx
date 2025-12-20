@@ -1,8 +1,8 @@
 "use client";
 import { motion } from "framer-motion";
-import { plans } from "../utils/content";
 import { Check, Zap } from "lucide-react";
-import { Button } from "./ui/Button";
+import { Button } from "../../../components/ui/Button";
+import { plans } from "../../../utils/content";
 export default function PricingSection() {
   return (
     <section id="pricing" className="py-24 relative">
