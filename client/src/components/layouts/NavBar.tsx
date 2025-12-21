@@ -1,10 +1,10 @@
 "use client";
 import Link from "next/link";
-import Logo from "@/src/components/Logo";
-import ToggleTheme from "@/src/components/ui/ToggleTheme";
-import { Button } from "../ui/Button";
+import Logo from "@/components/Logo";
+import ToggleTheme from "@/components/ui/ToggleTheme";
+import { Button } from "@/components/ui/Button";
 import { motion } from "framer-motion";
-import { navItems } from "@/src/utils/content";
+import { navItems } from "@/utils/content";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 export default function NavBar() {
@@ -20,7 +20,7 @@ export default function NavBar() {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link href="/">
-            <Logo />
+            <Logo size="sm" />
           </Link>
           {/* Nav List desktop view */}
           <div className="hidden md:flex items-center gap-8">
@@ -37,12 +37,12 @@ export default function NavBar() {
           {/* Action */}
           <div className="hidden md:flex items-center gap-3">
             <ToggleTheme />
-            <Link href="/auth">
+            <Link href="/signin">
               <Button variant="ghost" className="cursor-pointer">
                 Sign In
               </Button>
             </Link>
-            <Link href="/auth?mode=signup">
+            <Link href="/signup">
               <Button className="cursor-pointer">Get Started</Button>
             </Link>
           </div>
@@ -80,13 +80,17 @@ export default function NavBar() {
                 </a>
               ))}
 
-              <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 pt-4 border-t border-[hsl(var(--border)/0.5)]">
-                <Button variant="outline" className="mx-auto w-full max-w-xl">
-                  Sign In
-                </Button>
-                <Button className="mb-4 mx-auto w-full max-w-xl">
-                  Get Started
-                </Button>
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 pt-4 border-t border-[hsl(var(--border)/0.5)] justify-center">
+                <Link href="/signin">
+                  <Button variant="outline" className="mx-auto w-full sm:w-60">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link href="/signup">
+                  <Button className="mb-4 mx-auto w-full sm:w-60">
+                    Get Started
+                  </Button>
+                </Link>
               </div>
             </div>
           </motion.div>

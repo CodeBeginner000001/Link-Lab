@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { tools } from "../../../utils/content";
+import { tools } from "@/utils/content";
 import FeatureCard from "./FeatureCard";
 
 export default function Tools() {

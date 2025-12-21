@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Theme, ThemeContextType } from "@/src/interfaces/context";
+import { Theme, ThemeContextType } from "@/interfaces/context";
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 

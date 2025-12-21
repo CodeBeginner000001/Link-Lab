@@ -1,5 +1,5 @@
-import "@/src/styles/globals.css";
-import { ThemeProvider } from "@/src/context/ThemeContext";
+import "@/styles/globals.css";
+import { ThemeProvider } from "@/context/ThemeContext";
 import { DM_Sans} from "next/font/google"
 
 const dmSans = DM_Sans({

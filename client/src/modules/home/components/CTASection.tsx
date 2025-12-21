@@ -1,7 +1,8 @@
-"use client"
+"use client";
 import { motion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
-import { Button } from "../../../components/ui/Button";
+import { Button } from "@/components/ui/Button";
+import Link from "next/link";
 
 export default function CTASection() {
   return (
@@ -19,27 +20,28 @@ export default function CTASection() {
             Ready to <span className="gradient-text">Get Started?</span>
           </h2>
           <p className="text-muted-foreground text-lg mb-8 max-w-xl mx-auto">
-            Join thousands of users who trust LinkLab for their digital toolkit needs.
-            Start for free, upgrade when you&apos;re ready.
+            Join thousands of users who trust LinkLab for their digital toolkit
+            needs. Start for free, upgrade when you&apos;re ready.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Button
-              variant="hero"
-              size="xl"
-              className="group max-[640px]:h-12 max-[640px]:px-8 max-[640px]:rounded-lg max-[640px]:text-base max-[310px]:h-10 max-[310px]:px-4 max-[310px]:rounded-md max-[310px]:text-sm "
-            >
-              Create Free Account
-              <ArrowRight className="w-5 h-5 hidden min-[310px]:flex group-hover:translate-x-1 transition-transform" />
-            </Button>
-            <Button
-              variant="heroOutline"
-              size="lg"
-            >
-              Sign In
-            </Button>
+            <Link href="/signup">
+              <Button
+                variant="hero"
+                size="xl"
+                className="group max-[640px]:h-12 max-[640px]:px-8 max-[640px]:rounded-lg max-[640px]:text-base max-[310px]:h-10 max-[310px]:px-4 max-[310px]:rounded-md max-[310px]:text-sm "
+              >
+                Create Free Account
+                <ArrowRight className="w-5 h-5 hidden min-[310px]:flex group-hover:translate-x-1 transition-transform" />
+              </Button>
+            </Link>
+            <Link href="/signin">
+              <Button variant="heroOutline" size="lg">
+                Sign In
+              </Button>
+            </Link>
           </div>
         </motion.div>
       </div>
     </section>
   );
-};
+}

@@ -2,8 +2,8 @@
 import { motion } from "framer-motion";
 import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
-import { Button } from "../../../components/ui/Button";
-import { heroContent } from "../../../utils/content";
+import { Button } from "@/components/ui/Button";
+import { heroContent } from "@/utils/content";
 
 export default function HeroSection() {
   return (
@@ -53,14 +53,14 @@ export default function HeroSection() {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"
           >
-            <Link href={"/auth?mode=signup"}>
+            <Link href={"/signup"}>
               <Button variant="hero" size="xl" className="group">
                 Get Started Free
                 <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
             <Button variant="heroOutline" size="xl">
-              <Link href="/auth">Sign In</Link>
+              <Link href="/signin">Sign In</Link>
             </Button>
           </motion.div>
           <motion.div

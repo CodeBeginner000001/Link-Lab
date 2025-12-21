@@ -1,6 +1,6 @@
 "use client";
 import { motion } from "framer-motion";
-import { featureCards } from "../../../utils/content";
+import { featureCards } from "@/utils/content";
 export default function Features() {
   return (
     <section id="features" className="py-24 relative">

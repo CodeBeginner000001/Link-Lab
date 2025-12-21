@@ -1,6 +1,6 @@
 import { Github, Instagram, Twitter } from "lucide-react";
-import { footerLinks } from "../../utils/content";
-import Logo from "../Logo";
+import { footerLinks } from "@/utils/content";
+import Logo from "@/components/Logo";
 
 export default function Footer() {
 
@@ -9,7 +9,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
           <div className="col-span-2 md:col-span-1">
-            <Logo />
+            <Logo size="sm"/>
             <p className="mt-4 text-[hsl(var(--muted-foreground))] text-sm">
               Powerful tools to enhance your digital workflow.
             </p>

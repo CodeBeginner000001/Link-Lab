@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { FeatureCardProps } from "../../../interfaces/components";
+import { FeatureCardProps } from "@/interfaces/components";
 
 export default function FeatureCard({
   icon: Icon,

@@ -1,4 +1,4 @@
-import AppShell from "@/src/components/layouts/AppShell";
+import AppShell from "@/components/layouts/AppShell";
 
 export default function PublicLayout({
   children,
