@@ -1,9 +1,11 @@
 import { LucideIcon } from "lucide-react";
 
+export type LogoSize = "sm" | "md" | "lg";
 export interface LogoProps {
-    size: string;
+    size: LogoSize;
     showText?: boolean;
 }
+
 export interface FeatureCardProps {
     icon: LucideIcon;
     title: string;
@@ -16,6 +18,7 @@ export interface sizeClassesProps {
     md: string;
     lg: string;
 }
+
 export interface textSizeClassesProps {
     sm: string;
     md: string;
