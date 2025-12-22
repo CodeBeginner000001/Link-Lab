@@ -1,9 +1,9 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import AuthNavBar from "./AuthNavBar";
-import { resolveAuthBackRoute } from "../utils/resolve-auth-back-route";
 import { AuthFlowSource } from "../constants/auth-routing";
+import { resolveAuthBackRoute } from "../utils/resolve-auth-back-route";
+import AuthNavBar from "./AuthNavBar";
 
 export default function AuthNavBarWrapper() {
   const pathname = usePathname();
@@ -13,5 +13,7 @@ export default function AuthNavBarWrapper() {
 
   const backTo = resolveAuthBackRoute(pathname, from ?? undefined);
 
-  return <AuthNavBar link={backTo} />;
+  return (
+      <AuthNavBar link={backTo} />
+  );
 }
