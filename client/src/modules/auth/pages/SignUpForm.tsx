@@ -233,7 +233,7 @@ export default function SignInForm() {
               {loading ? (
                 <Loader2 className="w-4 h-4 animate-spin" />
               ) : (
-                "Create"
+                "Create Account"
               )}
             </Button>
           </form>

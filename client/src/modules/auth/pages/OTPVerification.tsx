@@ -1,8 +1,3 @@
-/**
- * resendLoading- true
- * setCountdown - number
- * setCanResend - true
- */
 "use client";
 import { Button } from "@/components/ui/Button";
 import {
@@ -12,27 +7,36 @@ import {
 } from "@/components/ui/InputOTP";
 import { motion } from "framer-motion";
 import { Loader2, Mail, RefreshCw } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  AUTH_SUCCESS_ROUTE_MAP,
+  AuthFlowSource,
+  AuthSuccessFlow,
+} from "../constants/auth-routing";
 
 const count = 5;
 export default function OTPVerification() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const from = searchParams.get("from") as AuthSuccessFlow;
+
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [countdown, setCountdown] = useState(count);
 
-  const canResend = countdown===-1;
+  const canResend = countdown === -1;
 
-  const handleResend = ()=>{
-    if(!canResend || resendLoading) return;
+  const handleResend = () => {
+    if (!canResend || resendLoading) return;
     setResendLoading(true);
-    setTimeout(()=>{
+    setTimeout(() => {
       setCountdown(count);
       setResendLoading(false);
-    },2000)
-  }
+    }, 2000);
+  };
 
   useEffect(() => {
     if (countdown < 0) return;
@@ -40,16 +44,14 @@ export default function OTPVerification() {
       setCountdown((prev) => prev - 1);
     }, 1000);
     return () => clearTimeout(timer);
-  }, [countdown]); 
-
-
+  }, [countdown]);
 
   const handleOTPVerification = () => {
     setLoading(true);
     setTimeout(() => {
       console.log("OTP submitted");
       setLoading(false);
-      router.push("/dashboard");
+      router.push(AUTH_SUCCESS_ROUTE_MAP[from]);
     }, 500);
   };
 
@@ -84,12 +86,12 @@ export default function OTPVerification() {
               className="gap-2"
             >
               <InputOTPGroup className="gap-2">
-                <InputOTPSlot index={0} className="w-12 h-12 text-lg" />
-                <InputOTPSlot index={1} className="w-12 h-12 text-lg" />
-                <InputOTPSlot index={2} className="w-12 h-12 text-lg" />
-                <InputOTPSlot index={3} className="w-12 h-12 text-lg" />
-                <InputOTPSlot index={4} className="w-12 h-12 text-lg" />
-                <InputOTPSlot index={5} className="w-12 h-12 text-lg" />
+                <InputOTPSlot index={0} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm max-[360px]:rounded-lg w-12 h-12 text-lg" />
+                <InputOTPSlot index={1} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm w-12 h-12 text-lg" />
+                <InputOTPSlot index={2} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm w-12 h-12 text-lg" />
+                <InputOTPSlot index={3} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm w-12 h-12 text-lg" />
+                <InputOTPSlot index={4} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm w-12 h-12 text-lg" />
+                <InputOTPSlot index={5} className="max-[310px]:w-8 max-[310px]:h-8 max-[310px]:text-xs max-[310px]:rounded-md max-[360px]:w-10 max-[360px]:h-10 max-[360px]:text-sm w-12 h-12 text-lg" />
               </InputOTPGroup>
             </InputOTP>
             {/* Verify button */}

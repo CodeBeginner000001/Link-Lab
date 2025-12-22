@@ -168,12 +168,14 @@ export default function SignInForm() {
             </Button>
             {/* Forget Password */}
             <div className="text-center">
-              <button
-                type="button"
-                className="text-sm text-[hsl(var(--muted-foreground)/0.9)] hover:text-[hsl(var(--primary))] transition-colors"
-              >
-                Forgot password?
-              </button>
+              <Link href="forgetpassword?from=signin">
+                <button
+                  type="button"
+                  className="text-sm text-[hsl(var(--muted-foreground)/0.9)] hover:text-[hsl(var(--primary))] transition-colors hover:cursor-pointer"
+                >
+                  Forgot password?
+                </button>
+              </Link>
             </div>
           </form>
           {/* Create a new account */}
@@ -181,7 +183,7 @@ export default function SignInForm() {
             Don&apos;t have an account?{" "}
             <Link href="signup">
               <button className="text-[hsl(var(--primary))] hover:underline font-medium">
-                Sign up
+                Sign Up
               </button>
             </Link>
           </p>
