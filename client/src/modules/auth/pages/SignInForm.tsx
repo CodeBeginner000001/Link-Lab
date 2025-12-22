@@ -3,12 +3,44 @@ import Logo from "@/components/Logo";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
-import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Lock, Mail } from "lucide-react";
+import { AnimatePresence, motion, useScroll } from "framer-motion";
+import { Eye, EyeOff, Loader2, Lock, Mail } from "lucide-react";
 import Link from "next/link";
-
+import { useState } from "react";
 
 export default function SignInForm() {
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  const [errors, setErrors] = useState<{
+    email?: string;
+    password?: string;
+  }>({});
+
+  const handleShowPassword = () => {
+    setShowPassword(!showPassword);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFormSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+    console.log("form Submitted");
+  };
+
   return (
     <>
       <div className="flex flex-1 items-center justify-center">
@@ -61,7 +93,8 @@ export default function SignInForm() {
               </span>
             </div>
           </div>
-          <form className="space-y-4">
+          {/* Form for sign in */}
+          <form className="space-y-4" onSubmit={handleFormSubmit}>
             <AnimatePresence mode="wait">
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -74,14 +107,19 @@ export default function SignInForm() {
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
                   <Input
                     id="email"
+                    name="email"
                     type="email"
                     placeholder="you@example.com"
                     className="pl-10"
+                    value={formData.email}
+                    onChange={handleFormChange}
                   />
                 </div>
-                {/* {errors.email && (
-                  <p className="text-destructive text-sm mt-1">{errors.email}</p>
-                )} */}
+                {errors.email && (
+                  <p className="text-[hsl(var(--destructive))] text-sm mt-1">
+                    {errors.email}
+                  </p>
+                )}
               </motion.div>
             </AnimatePresence>
             <div>
@@ -90,24 +128,45 @@ export default function SignInForm() {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
                 <Input
                   id="password"
-                  type="text"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   className="pl-10 pr-10"
+                  value={formData.password}
+                  onChange={handleFormChange}
                 />
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  onClick={handleShowPassword}
                 >
-                  {/* {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />} */}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-              {/* {errors.password && (
-                  <p className="text-destructive text-sm mt-1">{errors.password}</p>
-                )} */}
+              {errors.password && (
+                <p className="text-[hsl(var(--destructive))] text-sm mt-1">
+                  {errors.password}
+                </p>
+              )}
             </div>
-            <Button type="submit" className="w-full" size="lg">
-              <Loader2 className="w-4 h-4 animate-spin" /> Sign In
+            {/* Submit button */}
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Sign In"
+              )}
             </Button>
+            {/* Forget Password */}
             <div className="text-center">
               <button
                 type="button"
@@ -117,6 +176,7 @@ export default function SignInForm() {
               </button>
             </div>
           </form>
+          {/* Create a new account */}
           <p className="text-center text-sm text-[hsl(var(--muted-foreground)/0.9)] mt-6">
             Don&apos;t have an account?{" "}
             <Link href="signup">

@@ -4,10 +4,60 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
 import { AnimatePresence, motion } from "framer-motion";
-import { Loader2, Lock, Mail, User } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, User } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function SignInForm() {
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [confirmShowPassword, setConfirmShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [errors, setErrors] = useState<{
+    fullName?: string;
+    email?: string;
+    password?: string;
+    confirmPassword?: string;
+  }>({});
+
+  const handleShowPassword = () => {
+    setShowPassword((prev)=> !prev);
+    setTimeout(() => {
+      setShowPassword((prev)=> !prev);
+    }, 500);
+  };
+
+  const handleCofirmShowPassword = () => {
+    setConfirmShowPassword((prev)=> !prev);;
+    setTimeout(() => {
+      setConfirmShowPassword((prev)=> !prev);;
+    }, 500);
+  };
+
+  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleFormSubmit = (e: React.ChangeEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+    console.log("form Submitted");
+    router.replace("/verifyotp?from=signup");
+  };
   return (
     <>
       <div className="flex flex-1 items-center justify-center">
@@ -60,69 +110,131 @@ export default function SignInForm() {
               </span>
             </div>
           </div>
-          <form className="space-y-4">
+          {/* form submission */}
+          <form className="space-y-4" onSubmit={handleFormSubmit}>
             <AnimatePresence mode="wait">
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
                 transition={{ duration: 0.2 }}
+                className="flex gap-4"
               >
-                <Label htmlFor="fullName">Full Name</Label>
-                <div className="relative mt-1.5">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
-                  <Input
-                    id="fullName"
-                    type="text"
-                    placeholder="John Doe"
-                    className="pl-10"
-                  />
+                <div className="w-full">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative mt-1.5">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
+                    <Input
+                      id="fullName"
+                      name="fullName"
+                      type="text"
+                      placeholder="John Doe"
+                      className="pl-10"
+                      value={formData.fullName}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  {errors.fullName && (
+                    <p className="text-destructive text-sm mt-1">
+                      {errors.fullName}
+                    </p>
+                  )}
                 </div>
-                {/* {errors.fullName && (
-                  <p className="text-destructive text-sm mt-1">
-                    {errors.fullName}
-                  </p>
-                )} */}
+                <div className="w-full">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative mt-1.5">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      placeholder="you@example.com"
+                      className="pl-10"
+                      value={formData.email}
+                      onChange={handleFormChange}
+                    />
+                  </div>
+                  {errors.email && (
+                    <p className="text-destructive text-sm mt-1">
+                      {errors.email}
+                    </p>
+                  )}
+                </div>
               </motion.div>
             </AnimatePresence>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <div className="relative mt-1.5">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  className="pl-10"
-                />
-              </div>
-              {/* {errors.email && (
-                  <p className="text-destructive text-sm mt-1">{errors.email}</p>
-                )} */}
-            </div>
             <div>
               <Label htmlFor="password">Password</Label>
               <div className="relative mt-1.5">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
                 <Input
                   id="password"
-                  type="text"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
                   placeholder="••••••••"
                   className="pl-10 pr-10"
+                  value={formData.password}
+                  onChange={handleFormChange}
                 />
                 <button
                   type="button"
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  onClick={handleShowPassword}
                 >
-                  {/* {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />} */}
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
                 </button>
               </div>
-              {/* {errors.password && (
-                  <p className="text-destructive text-sm mt-1">{errors.password}</p>
-                )} */}
+              {errors.password && (
+                <p className="text-destructive text-sm mt-1">
+                  {errors.password}
+                </p>
+              )}
             </div>
-            <Button type="submit" className="w-full" size="lg">
-              <Loader2 className="w-4 h-4 animate-spin" /> Create
+            <div>
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <div className="relative mt-1.5">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[hsl(var(--muted-foreground)/0.9)]" />
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type={confirmShowPassword ? "text" : "password"}
+                  placeholder="••••••••"
+                  className="pl-10 pr-10"
+                  value={formData.confirmPassword}
+                  onChange={handleFormChange}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
+                  onClick={handleCofirmShowPassword}
+                >
+                  {confirmShowPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+              {errors.confirmPassword && (
+                <p className="text-destructive text-sm mt-1">
+                  {errors.confirmPassword}
+                </p>
+              )}
+            </div>
+            <Button
+              type="submit"
+              className="w-full"
+              size="lg"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Create"
+              )}
             </Button>
           </form>
           <p className="text-center text-sm text-[hsl(var(--muted-foreground)/0.9)] mt-6">

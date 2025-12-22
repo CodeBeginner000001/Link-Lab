@@ -14,7 +14,7 @@ export const AUTH_BACK_ROUTE_MAP: BackRouteMap = {
   "/signup": {
     default: "/",
   },
-  "/verify-otp": {
+  "/verifyotp": {
     default: "/",
     from: {
       signup: "/signup",
