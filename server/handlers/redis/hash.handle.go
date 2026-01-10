@@ -28,11 +28,10 @@ func CreateHashKey(c *fiber.Ctx) error {
 	if body.TTL < 0 {
 		return httpError.ValidationError(c, "ttl", "ttl must be >= 0 (seconds)")
 	}
-	service := services.NewRedisHashService() // calls a constructor and fully initialize service and injects repoistory dependency
-	err := service.CreateHash(                // then use a function in the service
+	err := services.NewRedisHashService().CreateHash(
 		body.Key,
 		body.Fields,
-		time.Duration(body.TTL)*time.Second, // converts seconds to time duration
+		time.Duration(body.TTL)*time.Second,
 	)
 	if err != nil {
 		return httpError.HandleServiceError(c, err)
@@ -48,12 +47,10 @@ func GetHash(c *fiber.Ctx) error {
 	if key == "" {
 		return httpError.ValidationError(c, "key", "key is required")
 	}
-
 	data, err := services.NewRedisHashService().GetHash(key)
 	if err != nil {
 		return httpError.HandleServiceError(c, err)
 	}
-
 	return c.JSON(fiber.Map{
 		"key":  key,
 		"data": data,
@@ -69,6 +66,10 @@ func UpdateHash(c *fiber.Ctx) error {
 	var body UpdateHashRequest
 	if err := c.BodyParser(&body); err != nil {
 		return httpError.InvalidRequestBody(c)
+	}
+
+	if len(body.Fields) == 0 {
+		return httpError.ValidationError(c, "fields", "fields must be a non-empty object of strings")
 	}
 
 	err := services.NewRedisHashService().UpdateHash(key, body.Fields)
@@ -131,6 +132,12 @@ func CreateORUpdateHashField(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return httpError.InvalidRequestBody(c)
 	}
+	if len(body.Field) == 0 {
+		return httpError.ValidationError(c, "fields", "fields must be a non-empty object of strings")
+	}
+	if body.Value == "" {
+		return httpError.ValidationError(c, "value", "value is required")
+	}
 	err := services.NewRedisHashService().CreateORUpdateHashField(key, body.Field, body.Value)
 	if err != nil {
 		return httpError.HandleServiceError(c, err)
@@ -157,4 +164,3 @@ func GetHashMeta(c *fiber.Ctx) error {
 		"meta": meta,
 	})
 }
-

@@ -54,11 +54,14 @@ func HandleServiceError(c *fiber.Ctx, err error) error {
 	case errors.Is(err, services.ErrKeyRequired):
 		return ValidationError(c, "key", err.Error())
 
-	case errors.Is(err, services.ErrFieldsEmpty):
-		return ValidationError(c, "fields", err.Error())
-
+	case errors.Is(err, services.ErrValueRequired):
+		return ValidationError(c, "value", err.Error())
+	
 	case errors.Is(err, services.ErrFieldRequired):
 		return ValidationError(c, "field", err.Error())
+
+	case errors.Is(err, services.ErrFieldsEmpty):
+		return ValidationError(c, "fields", err.Error())
 
 	case errors.Is(err, services.ErrTTL):
 		return ValidationError(c, "ttl", err.Error())

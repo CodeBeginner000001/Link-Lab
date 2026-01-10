@@ -40,9 +40,6 @@ func (s *RedisHashService) GetHash(key string) (map[string]string, error) {
 }
 
 func (s *RedisHashService) UpdateHash(key string, fields map[string]string) error {
-	if len(fields) == 0 {
-		return ErrFieldsEmpty
-	}
 	if err := s.common.ensureKeyExists(key); err != nil {
 		return err
 	}
@@ -73,9 +70,6 @@ func (s *RedisHashService) DeleteHashField(key, field string) error {
 }
 
 func (s *RedisHashService) CreateORUpdateHashField(key, field, value string) error {
-	if field == "" {
-		return ErrFieldRequired
-	}
 	if err := s.common.ensureKeyExists(key); err != nil {
 		return err
 	}

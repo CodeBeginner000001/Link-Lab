@@ -19,7 +19,6 @@ func (c *RedisCommonService) ensureKeyExists(key string) error {
 	if key == "" {
 		return ErrKeyRequired
 	}
-
 	exists, err := c.repo.Exists(key)
 	if err != nil {
 		return err
