@@ -1,0 +1,23 @@
+services: # Root section where all containers are defined
+  redis: # Service name that can be used internally for networking
+    image: redis:7.2-alpine # Pull official Redis image
+    container_name: redis_container # Container name
+    restart: unless-stopped # Auto-restart if it crashes and only stop if stopped manually
+    ports: # Maps host port to container port (In production, use internal docker network and remove this)
+      - "6379:6379" # Host:Container
+    volumes: # volume mounting
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf # Mounts local redis.conf into the container which allows custom redis config, :ro - read-only and used to prevent accidental edits inside container
+      - ./redis/data:/data # Persists Redis data on machine and prevent data loss on container restart
+    # command: ["redis-server", "/usr/local/etc/redis/redis.conf"] # Overrides default Redis command and start redis with config file
+    networks:  # Connect redis to a user-defined docker network so other services can discover each other by service name being on the same network
+      - backend  # Desired network name
+    healthcheck: # Docker monitors Redis health
+      test: ["CMD", "redis-cli", "ping"] # Runs redis-cli ping command and if healthy response is PONG
+      interval: 30s # Health check runs every 30 seconds
+      timeout: 5s # If Redis doesn't respond within 5 second fail
+      retries: 5 # After 5 failure mark container as unhealthy
+      start_period: 10s # Give container sometime to start up before judging container as healthy or unhealthy (dev - 10s, production - 30s)
+
+networks:  # Create a new custom network if it doesn't already exist
+  backend:  # network name
+    driver: bridge  # network type or driver
