@@ -2,7 +2,7 @@ package redis
 
 import (
 	"github.com/gofiber/fiber/v2"
-	redisHandlers "linklab-server/handlers/redis"
+	redisHandlers "linklab-server/modules/redis/handlers"
 )
 
 func RegisterRedisStringRoutes(router fiber.Router) {

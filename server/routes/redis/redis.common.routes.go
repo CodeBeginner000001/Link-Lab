@@ -1,7 +1,7 @@
 package redis
 
 import (
-	redisHandlers "linklab-server/handlers/redis"
+	redisHandlers "linklab-server/modules/redis/handlers"
 
 	"github.com/gofiber/fiber/v2"
 )
