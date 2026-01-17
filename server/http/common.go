@@ -1,6 +1,5 @@
 package http
 
-
 func NewBadRequest(message string) *AppError {
 	return &AppError{
 		StatusCode: 400,
@@ -21,6 +20,13 @@ func ValidationError(field, message string) *AppError {
 	}
 }
 
+func TooManyRequests(message string) *AppError {
+	return &AppError{
+		StatusCode: 429,
+		Message:    message,
+	}
+}
+
 func InvalidRequestBody() *AppError {
 	return &AppError{
 		StatusCode: 400,
@@ -31,6 +37,13 @@ func InvalidRequestBody() *AppError {
 func NotFound(message string) *AppError {
 	return &AppError{
 		StatusCode: 404,
+		Message:    message,
+	}
+}
+
+func Gone(message string) *AppError {
+	return &AppError{
+		StatusCode: 410,
 		Message:    message,
 	}
 }

@@ -29,7 +29,7 @@ func CreateStringKey(c *fiber.Ctx) error {
 	if body.TTL < 0 {
 		return httpError.ValidationError("ttl", "ttl must be >= 0 (seconds)")
 	}
-	err := redisServices.NewRedisStringService().CreateString(
+	err := redisServices.NewRedisStringService().CreateString(c.Context(),
 		body.Key,
 		body.Value,
 		time.Duration(body.TTL)*time.Second,
@@ -49,7 +49,7 @@ func GetString(c *fiber.Ctx) error {
 		return httpError.ValidationError("key", "key is required")
 	}
 
-	data, err := redisServices.NewRedisStringService().GetString(key)
+	data, err := redisServices.NewRedisStringService().GetString(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -76,7 +76,7 @@ func UpdateStringKey(c *fiber.Ctx) error {
 	if body.TTL < 0 {
 		return httpError.ValidationError("ttl", "ttl must be >= 0 (seconds)")
 	}
-	err := redisServices.NewRedisStringService().UpdateString(
+	err := redisServices.NewRedisStringService().UpdateString(c.Context(),
 		key,
 		body.Value,
 		time.Duration(body.TTL)*time.Second,
@@ -102,7 +102,7 @@ func AppendString(c *fiber.Ctx) error {
 	if body.Value == "" {
 		return httpError.ValidationError("value", "value is required")
 	}
-	length, err := redisServices.NewRedisStringService().AppendString(key, body.Value)
+	length, err := redisServices.NewRedisStringService().AppendString(c.Context(), key, body.Value)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -118,7 +118,7 @@ func StringLength(c *fiber.Ctx) error {
 	if key == "" {
 		return httpError.ValidationError("key", "key is required")
 	}
-	length, err := redisServices.NewRedisStringService().StringLength(key)
+	length, err := redisServices.NewRedisStringService().StringLength(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}

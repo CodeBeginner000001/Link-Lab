@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"linklab-server/modules/redis/repo"
 	"time"
 )
@@ -17,41 +18,41 @@ func NewRedisStringService() *RedisStringService { // Constructor that creates a
 	}
 }
 
-func (s *RedisStringService) CreateString(key string, value string, ttl time.Duration) error {
-	exists, err := s.common.Exists(key)
+func (s *RedisStringService) CreateString(ctx context.Context, key string, value string, ttl time.Duration) error {
+	exists, err := s.common.Exists(ctx, key)
 	if err != nil {
 		return err
 	}
 	if exists {
 		return ErrKeyAlreadyExists
 	}
-	return s.repo.CreateString(key, value, ttl)
+	return s.repo.CreateString(ctx, key, value, ttl)
 }
 
-func (s *RedisStringService) GetString(key string) (string, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisStringService) GetString(ctx context.Context, key string) (string, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return "", err
 	}
-	return s.repo.GetString(key)
+	return s.repo.GetString(ctx, key)
 }
 
-func (s *RedisStringService) UpdateString(key string, value string, ttl time.Duration) error {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisStringService) UpdateString(ctx context.Context, key string, value string, ttl time.Duration) error {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return err
 	}
-	return s.repo.CreateString(key, value, ttl)
+	return s.repo.CreateString(ctx, key, value, ttl)
 }
 
-func (s *RedisStringService) AppendString(key string, value string) (int64, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisStringService) AppendString(ctx context.Context, key string, value string) (int64, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return 0, err
 	}
-	return s.repo.AppendString(key, value)
+	return s.repo.AppendString(ctx, key, value)
 }
 
-func (s *RedisStringService) StringLength(key string) (int64, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisStringService) StringLength(ctx context.Context, key string) (int64, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return 0, err
 	}
-	return s.repo.StringLength(key)
+	return s.repo.StringLength(ctx, key)
 }

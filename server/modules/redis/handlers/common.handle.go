@@ -2,10 +2,11 @@ package handlers
 
 import (
 	httpError "linklab-server/http"
-	"time"
-	redisServices "linklab-server/modules/redis/services"
-	"github.com/gofiber/fiber/v2"
 	"linklab-server/modules/redis"
+	redisServices "linklab-server/modules/redis/services"
+	"time"
+
+	"github.com/gofiber/fiber/v2"
 )
 
 func RedisCommonTest(c *fiber.Ctx) error {
@@ -17,7 +18,7 @@ func Exists(c *fiber.Ctx) error {
 	if key == "" {
 		return httpError.ValidationError("key", "key is required")
 	}
-	exists, err := redisServices.NewRedisCommonService().Exists(key)
+	exists, err := redisServices.NewRedisCommonService().Exists(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -35,7 +36,7 @@ func CountKeys(c *fiber.Ctx) error {
 	if body.DataStructureType == "" {
 		return httpError.ValidationError("data_structure_type", "data_structure_type is required")
 	}
-	count, err := redisServices.NewRedisCommonService().CountKeys(body.DataStructureType)
+	count, err := redisServices.NewRedisCommonService().CountKeys(c.Context(), body.DataStructureType)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -50,7 +51,7 @@ func Delete(c *fiber.Ctx) error {
 		return httpError.ValidationError("key", "key is required")
 	}
 
-	err := redisServices.NewRedisCommonService().Delete(key)
+	err := redisServices.NewRedisCommonService().Delete(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -66,7 +67,7 @@ func GetTTL(c *fiber.Ctx) error {
 	if key == "" {
 		return httpError.ValidationError("key", "key is required")
 	}
-	ttl, err := redisServices.NewRedisCommonService().GetTTL(key)
+	ttl, err := redisServices.NewRedisCommonService().GetTTL(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -85,7 +86,7 @@ func SetTTL(c *fiber.Ctx) error {
 	if err := c.BodyParser(&body); err != nil {
 		return httpError.InvalidRequestBody()
 	}
-	err := redisServices.NewRedisCommonService().SetTTL(key, time.Duration(body.TTL)*time.Second)
+	err := redisServices.NewRedisCommonService().SetTTL(c.Context(), key, time.Duration(body.TTL)*time.Second)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}

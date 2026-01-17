@@ -29,7 +29,7 @@ func CreateHashKey(c *fiber.Ctx) error {
 	if body.TTL < 0 {
 		return httpError.ValidationError("ttl", "ttl must be >= 0 (seconds)")
 	}
-	err := redisServices.NewRedisHashService().CreateHash(
+	err := redisServices.NewRedisHashService().CreateHash(c.Context(),
 		body.Key,
 		body.Fields,
 		time.Duration(body.TTL)*time.Second,
@@ -48,7 +48,7 @@ func GetHash(c *fiber.Ctx) error {
 	if key == "" {
 		return httpError.ValidationError("key", "key is required")
 	}
-	data, err := redisServices.NewRedisHashService().GetHash(key)
+	data, err := redisServices.NewRedisHashService().GetHash(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -73,7 +73,7 @@ func UpdateHash(c *fiber.Ctx) error {
 		return httpError.ValidationError("fields", "fields must be a non-empty object of strings")
 	}
 
-	err := redisServices.NewRedisHashService().UpdateHash(key, body.Fields)
+	err := redisServices.NewRedisHashService().UpdateHash(c.Context(), key, body.Fields)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -93,7 +93,7 @@ func HashFieldExists(c *fiber.Ctx) error {
 	if field == "" {
 		return httpError.ValidationError("field", "field is required")
 	}
-	exists, err := redisServices.NewRedisHashService().HashFieldExists(key, field)
+	exists, err := redisServices.NewRedisHashService().HashFieldExists(c.Context(), key, field)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -113,7 +113,7 @@ func DeleteHashField(c *fiber.Ctx) error {
 	if field == "" {
 		return httpError.ValidationError("field", "field is required")
 	}
-	err := redisServices.NewRedisHashService().DeleteHashField(key, field)
+	err := redisServices.NewRedisHashService().DeleteHashField(c.Context(), key, field)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -139,7 +139,7 @@ func CreateORUpdateHashField(c *fiber.Ctx) error {
 	if body.Value == "" {
 		return httpError.ValidationError("value", "value is required")
 	}
-	err := redisServices.NewRedisHashService().CreateORUpdateHashField(key, body.Field, body.Value)
+	err := redisServices.NewRedisHashService().CreateORUpdateHashField(c.Context(), key, body.Field, body.Value)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}
@@ -156,7 +156,7 @@ func GetHashMeta(c *fiber.Ctx) error {
 		return httpError.ValidationError("key", "key is required")
 	}
 
-	meta, err := redisServices.NewRedisHashService().GetHashMeta(key)
+	meta, err := redisServices.NewRedisHashService().GetHashMeta(c.Context(), key)
 	if err != nil {
 		return redis.HandleRedisServiceError(err)
 	}

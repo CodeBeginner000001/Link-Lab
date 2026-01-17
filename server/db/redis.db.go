@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"linklab-server/config"
 	"log"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var (
-	Ctx         = context.Background()
 	RedisClient *redis.Client
 )
 
@@ -20,9 +20,15 @@ func ConnectRedis() {
 		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
 		Password: cfg.Password,
 		DB:       cfg.DB,
-	})
 
-	_, err := RedisClient.Ping(Ctx).Result()
+		DialTimeout:  5 * time.Second,  
+		ReadTimeout:  3 * time.Second,  
+		WriteTimeout: 3 * time.Second,
+		PoolTimeout:  4 * time.Second,
+	})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err := RedisClient.Ping(ctx).Result()
 	if err != nil {
 		log.Fatal("❌ Redis connection failed:", err)
 	}

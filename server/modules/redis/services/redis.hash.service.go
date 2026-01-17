@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"linklab-server/modules/redis/repo"
 	"time"
 )
@@ -18,39 +19,40 @@ func NewRedisHashService() *RedisHashService { // Constructor that creates and r
 }
 
 func (s *RedisHashService) CreateHash(
+	ctx context.Context,
 	key string,
 	fields map[string]string,
 	ttl time.Duration,
 ) error {
-	exists, err := s.common.Exists(key)
+	exists, err := s.common.Exists(ctx, key)
 	if err != nil {
 		return err
 	}
 	if exists {
 		return ErrKeyAlreadyExists
 	}
-	return s.repo.CreateHash(key, fields, ttl)
+	return s.repo.CreateHash(ctx, key, fields, ttl)
 }
 
-func (s *RedisHashService) GetHash(key string) (map[string]string, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisHashService) GetHash(ctx context.Context, key string) (map[string]string, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return nil, err
 	}
-	return s.repo.GetHash(key)
+	return s.repo.GetHash(ctx, key)
 }
 
-func (s *RedisHashService) UpdateHash(key string, fields map[string]string) error {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisHashService) UpdateHash(ctx context.Context, key string, fields map[string]string) error {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return err
 	}
-	return s.repo.CreateHash(key, fields, 0)
+	return s.repo.CreateHash(ctx, key, fields, 0)
 }
 
-func (s *RedisHashService) HashFieldExists(key, field string) (bool, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisHashService) HashFieldExists(ctx context.Context, key, field string) (bool, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return false, err
 	}
-	exists, err := s.repo.HashFieldExists(key, field)
+	exists, err := s.repo.HashFieldExists(ctx, key, field)
 	if err != nil {
 		return false, err
 	}
@@ -62,25 +64,25 @@ func (s *RedisHashService) HashFieldExists(key, field string) (bool, error) {
 	return true, nil
 }
 
-func (s *RedisHashService) DeleteHashField(key, field string) error {
-	if _, err := s.HashFieldExists(key, field); err != nil {
+func (s *RedisHashService) DeleteHashField(ctx context.Context, key, field string) error {
+	if _, err := s.HashFieldExists(ctx, key, field); err != nil {
 		return err
 	}
-	return s.repo.DeleteHashField(key, field)
+	return s.repo.DeleteHashField(ctx, key, field)
 }
 
-func (s *RedisHashService) CreateORUpdateHashField(key, field, value string) error {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisHashService) CreateORUpdateHashField(ctx context.Context, key, field, value string) error {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return err
 	}
-	return s.repo.CreateORUpdateHashField(key, field, value)
+	return s.repo.CreateORUpdateHashField(ctx, key, field, value)
 }
 
-func (s *RedisHashService) GetHashMeta(key string) (map[string]interface{}, error) {
-	if err := s.common.ensureKeyExists(key); err != nil {
+func (s *RedisHashService) GetHashMeta(ctx context.Context, key string) (map[string]interface{}, error) {
+	if err := s.common.ensureKeyExists(ctx, key); err != nil {
 		return nil, err
 	}
-	meta, err := s.repo.GetHashMeta(key)
+	meta, err := s.repo.GetHashMeta(ctx, key)
 	if err != nil {
 		return nil, err
 	}
