@@ -3,7 +3,6 @@ package auth
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -11,12 +10,15 @@ import (
 	"linklab-server/aws/sqs"
 	"linklab-server/config"
 	"linklab-server/db"
+	apperrors "linklab-server/errors"
+	"linklab-server/errors/autherror"
 	"linklab-server/logger"
 	"linklab-server/model"
+	redisCommonService "linklab-server/modules/redis/common"
+	redisHashService "linklab-server/modules/redis/hash"
 	"linklab-server/utils"
 
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
@@ -29,79 +31,93 @@ type EmailEvent struct {
 	HTML    string `json:"html"`
 }
 
-var releaseSignupLockScript = redis.NewScript(`
-if redis.call("GET", KEYS[1]) == ARGV[1] then
-	return redis.call("DEL", KEYS[1])
-end
-return 0
-`)
-
-func releaseSignupLock(ctx context.Context, lockKey, sessionID string) {
-	releaseSignupLockScript.Run(
-		ctx,
-		db.RedisClient,
-		[]string{lockKey},
-		sessionID,
-	).Result()
+type AuthService struct {
+	redisHash   *redisHashService.RedisHashService
+	redisCommon *redisCommonService.RedisCommonService
 }
 
-func RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterResponse, error) {
-	users := db.MongoClient.Database("linklab").Collection("users")
-	email := strings.ToLower(req.Email)
+func NewAuthService() *AuthService {
+	return &AuthService{
+		redisHash:   redisHashService.NewRedisHashService(),
+		redisCommon: redisCommonService.NewRedisCommonService(),
+	}
+}
+
+func toStr(v int64) string {
+	return strconv.FormatInt(v, 10)
+}
+
+func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
+	if err := db.EnsureMongo(); err != nil {
+		logger.Error("registerUserService: mongodb unavailable: ", err)
+		return nil, apperrors.ErrMongo
+	}
+
+	users := db.MongoDB.Collection("users")
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
 	var existinguser model.User
 	err := users.FindOne(ctx, bson.M{
 		"email": email,
 	}).Decode(&existinguser)
+
 	if err == nil {
-		return nil, ErrUserAlreadyExists
+		return nil, apperrors.WrapAuth(autherror.ErrUserAlreadyExists)
 	}
 	if err != mongo.ErrNoDocuments {
-		return nil, err
+		logger.Error("registerUserService: mongodb find failed: ", err)
+		return nil, apperrors.ErrMongo
 	}
+
 	sessionID := uuid.NewString()
 	lockKey := "signup_lock:" + email
-	locked, err := db.RedisClient.SetNX(
+	locked, err := s.redisCommon.AcquireLock(
 		ctx,
 		lockKey,
 		sessionID,
 		config.SignupSessionTTL,
-	).Result()
+	)
 	if err != nil {
-		return nil, err
+		logger.Error("registerUserService: failed to acquire signup lock: ", err)
+		return nil, apperrors.ErrRedis
 	}
 	if !locked {
-		return nil, ErrSignupAlreadyInProgress
+		return nil, apperrors.WrapAuth(autherror.ErrSignupAlreadyInProgress)
 	}
+
 	var success bool
 	defer func() {
 		if !success {
-			releaseSignupLock(ctx, lockKey, sessionID)
+			if err := s.redisCommon.ReleaseLock(ctx, lockKey, sessionID); err != nil {
+				logger.Error("registerUserService: failed to release signup lock: ", err)
+			}
 		}
 	}()
 
-	sessionKey := "signup:" + sessionID
 	hashedPassword, err := utils.HashPassword(req.Password, 10)
 	if err != nil {
-		return nil, err
+		logger.Error("registerUserService: password hashing failed: ", err)
+		return nil, apperrors.ErrUtils
 	}
+
+	sessionKey := "signup:" + sessionID
 	otp := utils.GenerateOTP(6)
 	now := time.Now()
-	err = db.RedisClient.HSet(ctx, sessionKey, map[string]interface{}{
+	err = s.redisHash.CreateHash(ctx, sessionKey, map[string]string{
 		"name":                req.Name,
 		"email":               email,
 		"password":            string(hashedPassword),
 		"otp":                 otp,
-		"otp_attempts":        0,
-		"otp_reattempts":      0,
-		"otp_resend_cooldown": now.Add(config.ResendCoolDown).Unix(),
-		"otp_expires_at":      now.Add(config.OtpExpirationTime).Unix(),
-	}).Err()
+		"otp_attempts":        toStr(0),
+		"otp_resend_attempts": toStr(0),
+		"otp_resend_after":    toStr(now.Add(config.ResendCoolDown).Unix()),
+		"otp_expires_at":      toStr(now.Add(config.OtpExpirationTime).Unix()),
+	}, config.SignupSessionTTL)
 	if err != nil {
-		return nil, err
+		logger.Error("registerUserService: redis hash create failed: ", err)
+		return nil, apperrors.ErrRedis
 	}
-	if err := db.RedisClient.Expire(ctx, sessionKey, config.SignupSessionTTL).Err(); err != nil {
-		return nil, err
-	}
+
 	emailEvent := EmailEvent{
 		Name:    "LinkLab",
 		To:      email,
@@ -120,56 +136,95 @@ func RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterRes
 	}
 	payload, err := json.Marshal(emailEvent)
 	if err != nil {
-		log.Printf("SQS send failed: %+v", err)
-		return nil, err
+		logger.Error("registerUserService: marshal email event failed: ", err, logger.F("email", email))
+		return nil, apperrors.ErrUtils
 	}
 	err = sqs.Send(
 		ctx,
 		sqs.GetClient(),
-		config.SQSSignupQueueURL,
+		config.SQSQueueURL,
 		string(payload),
 	)
 	if err != nil {
-		return nil, err
+		logger.Error("registerUserService: SQS send failed: ", err, logger.F("email", email))
+		return nil, apperrors.ErrSQS
 	}
 	success = true
-	return &RegisterResponse{
+	return &RegisterServiceResponse{
 		Email:     req.Email,
 		SessionId: sessionID,
-		Message:   "Signup process initiated. OTP sent successfully",
+		Message:   "Check your email to verify your account",
 	}, nil
 }
 
-func VerifyOTPService(ctx context.Context, sessionId string, otp string) (*model.User, error) {
-	redisSessionKey := "signup:" + sessionId
-	data, err := db.RedisClient.HGetAll(ctx, redisSessionKey).Result()
+func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, otp string) (*model.User, error) {
+	sessionKey := "signup:" + sessionId
+	data, err := s.redisHash.GetHash(ctx, sessionKey)
 	if err != nil || len(data) == 0 {
-		logger.Error("redis hash key expired ", err)
-		return nil, ErrSessionExpired
+		logger.Error("verifyOTPService: failed to fetch signup session: ", err, logger.F("key", sessionKey))
+		return nil, apperrors.WrapAuth(autherror.ErrSessionExpired)
 	}
+	requiredFields := []string{
+		"email", "otp", "otp_attempts",
+		"otp_expires_at", "name", "password",
+	}
+	for _, field := range requiredFields {
+		if v, ok := data[field]; !ok || v == "" {
+			logger.Error(
+				"verifyOTPService: missing required field: ",
+				err,
+				logger.F("field", field),
+			)
+			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+		}
+	}
+
 	otpExpiresAt, err := strconv.ParseInt(data["otp_expires_at"], 10, 64)
 	if err != nil {
-		return nil, ErrSessionCorrupted
+		logger.Error(
+			"verifyOTPService: invalid otp_expires_at value: ",
+			err,
+			logger.F("value", data["otp_expires_at"]),
+		)
+		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
+
 	if time.Now().Unix() > otpExpiresAt {
-		releaseSignupLock(ctx, "signup_lock:"+data["email"], sessionId)
-		db.RedisClient.Del(ctx, redisSessionKey)
-		return nil, ErrOTPExpired
+		return nil, apperrors.WrapAuth(autherror.ErrOTPExpired)
 	}
+
 	attempts, err := strconv.Atoi(data["otp_attempts"])
 	if err != nil {
-		return nil, ErrSessionCorrupted
+		logger.Error(
+			"verifyOTPService: invalid otp_attempts value: ",
+			err,
+			logger.F("value", data["otp_attempts"]),
+		)
+		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
 	if attempts >= config.OTPAttempts {
-		releaseSignupLock(ctx, "signup_lock:"+data["email"], sessionId)
-		db.RedisClient.Del(ctx, redisSessionKey)
-		return nil, ErrTooManyAttempts
+		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+			logger.Error("verifyOTPService: release signup lock failed: ", err)
+		}
+		if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+			logger.Error("verifyOTPService: delete signup session failed: ", err)
+		}
+		return nil, apperrors.WrapAuth(autherror.ErrTooManyAttempts)
 	}
+
 	if data["otp"] != otp {
-		db.RedisClient.HIncrBy(ctx, redisSessionKey, "otp_attempts", 1)
-		return nil, ErrInvalidOTP
+		if _, err := s.redisHash.IncrementField(ctx, sessionKey, "otp_attempts", 1); err != nil {
+			logger.Error("verifyOTPService: increment otp_attempts failed: ", err, logger.F("key", sessionKey))
+		}
+		return nil, apperrors.WrapAuth(autherror.ErrInvalidOTP)
 	}
-	users := db.MongoClient.Database("linklab").Collection("users")
+
+	if err := db.EnsureMongo(); err != nil {
+		logger.Error("verifyOTPService: mongodb unavailable", err)
+		return nil, apperrors.ErrMongo
+	}
+
+	users := db.MongoDB.Collection("users")
 	user := model.User{
 		Email:     data["email"],
 		Name:      data["name"],
@@ -179,46 +234,102 @@ func VerifyOTPService(ctx context.Context, sessionId string, otp string) (*model
 	res, err := users.InsertOne(ctx, user)
 	if err != nil {
 		if mongo.IsDuplicateKeyError(err) {
-			return nil, ErrUserAlreadyExists
+			logger.Error("verifyOTPService: duplicate user insert: ", err)
+			return nil, apperrors.WrapAuth(autherror.ErrUserAlreadyExists)
 		}
-		logger.Error("mongodb error in verifyotp route", err)
-		return nil, err
+		logger.Error("verifyOTPService: mongoDB insert failed: ", err, logger.F("email", data["email"]))
+		return nil, apperrors.ErrMongo
 	}
+
 	user.ID = res.InsertedID.(primitive.ObjectID)
-	releaseSignupLock(ctx, "signup_lock:"+data["email"], sessionId)
-	db.RedisClient.Del(ctx, redisSessionKey)
+	lockKey := "signup_lock:" + data["email"]
+
+	if err := s.redisCommon.ReleaseLock(ctx, lockKey, sessionId); err != nil {
+		logger.Error("verifyOTPService: release signup lock failed: ", err)
+	}
+
+	if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+		logger.Error("verifyOTPService: delete signup session failed: ", err)
+	}
+
 	return &user, nil
 }
 
-func ResendOTPService(ctx context.Context, sessionId string) error {
-	redisSessionKey := "signup:" + sessionId
-	data, err := db.RedisClient.HGetAll(ctx, redisSessionKey).Result()
+func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) error {
+	sessionKey := "signup:" + sessionId
+	data, err := s.redisHash.GetHash(ctx, sessionKey)
 	if err != nil || len(data) == 0 {
-		logger.Error("redis hash key expired ", err)
-		return ErrSessionExpired
+		logger.Error("resendOTPService: failed to fetch signup session: ", err, logger.F("key", sessionKey))
+		return apperrors.WrapAuth(autherror.ErrSessionExpired)
 	}
-	reattempts, _ := strconv.Atoi(data["otp_reattempts"])
+
+	reattempts, err := strconv.Atoi(data["otp_resend_attempts"])
+	if err != nil {
+		logger.Error(
+			"resendOTPService: invalid otp_resend_attempts value: ",
+			err,
+			logger.F("value", data["otp_resend_attempts"]),
+		)
+		return apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+	}
 	if reattempts >= config.MaxOTPResendAttempts {
-		releaseSignupLock(ctx, "signup_lock:"+data["email"], sessionId)
-		db.RedisClient.Del(ctx, redisSessionKey)
-		return ErrTooManyAttempts
+		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+			logger.Error("resendOTPService: release signup lock failed: ", err)
+		}
+		if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+			logger.Error("resendOTPService: delete signup session failed: ", err)
+		}
+		return apperrors.WrapAuth(autherror.ErrTooManyAttempts)
 	}
-	if next, ok := data["otp_resend_cooldown"]; ok {
-		nextResendAt, _ := strconv.ParseInt(next, 10, 64)
+
+	if next, ok := data["otp_resend_after"]; ok {
+		nextResendAt, err := strconv.ParseInt(next, 10, 64)
+		if err != nil {
+			logger.Error(
+				"resendOTPService: invalid otp_resend_after: ",
+				err,
+				logger.F("value", next),
+			)
+			return apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+		}
 		if time.Now().Unix() < nextResendAt {
-			return ErrResendCoolDownTime
+			return apperrors.WrapAuth(autherror.ErrResendCooldown)
 		}
 	}
+
 	newOTP := utils.GenerateOTP(6)
-	_, err = db.RedisClient.HSet(ctx, redisSessionKey, map[string]interface{}{
-		"otp":                 newOTP,
-		"otp_reattempts":      reattempts + 1,
-		"otp_resend_cooldown": time.Now().Add(config.ResendCoolDown).Unix(),
-		"otp_expires_at":      time.Now().Add(config.OtpExpirationTime).Unix(),
-	}).Result()
+
+	err = s.redisHash.CreateORUpdateHashFieldStrict(ctx, sessionKey, "otp", newOTP)
 	if err != nil {
-		return err
+		logger.Error("resendOTPService: otp update failed: ", err)
+		return apperrors.ErrRedis
 	}
+	_, err = s.redisHash.IncrementField(ctx, sessionKey, "otp_resend_attempts", 1)
+	if err != nil {
+		logger.Error("resendOTPService: failed to increment otp_resend_attempts: ", err, logger.F("key", sessionKey))
+		return apperrors.ErrRedis
+	}
+	err = s.redisHash.CreateORUpdateHashFieldStrict(
+		ctx,
+		sessionKey,
+		"otp_resend_after",
+		toStr(time.Now().Add(config.ResendCoolDown).Unix()),
+	)
+	if err != nil {
+		logger.Error("resendOTPService: failed to reset otp_resend_after: ", err)
+		return apperrors.ErrRedis
+	}
+	err = s.redisHash.CreateORUpdateHashFieldStrict(
+		ctx,
+		sessionKey,
+		"otp_expires_at",
+		toStr(time.Now().Add(config.OtpExpirationTime).Unix()),
+	)
+	if err != nil {
+		logger.Error("resendOTPService: failed to reset otp_expires_at: ", err)
+		return apperrors.ErrRedis
+	}
+
 	emailEvent := EmailEvent{
 		Name:    "LinkLab",
 		To:      data["email"],
@@ -237,17 +348,109 @@ func ResendOTPService(ctx context.Context, sessionId string) error {
 	}
 	payload, err := json.Marshal(emailEvent)
 	if err != nil {
-		log.Printf("SQS send failed: %+v", err)
-		return err
+		logger.Error("resendOTPService: marshal email event failed: ", err, logger.F("email", data["email"]))
+		return apperrors.ErrUtils
 	}
 	err = sqs.Send(
 		ctx,
 		sqs.GetClient(),
-		config.SQSSignupQueueURL,
+		config.SQSQueueURL,
 		string(payload),
 	)
 	if err != nil {
-		return err
+		logger.Error("resendOTPService: SQS send failed: ", err)
+		return apperrors.ErrSQS
 	}
 	return nil
+}
+
+func (s *AuthService) LogoutService(ctx context.Context, refreshToken string) error {
+	if refreshToken == "" {
+		return nil
+	}
+	blackListKey := "blacklist:refresh:" + refreshToken
+
+	if err := s.redisCommon.Blacklist(
+		ctx,
+		blackListKey,
+		config.RefreshTokenTTL,
+	); err != nil {
+		logger.Error("logoutService: failed to blacklist refresh token", err)
+	}
+	return nil
+}
+
+func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*model.User, error) {
+	if req.Email == "" || req.Password == "" {
+		logger.Error("loginService: email and password missing: ", nil)
+		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
+	}
+
+	if err := db.EnsureMongo(); err != nil {
+		logger.Error("loginService: mongodb unavailable: ", err)
+		return nil, apperrors.ErrMongo
+	}
+
+	users := db.MongoDB.Collection("users")
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	var user model.User
+	err := users.FindOne(ctx, bson.M{
+		"email": email,
+	}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
+		}
+		logger.Error("loginService: mongodb find failed: ", err, logger.F("email", email))
+		return nil, apperrors.ErrMongo
+	}
+	if err := utils.ComparePassword(user.Password, req.Password); err != nil {
+		logger.Error("loginService: compare password failed: ", err)
+		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
+	}
+
+	return &user, nil
+}
+
+func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	blackListKey := "blacklist:refresh:" + refreshToken
+
+	exists, err := s.redisCommon.Exists(ctx, blackListKey)
+	if err != nil {
+		logger.Error("refreshTokenService: check refresh token existence failed: ", err)
+		return nil, apperrors.ErrRedis
+	}
+	if exists {
+		return nil, apperrors.WrapAuth(autherror.ErrSessionExpired)
+	}
+	claims, err := utils.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		logger.Error("refreshTokenService: refresh token validation failed: ", err)
+		return nil, apperrors.WrapAuth(autherror.ErrInvalidToken)
+	}
+	newAccess, err := utils.GenerateAccessToken(claims.UserID)
+	if err != nil {
+		logger.Error("refreshTokenService: access token generation failed: ", err)
+		return nil, apperrors.ErrUtils
+	}
+
+	newRefresh, err := utils.GenerateRefreshToken(claims.UserID)
+	if err != nil {
+		logger.Error("refreshTokenService: refresh token generation failed: ", err)
+		return nil, apperrors.ErrUtils
+	}
+
+	if err := s.redisCommon.Blacklist(
+		ctx,
+		blackListKey,
+		config.RefreshTokenTTL,
+	); err != nil {
+		logger.Error("refreshTokenService: failed to blacklist refresh token: ", err)
+	}
+
+	return &TokenPair{
+		AccessToken:  newAccess,
+		RefreshToken: newRefresh,
+	}, nil
 }

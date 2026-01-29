@@ -10,11 +10,12 @@ const (
 	Env      = "dev"
 	LogLevel = "info"
 
-	OTPAttempts       = 10
+	OTPAttempts          = 10
 	MaxOTPResendAttempts = 5
-	ResendCoolDown = 1 * time.Minute
-	OtpExpirationTime = 1 * time.Minute
-	SignupSessionTTL  = 15 * time.Minute
+	ResendCoolDown       = 1 * time.Minute
+	OtpExpirationTime    = 1 * time.Minute
+	SignupSessionTTL     = 15 * time.Minute
+	ForgotPasswordTTL    = 10 * time.Minute
 )
 
 var (

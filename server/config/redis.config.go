@@ -8,6 +8,11 @@ type RedisConfig struct {
 	Password string
 	DB int
 	TTL time.Duration
+
+	ConnectTimeoutSeconds int
+	MaxRetries            int
+	RetryDelaySeconds     int
+	CooldownSeconds       int
 }
 
 func LoadRedisConfig() RedisConfig {
@@ -17,5 +22,10 @@ func LoadRedisConfig() RedisConfig {
 		Password: "",
 		DB: 0,
 	    TTL: time.Hour,
+
+		ConnectTimeoutSeconds: 5,
+		MaxRetries:            5,
+		RetryDelaySeconds:     2,
+		CooldownSeconds:       30,
 	}
 }

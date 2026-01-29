@@ -15,12 +15,11 @@ func RegisterAuthRoutes(router fiber.Router) {
 	auth.Post("/signup", middlewares.ValidateBody[authHandlers.RegisterRequest](), authHandlers.RegisterUser)
 	auth.Post("/otp/verify",middlewares.ValidateBody[authHandlers.VerifyOTPRequest](), authHandlers.VerifyOTP)
 	auth.Post("/otp/resend", authHandlers.ResendOTP)
-
-	// auth.Post("/login")
-	// auth.Post("/logout")
-
-	// auth.Post("/refresh")
+	auth.Post("/login", middlewares.ValidateBody[authHandlers.LoginRequest](),authHandlers.Login)
+	auth.Post("/logout", authHandlers.Logout)
+	auth.Post("/refresh",authHandlers.RefreshToken)
 	
-	// auth.Post("/password/forget")
+	// auth.Post("/password/forget", middlewares.ValidateBody[authHandlers.ForgetPasswordRequest](), authHandlers.ForgetPassword)
+	// auth.Post("/password/verify")
 	// auth.Post("/password/reset")
 }

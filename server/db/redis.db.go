@@ -3,34 +3,103 @@ package db
 import (
 	"context"
 	"fmt"
-	"linklab-server/config"
-	"log"
+	"sync/atomic"
 	"time"
+
+	"linklab-server/config"
+	"linklab-server/logger"
 
 	"github.com/redis/go-redis/v9"
 )
 
 var (
-	RedisClient *redis.Client
+	RedisClient  *redis.Client
+	redisHealthy atomic.Bool
 )
 
 func ConnectRedis() {
 	cfg := config.LoadRedisConfig()
-	RedisClient = redis.NewClient(&redis.Options{
-		Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
-		Password: cfg.Password,
-		DB:       cfg.DB,
 
-		DialTimeout:  5 * time.Second,  
-		ReadTimeout:  3 * time.Second,  
-		WriteTimeout: 3 * time.Second,
-		PoolTimeout:  4 * time.Second,
-	})
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_, err := RedisClient.Ping(ctx).Result()
-	if err != nil {
-		log.Fatal("❌ Redis connection failed:", err)
+	for {
+		for attempt := 1; attempt <= cfg.MaxRetries; attempt++ {
+			logger.Info(fmt.Sprintf("🔄 Redis connection attempt %d/%d\n", attempt, cfg.MaxRetries))
+
+			client := redis.NewClient(&redis.Options{
+				Addr:     fmt.Sprintf("%s:%s", cfg.Host, cfg.Port),
+				Password: cfg.Password,
+				DB:       cfg.DB,
+
+				DialTimeout:  time.Duration(cfg.ConnectTimeoutSeconds) * time.Second,
+				ReadTimeout:  3 * time.Second,
+				WriteTimeout: 3 * time.Second,
+				PoolTimeout:  4 * time.Second,
+			})
+
+			ctx, cancel := context.WithTimeout(
+				context.Background(),
+				time.Duration(cfg.ConnectTimeoutSeconds)*time.Second,
+			)
+
+			err := client.Ping(ctx).Err()
+			cancel()
+
+			if err == nil {
+				RedisClient = client
+				redisHealthy.Store(true)
+				logger.Info("✅ Redis connected successfully")
+				return
+			}
+
+			logger.Error("❌ Redis connection failed: ", err)
+			time.Sleep(time.Duration(cfg.RetryDelaySeconds) * time.Second)
+		}
+
+		logger.Info(fmt.Sprintf(
+			"⏳ Redis connection failed after %d attempts. Retrying after %d seconds...\n",
+			cfg.MaxRetries,
+			cfg.CooldownSeconds,
+		))
+
+		time.Sleep(time.Duration(cfg.CooldownSeconds) * time.Second)
 	}
-	log.Println("✅ Redis connected successfully")
+}
+
+func IsRedisHealthy() bool {
+	return redisHealthy.Load()
+}
+
+func MonitorRedis() {
+	cfg := config.LoadRedisConfig()
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	for range ticker.C {
+		if RedisClient == nil {
+			redisHealthy.Store(false)
+			continue
+		}
+
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			time.Duration(cfg.ConnectTimeoutSeconds)*time.Second,
+		)
+
+		err := RedisClient.Ping(ctx).Err()
+		cancel()
+
+		if err != nil {
+			if redisHealthy.Load() {
+				logger.Warn("⚠️ Redis became unavailable, reconnecting...")
+			}
+			redisHealthy.Store(false)
+			ConnectRedis()
+			continue
+		}
+
+		if !redisHealthy.Load() {
+			logger.Info("✅ Redis connection restored")
+		}
+
+		redisHealthy.Store(true)
+	}
 }

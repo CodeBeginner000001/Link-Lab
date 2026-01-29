@@ -20,7 +20,9 @@ func main() {
 	defer cancel()
 
 	db.ConnectMongo()
+	go db.MonitorMongo()
 	db.ConnectRedis()
+	go db.MonitorRedis()
 
 	sqsClient := sqs.NewClient(ctx)
 	sqs.SetClient(sqsClient)
@@ -29,16 +31,18 @@ func main() {
 		AppName: "LinkLab Auth API",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			if appErr, ok := err.(*http.AppError); ok {
-				return c.Status(appErr.StatusCode).JSON(fiber.Map{
-					"success": false,
-					"message": appErr.Message,
-					"errors":  appErr.Fields,
+				return c.Status(appErr.StatusCode).JSON(http.APIResponse{
+					Success: false,
+					Message: appErr.Message,
+					Errors:  appErr.Fields,
 				})
 			}
 
-			return c.Status(500).JSON(fiber.Map{
-				"success": false,
-				"message": "Internal server error",
+			logger.Error("Error from Main.go", err)
+
+			return c.Status(500).JSON(http.APIResponse{
+				Success: false,
+				Message: "Internal server error",
 			})
 		},
 	})

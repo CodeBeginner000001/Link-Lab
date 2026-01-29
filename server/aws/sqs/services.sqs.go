@@ -2,6 +2,7 @@ package sqs
 
 import (
 	"context"
+	"linklab-server/errors/sqserror"
 	"linklab-server/logger"
 
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -21,9 +22,9 @@ func Send(
 
 	if err != nil {
 		logger.Error("SQS ERROR: %v", err)
-		return err
+		return sqserror.ErrSQSSendFailed
 	}
 
-	logger.Info("SQS Message push successfully", logger.F("MessageId", *out.MessageId), logger.F("Queue URL", queueURL))
+	logger.Info("SQS push successfully", logger.F("MessageId", *out.MessageId), logger.F("Queue URL", queueURL))
 	return nil
 }
