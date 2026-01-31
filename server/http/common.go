@@ -1,5 +1,6 @@
 package http
 
+
 func Sucess(message string) *AppError {
 	return &AppError{
 		StatusCode: 200,
@@ -20,7 +21,6 @@ func UnAuthorized(message string) *AppError {
 		Message:    message,
 	}
 }
-
 
 func Forbidden(message string) *AppError {
 	return &AppError{
@@ -54,7 +54,7 @@ func ValidationError(field, message string) *AppError {
 	return &AppError{
 		StatusCode: 422,
 		Message:    "Validation failed",
-		Fields:     []FieldError{
+		Fields: []FieldError{
 			{
 				Field: field,
 				Error: message,
@@ -87,6 +87,6 @@ func InternalServerError(message string) *AppError {
 func InvalidRequestBody() *AppError {
 	return &AppError{
 		StatusCode: 400,
-		Message:    "Invalid request body",
+		Message:    "Invalid Data",
 	}
 }

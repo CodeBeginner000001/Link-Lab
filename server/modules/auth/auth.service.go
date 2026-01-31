@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,7 @@ import (
 	"linklab-server/db"
 	apperrors "linklab-server/errors"
 	"linklab-server/errors/autherror"
+	"linklab-server/errors/rediserror"
 	"linklab-server/logger"
 	"linklab-server/model"
 	redisCommonService "linklab-server/modules/redis/common"
@@ -86,10 +88,21 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 	}
 
 	var success bool
+	var sessionCreated bool
 	defer func() {
-		if !success {
-			if err := s.redisCommon.ReleaseLock(ctx, lockKey, sessionID); err != nil {
-				logger.Error("registerUserService: failed to release signup lock: ", err)
+		if success {
+			return
+		}
+		if sessionCreated {
+			if err := s.redisCommon.DeleteStrict(ctx, "signup:"+sessionID); err != nil {
+				logger.Error("registerUserService: failed to delete signup session: ", err)
+			}
+		}
+		if err := s.redisCommon.ReleaseLock(ctx, lockKey, sessionID); err != nil {
+			if errors.Is(err, rediserror.ErrLockNotOwned) {
+				logger.Debug("signup lock already released or expired", logger.F("key", lockKey))
+			} else {
+				logger.Error("registerUserService: failed to release signup lock", err)
 			}
 		}
 	}()
@@ -117,7 +130,8 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		logger.Error("registerUserService: redis hash create failed: ", err)
 		return nil, apperrors.ErrRedis
 	}
-
+	success = true
+	sessionCreated = true
 	emailEvent := EmailEvent{
 		Name:    "LinkLab",
 		To:      email,
@@ -139,21 +153,20 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		logger.Error("registerUserService: marshal email event failed: ", err, logger.F("email", email))
 		return nil, apperrors.ErrUtils
 	}
-	err = sqs.Send(
-		ctx,
-		sqs.GetClient(),
-		config.SQSQueueURL,
-		string(payload),
-	)
-	if err != nil {
-		logger.Error("registerUserService: SQS send failed: ", err, logger.F("email", email))
-		return nil, apperrors.ErrSQS
-	}
-	success = true
+	go func() {
+		if err := sqs.Send(
+			ctx,
+			sqs.GetClient(),
+			config.SQSQueueURL,
+			string(payload),
+		); err != nil {
+			logger.Error("async SQS send failed", err, logger.F("email", email))
+		}
+	}()
+
 	return &RegisterServiceResponse{
-		Email:     req.Email,
 		SessionId: sessionID,
-		Message:   "Check your email to verify your account",
+		Message:   "Verification code sent to your email",
 	}, nil
 }
 

@@ -37,11 +37,8 @@ func (c *RedisCommonService) AcquireLock(
 		logger.Error("acquireLock: SetNX repo failed: ", err)
 		return false, apperrors.WrapRedis(err)
 	}
-	if !locked {
-		return false, apperrors.WrapRedis(rediserror.ErrLockNotAcquired)
-	}
 
-	return true, nil
+	return locked, nil
 }
 
 func (c *RedisCommonService) ReleaseLock(

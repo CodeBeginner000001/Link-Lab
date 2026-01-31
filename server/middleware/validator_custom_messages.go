@@ -17,7 +17,7 @@ func getValidationMessage(e validator.FieldError) string {
 	case "gte":
 		return "should be of greater than expected value"
 	case "password":
-		return "password must contain at least 1 uppercase letter, 1 lowercase letter, 1 number, and 1 special character"
+		return "should be a mixture of Uppercase, Lowercase, Number, Special character"
 	default:
 		return "is invalid"
 	}

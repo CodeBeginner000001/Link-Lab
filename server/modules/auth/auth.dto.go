@@ -7,7 +7,6 @@ type RegisterRequest struct {
 }
 
 type RegisterServiceResponse struct {
-	Email     string `json:"email"`
 	SessionId string `json:"sessionId"`
 	Message   string `json:"message"`
 }

@@ -1,7 +1,5 @@
-"use client"
-
-import SignUpForm from "@/modules/auth/pages/SignUpForm"
+import SignUp from "@/modules/auth/pages/SignUp"
 
 export default function Page() {
-    return <SignUpForm />
+    return <SignUp />
 }

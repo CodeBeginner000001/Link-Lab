@@ -7,20 +7,10 @@ import {
 } from "@/components/ui/InputOTP";
 import { motion } from "framer-motion";
 import { Loader2, Mail, RefreshCw } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import {
-  AUTH_SUCCESS_ROUTE_MAP,
-  AuthFlowSource,
-  AuthSuccessFlow,
-} from "../constants/auth-routing";
 
 const count = 5;
 export default function OTPVerification() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const from = searchParams.get("from") as AuthSuccessFlow;
 
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
@@ -51,7 +41,6 @@ export default function OTPVerification() {
     setTimeout(() => {
       console.log("OTP submitted");
       setLoading(false);
-      router.push(AUTH_SUCCESS_ROUTE_MAP[from]);
     }, 500);
   };
 
