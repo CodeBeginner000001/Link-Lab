@@ -166,8 +166,39 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 
 	return &RegisterServiceResponse{
 		SessionId: sessionID,
+		Email:     email,
 		Message:   "Verification code sent to your email",
 	}, nil
+}
+
+func (s *AuthService) GetSignupSessionDataService(ctx context.Context, sessionId string) (*SignupSessionInfoResponse, error) {
+	sessionKey := "signup:" + sessionId
+	data, err := s.redisHash.GetHash(ctx, sessionKey)
+	if err != nil || len(data) == 0 {
+		logger.Error("verifyOTPService: failed to fetch signup session: ", err, logger.F("key", sessionKey))
+		return nil, apperrors.WrapAuth(autherror.ErrSessionExpired)
+	}
+	requiredFields := []string{
+		"email", "otp_resend_after",
+	}
+	values := make(map[string]string, len(requiredFields))
+	for _, field := range requiredFields {
+		v, ok := data[field]
+		if !ok || v == "" {
+			logger.Error(
+				"verifyOTPService: missing required field: ",
+				err,
+				logger.F("field", field),
+			)
+			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+		}
+		values[field] = v
+	}
+	return &SignupSessionInfoResponse{
+		Email:          values["email"],
+		OTPResendAfter: values["otp_resend_after"],
+	}, nil
+
 }
 
 func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, otp string) (*model.User, error) {
@@ -268,12 +299,12 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 	return &user, nil
 }
 
-func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) error {
+func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*ResendOTPResponse, error) {
 	sessionKey := "signup:" + sessionId
 	data, err := s.redisHash.GetHash(ctx, sessionKey)
 	if err != nil || len(data) == 0 {
 		logger.Error("resendOTPService: failed to fetch signup session: ", err, logger.F("key", sessionKey))
-		return apperrors.WrapAuth(autherror.ErrSessionExpired)
+		return nil, apperrors.WrapAuth(autherror.ErrSessionExpired)
 	}
 
 	reattempts, err := strconv.Atoi(data["otp_resend_attempts"])
@@ -283,7 +314,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 			err,
 			logger.F("value", data["otp_resend_attempts"]),
 		)
-		return apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
 	if reattempts >= config.MaxOTPResendAttempts {
 		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
@@ -292,7 +323,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 		if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
 			logger.Error("resendOTPService: delete signup session failed: ", err)
 		}
-		return apperrors.WrapAuth(autherror.ErrTooManyAttempts)
+		return nil, apperrors.WrapAuth(autherror.ErrTooManyAttempts)
 	}
 
 	if next, ok := data["otp_resend_after"]; ok {
@@ -303,10 +334,10 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 				err,
 				logger.F("value", next),
 			)
-			return apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 		}
 		if time.Now().Unix() < nextResendAt {
-			return apperrors.WrapAuth(autherror.ErrResendCooldown)
+			return nil, apperrors.WrapAuth(autherror.ErrResendCooldown)
 		}
 	}
 
@@ -315,22 +346,23 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 	err = s.redisHash.CreateORUpdateHashFieldStrict(ctx, sessionKey, "otp", newOTP)
 	if err != nil {
 		logger.Error("resendOTPService: otp update failed: ", err)
-		return apperrors.ErrRedis
+		return nil, apperrors.ErrRedis
 	}
 	_, err = s.redisHash.IncrementField(ctx, sessionKey, "otp_resend_attempts", 1)
 	if err != nil {
 		logger.Error("resendOTPService: failed to increment otp_resend_attempts: ", err, logger.F("key", sessionKey))
-		return apperrors.ErrRedis
+		return nil, apperrors.ErrRedis
 	}
+	nextResendAt := toStr(time.Now().Add(config.ResendCoolDown).Unix())
 	err = s.redisHash.CreateORUpdateHashFieldStrict(
 		ctx,
 		sessionKey,
 		"otp_resend_after",
-		toStr(time.Now().Add(config.ResendCoolDown).Unix()),
+		nextResendAt,
 	)
 	if err != nil {
 		logger.Error("resendOTPService: failed to reset otp_resend_after: ", err)
-		return apperrors.ErrRedis
+		return nil, apperrors.ErrRedis
 	}
 	err = s.redisHash.CreateORUpdateHashFieldStrict(
 		ctx,
@@ -340,7 +372,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 	)
 	if err != nil {
 		logger.Error("resendOTPService: failed to reset otp_expires_at: ", err)
-		return apperrors.ErrRedis
+		return nil, apperrors.ErrRedis
 	}
 
 	emailEvent := EmailEvent{
@@ -362,7 +394,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 	payload, err := json.Marshal(emailEvent)
 	if err != nil {
 		logger.Error("resendOTPService: marshal email event failed: ", err, logger.F("email", data["email"]))
-		return apperrors.ErrUtils
+		return nil, apperrors.ErrUtils
 	}
 	err = sqs.Send(
 		ctx,
@@ -372,9 +404,11 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) er
 	)
 	if err != nil {
 		logger.Error("resendOTPService: SQS send failed: ", err)
-		return apperrors.ErrSQS
+		return nil, apperrors.ErrSQS
 	}
-	return nil
+	return &ResendOTPResponse{
+		OTPResendAfter: nextResendAt,
+	},nil;
 }
 
 func (s *AuthService) LogoutService(ctx context.Context, refreshToken string) error {

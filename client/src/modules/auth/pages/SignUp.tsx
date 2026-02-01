@@ -1,12 +1,20 @@
+import { cookies } from "next/headers";
 import AuthDivider from "../components/AuthDivider";
 import AuthFooter from "../components/AuthFooter";
 import AuthHero from "../components/AuthHero";
-import AuthNavBar from "../components/AuthNavBar";
-import GoogleButton from "../components/GoogleButton";
-import MotionWrapper from "../components/MotionWrapper";
+import AuthNavBar from "../components/common/AuthNavBar";
+import GoogleButton from "../components/common/GoogleButton";
+import MotionWrapper from "../components/common/MotionWrapper";
 import SignUpForm from "../components/SignUpForm";
+import { redirect } from "next/navigation";
+import { Bounce, toast } from "react-toastify";
 
-export default function SignUp() {
+export default async function SignUp() {
+  const cookieStore = await cookies();
+  const signupSession = cookieStore.get("signup_session");
+  if (signupSession) {
+    redirect('/signup/verify/OTP')
+  }
   return (
     <>
       <AuthNavBar link="/" />

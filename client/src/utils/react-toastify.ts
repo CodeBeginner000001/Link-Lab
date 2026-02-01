@@ -13,7 +13,7 @@ export function useToastNotification() {
     };
     toastMap[type](message, {
       position: "top-right",
-      autoClose: 5000,
+      autoClose: 2000,
       hideProgressBar: false,
       closeOnClick: false,
       pauseOnHover: true,
@@ -23,3 +23,17 @@ export function useToastNotification() {
     });
   };
 }
+
+export function notification(message: string) {
+  return toast.info(message, {
+    position: "top-right",
+    autoClose: 2000,
+    hideProgressBar: false,
+    closeOnClick: false,
+    pauseOnHover: true,
+    draggable: true,
+    theme: "dark",
+    transition: Bounce,
+  });
+}
+

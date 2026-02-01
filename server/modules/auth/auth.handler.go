@@ -32,13 +32,29 @@ func RegisterUser(c *fiber.Ctx) error {
 	c.Cookie(&fiber.Cookie{
 		Name:     "signup_session",
 		Value:    resData.SessionId,
-		Path:     "/v1/auth/otp/verify",
+		Path:     "/",
 		HTTPOnly: true,
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Expires:  time.Now().Add(config.SignupSessionTTL),
 	})
-	return http.Success(c, "User registeration process initiated", resData)
+	return http.Success(c, "User registeration process initiated", fiber.Map{
+		"email":   resData.Email,
+		"message": resData.Message,
+	})
+}
+
+func GetSignupSessionHandler(c *fiber.Ctx) error {
+	sessionId := c.Cookies("signup_session")
+	if sessionId == "" {
+		logger.Debug("resendOTP: signup session missing")
+		return http.UnAuthorized("Signup session expired")
+	}
+	sessionData, err := authService.GetSignupSessionDataService(c.Context(), sessionId)
+	if err != nil {
+		return apperrors.HandleError(err)
+	}
+	return http.Success(c, "Signup session active", sessionData)
 }
 
 func VerifyOTP(c *fiber.Ctx) error {
@@ -91,16 +107,17 @@ func VerifyOTP(c *fiber.Ctx) error {
 func ResendOTP(c *fiber.Ctx) error {
 	sessionId := c.Cookies("signup_session")
 	if sessionId == "" {
-		logger.Debug("resendOTP: signup session missing")
+		logger.Error("resendOTP: signup session missing", nil)
 		return http.UnAuthorized("Signup session expired")
 	}
 
-	if err := authService.ResendOTPService(c.Context(), sessionId); err != nil {
+	resendOTPData, err := authService.ResendOTPService(c.Context(), sessionId)
+	if err != nil {
 		logger.Error("resendOTP: api failed due to: ", err)
 		return apperrors.HandleError(err)
 	}
 
-	return http.Success(c, "OTP sent successfully", nil)
+	return http.Success(c, "OTP sent successfully", resendOTPData)
 }
 
 func Login(c *fiber.Ctx) error {

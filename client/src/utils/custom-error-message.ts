@@ -2,7 +2,7 @@ import { SignUpApiResponse } from "@/interfaces/api";
 
 export function getUserFriendlyMessage(res: SignUpApiResponse) {
   if ("error" in res) {
-    console.log(res.error.message)
+    console.log(res)
     switch (res.statusCode) {
       case 400:
         return "Invalid request. Please check your input.";

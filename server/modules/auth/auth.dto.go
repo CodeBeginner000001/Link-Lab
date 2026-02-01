@@ -8,7 +8,17 @@ type RegisterRequest struct {
 
 type RegisterServiceResponse struct {
 	SessionId string `json:"sessionId"`
+	Email string `json:"email"`
 	Message   string `json:"message"`
+}
+
+type SignupSessionInfoResponse struct {
+	Email          string `json:"email"`
+	OTPResendAfter string `json:"otp_resend_after"`
+}
+
+type ResendOTPResponse struct {
+	OTPResendAfter string `json:"otp_resend_after"`
 }
 
 type VerifyOTPRequest struct {

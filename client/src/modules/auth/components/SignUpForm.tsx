@@ -3,8 +3,8 @@ import { signup } from "@/service/auth";
 import { AnimatePresence, motion } from "framer-motion";
 import { Lock, Mail, User } from "lucide-react";
 import { useState } from "react";
-import FormField from "./FormField";
-import SubmitButton from "./SubmitButton";
+import FormField from "./common/FormField";
+import SubmitButton from "./common/SubmitButton";
 import { getUserFriendlyMessage } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/react-toastify";
 import { useRouter } from "next/navigation";
@@ -49,7 +49,7 @@ export default function SignUpForm() {
     setLoading(false);
     if (signupResult.result?.success) {
       notify(signupResult.result.data.message, "success");
-      router.push('/verifyotp')
+      router.push('/signup/verify/OTP')
       return;
     }
     if (signupResult.statusCode === 422 && signupResult.error) {

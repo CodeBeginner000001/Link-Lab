@@ -12,9 +12,9 @@ const (
 
 	OTPAttempts          = 10
 	MaxOTPResendAttempts = 5
-	ResendCoolDown       = 1 * time.Minute
+	ResendCoolDown       = 10 * time.Second
 	OtpExpirationTime    = 1 * time.Minute
-	SignupSessionTTL     = 15 * time.Minute
+	SignupSessionTTL     = 5 * time.Minute
 	ForgotPasswordTTL    = 10 * time.Minute
 )
 
