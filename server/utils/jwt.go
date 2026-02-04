@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"errors"
 	"time"
 
 	"linklab-server/config"
@@ -67,10 +68,46 @@ func ValidateRefreshToken(tokenString string) (*RefreshTokenClaims, error) {
 		},
 	)
 	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, utilserror.ErrTokenExpired
+		}
 		return nil, utilserror.ErrValidatingToken
 	}
 
 	claims, ok := token.Claims.(*RefreshTokenClaims)
+	if !ok || !token.Valid {
+		return nil, utilserror.ErrValidatingToken
+	}
+
+	if claims.UserID == "" {
+		return nil, utilserror.ErrValidatingToken
+	}
+
+	return claims, nil
+}
+
+func ValidateAccessToken(tokenString string) (*AccessTokenClaims, error) {
+	if tokenString == "" {
+		return nil, utilserror.ErrValidatingToken
+	}
+	token, err := jwt.ParseWithClaims(
+		tokenString,
+		&AccessTokenClaims{},
+		func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, utilserror.ErrValidatingToken
+			}
+			return []byte(config.JWTAccessSecret), nil
+		},
+	)
+	if err != nil {
+		if errors.Is(err, jwt.ErrTokenExpired) {
+			return nil, utilserror.ErrTokenExpired
+		}
+		return nil, utilserror.ErrValidatingToken
+	}
+
+	claims, ok := token.Claims.(*AccessTokenClaims)
 	if !ok || !token.Valid {
 		return nil, utilserror.ErrValidatingToken
 	}

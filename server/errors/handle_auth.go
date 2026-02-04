@@ -10,13 +10,13 @@ func HandleAuthError(err error) *http.AppError {
 	if err == nil {
 		return nil
 	}
-
 	switch {
 	case errors.Is(err, autherror.ErrEmailRequired),
 		errors.Is(err, autherror.ErrPasswordRequired):
 		return http.BadRequest(err.Error())
 
-	case errors.Is(err, autherror.ErrInvalidToken):
+	case errors.Is(err, autherror.ErrInvalidToken),
+		errors.Is(err, autherror.ErrUnauthorized):
 		return http.UnAuthorized(err.Error())
 
 	case errors.Is(err, autherror.ErrUserAlreadyExists):

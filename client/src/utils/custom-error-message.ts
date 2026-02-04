@@ -1,15 +1,8 @@
-import { SignUpApiResponse } from "@/interfaces/api";
+import { CustomErrorApiResponse } from "@/interfaces/api";
 
-export function getUserFriendlyMessage(res: SignUpApiResponse) {
+export function getUserFriendlyMessage(res: CustomErrorApiResponse) {
   if ("error" in res) {
-    console.log(res)
     switch (res.statusCode) {
-      case 400:
-        return "Invalid request. Please check your input.";
-
-      case 422:
-        return "Please fix the highlighted fields.";
-
       case 500:
         return "Something went wrong on our side. Please try again.";
 

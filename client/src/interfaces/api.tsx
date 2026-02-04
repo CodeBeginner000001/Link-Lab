@@ -1,46 +1,56 @@
-export type ApiFieldError = {
+export interface ApiFieldError {
   field: string;
   error: string;
 };
 
-export type ApiErrorResponse = {
+export interface ApiErrorResponse {
   success: boolean;
   message: string;
   errors: ApiFieldError[];
 };
 
-export type SignUpApiDataResponse = {
+export interface SignUpApiDataResponse {
   email: string;
   message: string;
 };
 
-export type SignUpApiSuccessResponse = {
+export interface SignUpApiSuccessResponse {
   success: boolean;
   message: string;
   data: SignUpApiDataResponse;
 };
 
-export type SignUpApiResponse =
+export type CustomErrorApiResponse =
   | { statusCode: number; result: SignUpApiSuccessResponse }
   | { statusCode: number; error: ApiErrorResponse };
 
-export type GetSessionDataApiDataResponse = {
+export interface GetSessionDataApiDataResponse {
   email: string;
   otp_resend_after: string;
 };
 
-export type GetSessionDataApiSuccessResponse = {
+export interface GetSessionDataApiSuccessResponse {
   success: boolean;
   message: string;
   data: GetSessionDataApiDataResponse;
 };
 
-export type ResendOTPApiDataResponse = {
+export interface ResendOTPApiDataResponse {
   otp_resend_after: string;
 };
 
-export type ResendOTPApiSuccessResponse = {
+export interface ResendOTPApiSuccessResponse {
   success: boolean;
   message: string;
   data: ResendOTPApiDataResponse;
 };
+
+export interface VerifySignUpOTPApiDataResponse {
+  accessToken: string
+}
+
+export interface VerifySignUpOTPApiSuccessResponse {
+  success: boolean;
+  message: string;
+  data: ResendOTPApiDataResponse;
+}

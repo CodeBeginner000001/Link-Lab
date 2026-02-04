@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -13,9 +14,12 @@ import (
 	"linklab-server/db"
 	apperrors "linklab-server/errors"
 	"linklab-server/errors/autherror"
+	"linklab-server/errors/mongoerror"
 	"linklab-server/errors/rediserror"
+	utilserror "linklab-server/errors/utilsError"
 	"linklab-server/logger"
 	"linklab-server/model"
+	userService "linklab-server/modules/mongo"
 	redisCommonService "linklab-server/modules/redis/common"
 	redisHashService "linklab-server/modules/redis/hash"
 	"linklab-server/utils"
@@ -23,7 +27,6 @@ import (
 	"github.com/google/uuid"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type EmailEvent struct {
@@ -36,12 +39,14 @@ type EmailEvent struct {
 type AuthService struct {
 	redisHash   *redisHashService.RedisHashService
 	redisCommon *redisCommonService.RedisCommonService
+	user        *userService.UserService
 }
 
 func NewAuthService() *AuthService {
 	return &AuthService{
 		redisHash:   redisHashService.NewRedisHashService(),
 		redisCommon: redisCommonService.NewRedisCommonService(),
+		user:        userService.NewUserService(),
 	}
 }
 
@@ -50,23 +55,18 @@ func toStr(v int64) string {
 }
 
 func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
-	if err := db.EnsureMongo(); err != nil {
-		logger.Error("registerUserService: mongodb unavailable: ", err)
-		return nil, apperrors.ErrMongo
-	}
-
-	users := db.MongoDB.Collection("users")
+	logger.Error("CTX TYPE", nil, logger.F("type", fmt.Sprintf("%T", ctx)))
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
-	var existinguser model.User
-	err := users.FindOne(ctx, bson.M{
-		"email": email,
-	}).Decode(&existinguser)
+	_, err := s.user.Find(
+		ctx,
+		bson.M{"email": email},
+	)
 
 	if err == nil {
 		return nil, apperrors.WrapAuth(autherror.ErrUserAlreadyExists)
 	}
-	if err != mongo.ErrNoDocuments {
+	if !errors.Is(err, mongoerror.ErrNotFound) {
 		logger.Error("registerUserService: mongodb find failed: ", err)
 		return nil, apperrors.ErrMongo
 	}
@@ -130,7 +130,6 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		logger.Error("registerUserService: redis hash create failed: ", err)
 		return nil, apperrors.ErrRedis
 	}
-	success = true
 	sessionCreated = true
 	emailEvent := EmailEvent{
 		Name:    "LinkLab",
@@ -153,17 +152,20 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		logger.Error("registerUserService: marshal email event failed: ", err, logger.F("email", email))
 		return nil, apperrors.ErrUtils
 	}
-	go func() {
+	go func(email string, payload []byte) {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
 		if err := sqs.Send(
-			ctx,
+			bgCtx,
 			sqs.GetClient(),
 			config.SQSQueueURL,
 			string(payload),
 		); err != nil {
 			logger.Error("async SQS send failed", err, logger.F("email", email))
 		}
-	}()
-
+	}(email, payload)
+	success = true
 	return &RegisterServiceResponse{
 		SessionId: sessionID,
 		Email:     email,
@@ -190,6 +192,12 @@ func (s *AuthService) GetSignupSessionDataService(ctx context.Context, sessionId
 				err,
 				logger.F("field", field),
 			)
+			if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+				logger.Error("verifyOTPService: release signup lock failed: ", err)
+			}
+			if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+				logger.Error("verifyOTPService: delete signup session failed: ", err)
+			}
 			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 		}
 		values[field] = v
@@ -219,22 +227,14 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 				err,
 				logger.F("field", field),
 			)
+			if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+				logger.Error("verifyOTPService: release signup lock failed: ", err)
+			}
+			if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+				logger.Error("verifyOTPService: delete signup session failed: ", err)
+			}
 			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 		}
-	}
-
-	otpExpiresAt, err := strconv.ParseInt(data["otp_expires_at"], 10, 64)
-	if err != nil {
-		logger.Error(
-			"verifyOTPService: invalid otp_expires_at value: ",
-			err,
-			logger.F("value", data["otp_expires_at"]),
-		)
-		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
-	}
-
-	if time.Now().Unix() > otpExpiresAt {
-		return nil, apperrors.WrapAuth(autherror.ErrOTPExpired)
 	}
 
 	attempts, err := strconv.Atoi(data["otp_attempts"])
@@ -263,29 +263,39 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 		return nil, apperrors.WrapAuth(autherror.ErrInvalidOTP)
 	}
 
+	otpExpiresAt, err := strconv.ParseInt(data["otp_expires_at"], 10, 64)
+	if err != nil {
+		logger.Error(
+			"verifyOTPService: invalid otp_expires_at value: ",
+			err,
+			logger.F("value", data["otp_expires_at"]),
+		)
+		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+			logger.Error("verifyOTPService: release signup lock failed: ", err)
+		}
+		if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+			logger.Error("verifyOTPService: delete signup session failed: ", err)
+		}
+		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
+	}
+
+	if time.Now().Unix() > otpExpiresAt {
+		return nil, apperrors.WrapAuth(autherror.ErrOTPExpired)
+	}
+
 	if err := db.EnsureMongo(); err != nil {
 		logger.Error("verifyOTPService: mongodb unavailable", err)
 		return nil, apperrors.ErrMongo
 	}
-
-	users := db.MongoDB.Collection("users")
-	user := model.User{
-		Email:     data["email"],
-		Name:      data["name"],
-		Password:  data["password"],
-		CreatedAt: time.Now(),
-	}
-	res, err := users.InsertOne(ctx, user)
+	user, err := s.user.CreateUser(ctx,
+		data["name"],
+		data["email"],
+		data["password"])
 	if err != nil {
-		if mongo.IsDuplicateKeyError(err) {
-			logger.Error("verifyOTPService: duplicate user insert: ", err)
-			return nil, apperrors.WrapAuth(autherror.ErrUserAlreadyExists)
-		}
 		logger.Error("verifyOTPService: mongoDB insert failed: ", err, logger.F("email", data["email"]))
 		return nil, apperrors.ErrMongo
 	}
 
-	user.ID = res.InsertedID.(primitive.ObjectID)
 	lockKey := "signup_lock:" + data["email"]
 
 	if err := s.redisCommon.ReleaseLock(ctx, lockKey, sessionId); err != nil {
@@ -296,7 +306,7 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 		logger.Error("verifyOTPService: delete signup session failed: ", err)
 	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*ResendOTPResponse, error) {
@@ -314,6 +324,12 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 			err,
 			logger.F("value", data["otp_resend_attempts"]),
 		)
+		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+			logger.Error("resendOTPService: release signup lock failed: ", err)
+		}
+		if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+			logger.Error("resendOTPService: delete signup session failed: ", err)
+		}
 		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
 	if reattempts >= config.MaxOTPResendAttempts {
@@ -334,6 +350,12 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 				err,
 				logger.F("value", next),
 			)
+			if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
+				logger.Error("resendOTPService: release signup lock failed: ", err)
+			}
+			if err := s.redisCommon.DeleteStrict(ctx, sessionKey); err != nil {
+				logger.Error("resendOTPService: delete signup session failed: ", err)
+			}
 			return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 		}
 		if time.Now().Unix() < nextResendAt {
@@ -408,7 +430,72 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 	}
 	return &ResendOTPResponse{
 		OTPResendAfter: nextResendAt,
-	},nil;
+	}, nil
+}
+
+func (s *AuthService) MeService(ctx context.Context, accessToken string, refreshToken string) (*MeResponse, string, error) {
+	accessClaims, err := utils.ValidateAccessToken(accessToken)
+
+	if err == nil {
+		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
+		if err != nil {
+			logger.Error("meService: failed to make objectId: ", err)
+			return nil, "", autherror.ErrUnauthorized
+		}
+
+		user, err := s.user.FindByID(ctx, objID)
+		if err != nil {
+			if errors.Is(err, mongoerror.ErrNotFound) {
+				logger.Error("meService: user not found", err)
+				return nil, "", autherror.ErrUnauthorized
+			}
+			logger.Error("meService: failed to fetch user", err)
+			return nil, "", apperrors.ErrMongo
+		}
+
+		return &MeResponse{
+			Id:     user.ID.Hex(),
+			Name:   user.Name,
+			Email:  user.Email,
+			Avatar: user.Avatar,
+		}, "", nil
+	}
+	if !errors.Is(err, utilserror.ErrTokenExpired) {
+		return nil, "", autherror.ErrUnauthorized
+	}
+
+	refreshClaims, err := utils.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		return nil, "", autherror.ErrSessionExpired
+	}
+	newAccessToken, err := utils.GenerateAccessToken(refreshClaims.UserID)
+	if err != nil {
+		return nil, "", apperrors.ErrUtils
+	}
+	objID, err := primitive.ObjectIDFromHex(refreshClaims.UserID)
+	if err != nil {
+		logger.Error("meService: failed to make objectId: ", err)
+		return nil, "", autherror.ErrUnauthorized
+	}
+
+	user, err := s.user.FindByID(ctx, objID)
+	if err != nil {
+
+		if errors.Is(err, mongoerror.ErrNotFound) {
+			logger.Error("meService: user not found (refresh)", err)
+			return nil, "", autherror.ErrUnauthorized
+		}
+
+		logger.Error("meService: failed to fetch user (refresh)", err)
+		return nil, "", apperrors.ErrMongo
+	}
+
+	return &MeResponse{
+		Id:     user.ID.Hex(),
+		Name:   user.Name,
+		Email:  user.Email,
+		Avatar: user.Avatar,
+	}, newAccessToken, nil
 }
 
 func (s *AuthService) LogoutService(ctx context.Context, refreshToken string) error {
@@ -433,31 +520,27 @@ func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*mode
 		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
 	}
 
-	if err := db.EnsureMongo(); err != nil {
-		logger.Error("loginService: mongodb unavailable: ", err)
-		return nil, apperrors.ErrMongo
-	}
-
-	users := db.MongoDB.Collection("users")
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
-	var user model.User
-	err := users.FindOne(ctx, bson.M{
-		"email": email,
-	}).Decode(&user)
+	user, err := s.user.Find(
+		ctx,
+		bson.M{"email": email},
+	)
 	if err != nil {
-		if err == mongo.ErrNoDocuments {
+
+		if errors.Is(err, mongoerror.ErrNotFound) {
 			return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
 		}
-		logger.Error("loginService: mongodb find failed: ", err, logger.F("email", email))
+
+		logger.Error(
+			"loginService: failed to fetch user",
+			err,
+			logger.F("email", email),
+		)
 		return nil, apperrors.ErrMongo
 	}
-	if err := utils.ComparePassword(user.Password, req.Password); err != nil {
-		logger.Error("loginService: compare password failed: ", err)
-		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
-	}
 
-	return &user, nil
+	return user, nil
 }
 
 func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken string) (*TokenPair, error) {
@@ -482,12 +565,6 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 		return nil, apperrors.ErrUtils
 	}
 
-	newRefresh, err := utils.GenerateRefreshToken(claims.UserID)
-	if err != nil {
-		logger.Error("refreshTokenService: refresh token generation failed: ", err)
-		return nil, apperrors.ErrUtils
-	}
-
 	if err := s.redisCommon.Blacklist(
 		ctx,
 		blackListKey,
@@ -497,7 +574,6 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 	}
 
 	return &TokenPair{
-		AccessToken:  newAccess,
-		RefreshToken: newRefresh,
+		AccessToken: newAccess,
 	}, nil
 }

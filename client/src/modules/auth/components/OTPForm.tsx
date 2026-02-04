@@ -5,17 +5,19 @@ import {
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/InputOTP";
-import { ResendOTP } from "@/service/auth";
+import { ResendOTP, VerifySignUpOTP } from "@/service/auth";
 import { getUserFriendlyMessage } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/react-toastify";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useState, useEffect } from "react";
+import { redirect, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 export default function SignUpOTPForm({
   initialCooldown,
 }: {
   initialCooldown: string;
 }) {
+  const router = useRouter();
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -43,6 +45,12 @@ export default function SignUpOTPForm({
       return;
     }
     notify(getUserFriendlyMessage(resendOTP), "error");
+    if (
+      resendOTP.error.message.split(": ")[1] ===
+      "Session expired, Please start again"
+    ) {
+      redirect("/signup");
+    }
   };
 
   useEffect(() => {
@@ -53,13 +61,24 @@ export default function SignUpOTPForm({
     return () => clearTimeout(timer);
   }, [countdown]);
 
-  const handleOTPVerification = () => {
+  const handleOTPVerification = async () => {
     setLoading(true);
-    setTimeout(() => {
-      console.log("OTP submitted");
-      setLoading(false);
-    }, 500);
+    const verifyOTP = await VerifySignUpOTP(otp);
+    setLoading(false);
+    if (verifyOTP.result) {
+      notify(verifyOTP.result.message, "success");
+      router.push("/dashboard");
+      return;
+    }
+    notify(getUserFriendlyMessage(verifyOTP), "error");
+    if (
+      verifyOTP.error.message.split(": ")[1] ===
+      "Session expired, Please start again"
+    ) {
+      redirect("/signup");
+    }
   };
+
   return (
     <div className="flex flex-col items-center gap-6">
       <InputOTP

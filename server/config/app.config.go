@@ -10,9 +10,9 @@ const (
 	Env      = "dev"
 	LogLevel = "info"
 
-	OTPAttempts          = 10
-	MaxOTPResendAttempts = 5
-	ResendCoolDown       = 10 * time.Second
+	OTPAttempts          = 2
+	MaxOTPResendAttempts = 2
+	ResendCoolDown       = 5 * time.Second
 	OtpExpirationTime    = 1 * time.Minute
 	SignupSessionTTL     = 5 * time.Minute
 	ForgotPasswordTTL    = 10 * time.Minute

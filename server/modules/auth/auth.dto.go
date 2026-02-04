@@ -25,6 +25,13 @@ type VerifyOTPRequest struct {
 	OTP string `json:"otp" validate:"required,len=6"`
 }
 
+type MeResponse struct {
+	Id string `json:"id"`
+	Name   string `json:"name"`
+	Email  string `json:"email"`
+	Avatar string `json:"avatar"`
+}
+
 type LoginRequest struct {
 	Email    string `json:"email" validate:"required,email"`
 	Password string `json:"password" validate:"required,min=8,password"`

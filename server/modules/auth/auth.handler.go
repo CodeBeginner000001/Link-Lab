@@ -1,8 +1,11 @@
 package auth
 
 import (
+	"context"
+	"errors"
 	"linklab-server/config"
 	apperrors "linklab-server/errors"
+	"linklab-server/errors/autherror"
 	"linklab-server/http"
 	"linklab-server/logger"
 	"linklab-server/utils"
@@ -17,12 +20,26 @@ func AuthHealth(c *fiber.Ctx) error {
 	return c.SendString("Auth route is working! 🔐")
 }
 
+func clearCookie(c *fiber.Ctx, name string) {
+	c.Cookie(&fiber.Cookie{
+		Name:     name,
+		Value:    "",
+		Path:     "/",
+		HTTPOnly: true,
+		Secure:   config.IsProduction(),
+		SameSite: fiber.CookieSameSiteLaxMode,
+		Expires:  time.Unix(0, 0),
+	})
+}
+
 func RegisterUser(c *fiber.Ctx) error {
 	body, ok := c.Locals("body").(*RegisterRequest)
 	if !ok {
 		return http.InvalidRequestBody()
 	}
-	resData, err := authService.RegisterUserService(c.Context(), *body)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	resData, err := authService.RegisterUserService(ctx, *body)
 
 	if err != nil {
 		logger.Error("registerUser: api failed due to: ", err)
@@ -44,7 +61,7 @@ func RegisterUser(c *fiber.Ctx) error {
 	})
 }
 
-func GetSignupSessionHandler(c *fiber.Ctx) error {
+func GetSignupSession(c *fiber.Ctx) error {
 	sessionId := c.Cookies("signup_session")
 	if sessionId == "" {
 		logger.Debug("resendOTP: signup session missing")
@@ -52,6 +69,10 @@ func GetSignupSessionHandler(c *fiber.Ctx) error {
 	}
 	sessionData, err := authService.GetSignupSessionDataService(c.Context(), sessionId)
 	if err != nil {
+		if errors.Is(err, autherror.ErrSessionExpired) ||
+			errors.Is(err, autherror.ErrSessionCorrupted) {
+			clearCookie(c, "signup_session")
+		}
 		return apperrors.HandleError(err)
 	}
 	return http.Success(c, "Signup session active", sessionData)
@@ -72,6 +93,10 @@ func VerifyOTP(c *fiber.Ctx) error {
 	user, err := authService.VerifyOTPService(c.Context(), sessionId, body.OTP)
 	if err != nil {
 		logger.Error("verifyOTP: api failed due to: ", err)
+		if errors.Is(err, autherror.ErrSessionExpired) ||
+			errors.Is(err, autherror.ErrSessionCorrupted) {
+			clearCookie(c, "signup_session")
+		}
 		return apperrors.HandleError(err)
 	}
 	accessToken, err := utils.GenerateAccessToken(user.ID.Hex())
@@ -90,17 +115,23 @@ func VerifyOTP(c *fiber.Ctx) error {
 		HTTPOnly: true,
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
-		Path:     "/v1/auth",
+		Path:     "/",
 		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
-	c.ClearCookie("signup_session")
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		HTTPOnly: true,
+		Secure:   config.IsProduction(),
+		SameSite: fiber.CookieSameSiteStrictMode,
+		Path:     "/",
+		Expires:  time.Now().Add(config.AccessTokenTTL),
+	})
+	clearCookie(c, "signup_session")
 
 	return http.Success(
 		c,
-		"Signup process completed successfully",
-		map[string]interface{}{
-			"accessToken": accessToken,
-		},
+		"Signup process completed successfully", nil,
 	)
 }
 
@@ -114,10 +145,54 @@ func ResendOTP(c *fiber.Ctx) error {
 	resendOTPData, err := authService.ResendOTPService(c.Context(), sessionId)
 	if err != nil {
 		logger.Error("resendOTP: api failed due to: ", err)
+		if errors.Is(err, autherror.ErrSessionExpired) ||
+			errors.Is(err, autherror.ErrSessionCorrupted) {
+			clearCookie(c, "signup_session")
+		}
 		return apperrors.HandleError(err)
 	}
 
 	return http.Success(c, "OTP sent successfully", resendOTPData)
+}
+
+func Me(c *fiber.Ctx) error {
+	accessToken := c.Cookies("access_token")
+	refreshToken := c.Cookies("refresh_token")
+
+	if accessToken == "" && refreshToken == "" {
+		return http.UnAuthorized("Unauthorized")
+	}
+
+	user, newAccessToken, err := authService.MeService(
+		c.Context(),
+		accessToken,
+		refreshToken,
+	)
+
+	if err != nil {
+		logger.Error("me: failed", err)
+		if errors.Is(err, autherror.ErrUnauthorized) ||
+			errors.Is(err, autherror.ErrSessionExpired) {
+
+			clearCookie(c, "access_token")
+		}
+
+		return apperrors.HandleError(err)
+	}
+
+	if newAccessToken != "" {
+		c.Cookie(&fiber.Cookie{
+			Name:     "access_token",
+			Value:    newAccessToken,
+			HTTPOnly: true,
+			Secure:   config.IsProduction(),
+			SameSite: fiber.CookieSameSiteStrictMode,
+			Path:     "/",
+			Expires:  time.Now().Add(config.AccessTokenTTL),
+		})
+	}
+
+	return http.Success(c, "User fetched", user)
 }
 
 func Login(c *fiber.Ctx) error {
@@ -148,7 +223,7 @@ func Login(c *fiber.Ctx) error {
 		HTTPOnly: true,
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
-		Path:     "/v1/auth",
+		Path:     "/",
 		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
 	return http.Success(
@@ -172,17 +247,15 @@ func RefreshToken(c *fiber.Ctx) error {
 		return apperrors.HandleError(err)
 	}
 	c.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    tokens.RefreshToken,
+		Name:     "access_token",
+		Value:    tokens.AccessToken,
 		HTTPOnly: true,
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
-		Path:     "/v1/auth",
-		Expires:  time.Now().Add(config.RefreshTokenTTL),
+		Path:     "/",
+		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
-	return http.Success(c, "Token refreshed successfully", map[string]interface{}{
-		"accessToken": tokens.AccessToken,
-	})
+	return http.Success(c, "Token refreshed successfully", nil)
 }
 
 func Logout(c *fiber.Ctx) error {
@@ -192,6 +265,6 @@ func Logout(c *fiber.Ctx) error {
 			logger.Error("logout: blacklisting refresh token failed: ", err)
 		}
 	}
-	c.ClearCookie("refresh_token")
+	clearCookie(c, "refresh_token")
 	return http.Success(c, "Logout successful", nil)
 }
