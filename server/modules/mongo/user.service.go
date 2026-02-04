@@ -19,8 +19,8 @@ type UserService struct {
 	repo *UserRepo
 }
 
-func NewUserService() *UserService {
-	return &UserService{repo: &UserRepo{}}
+func NewUserService(repo *UserRepo) *UserService {
+	return &UserService{repo}
 }
 
 func (s *UserService) CreateUser(
@@ -95,7 +95,6 @@ func (s *UserService) Find(
 	if err != nil {
 
 		if err == mongo.ErrNoDocuments {
-			logger.Error("userService: Find failed : ", err)
 			return nil, mongoerror.ErrNotFound
 		}
 

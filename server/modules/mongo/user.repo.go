@@ -4,6 +4,7 @@ import (
 	"context"
 	"linklab-server/db"
 	"linklab-server/errors/mongoerror"
+	"linklab-server/logger"
 	"linklab-server/model"
 	"time"
 
@@ -18,6 +19,10 @@ type UserRepo struct {
 }
 
 func NewUserRepo(db *mongo.Database) *UserRepo {
+	if db == nil {
+		panic("Mongo database is nil")
+	}
+
 	col := db.Collection("users")
 
 	indexes := []mongo.IndexModel{
@@ -39,12 +44,9 @@ func NewUserRepo(db *mongo.Database) *UserRepo {
 		},
 	}
 
-	_, err := col.Indexes().CreateMany(
-		context.Background(),
-		indexes,
-	)
-
+	_, err := col.Indexes().CreateMany(context.Background(), indexes)
 	if err != nil {
+		logger.Error("failed to create user indexes", err)
 	}
 
 	return &UserRepo{col: col}
@@ -66,7 +68,7 @@ func (r *UserRepo) preUpdate(update bson.M) bson.M {
 	return update
 }
 
-func (r *UserRepo) Create(ctx context.Context, u *model.User) (error) {
+func (r *UserRepo) Create(ctx context.Context, u *model.User) error {
 	if err := db.EnsureMongo(); err != nil {
 		return mongoerror.ErrMongoUnavailable
 	}

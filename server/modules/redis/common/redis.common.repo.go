@@ -39,8 +39,12 @@ func (r *RedisCommonRepo) ReleaseLock(
 		logger.Error("redis ReleaseLock failed in common repo: ", err)
 		return false, rediserror.ErrRedisCommand
 	}
+	deleted, ok := res.(int64)
+	if !ok {
+		return false, rediserror.ErrRedisCommand
+	}
 
-	return res == 1, nil
+	return deleted == 1, nil
 }
 
 func (r *RedisCommonRepo) SetNX(

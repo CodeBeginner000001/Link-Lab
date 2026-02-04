@@ -24,7 +24,7 @@ func main() {
 	go db.MonitorMongo()
 	db.ConnectRedis()
 	go db.MonitorRedis()
-
+	
 	sqsClient := sqs.NewClient(ctx)
 	sqs.SetClient(sqsClient)
 

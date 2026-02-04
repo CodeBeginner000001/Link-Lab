@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"linklab-server/aws/sqs"
@@ -19,7 +19,7 @@ import (
 	utilserror "linklab-server/errors/utilsError"
 	"linklab-server/logger"
 	"linklab-server/model"
-	userService "linklab-server/modules/mongo"
+	"linklab-server/modules/mongo"
 	redisCommonService "linklab-server/modules/redis/common"
 	redisHashService "linklab-server/modules/redis/hash"
 	"linklab-server/utils"
@@ -37,17 +37,35 @@ type EmailEvent struct {
 }
 
 type AuthService struct {
+	once sync.Once
+
 	redisHash   *redisHashService.RedisHashService
 	redisCommon *redisCommonService.RedisCommonService
-	user        *userService.UserService
+	user        *mongo.UserService
+
+	initErr error
 }
 
 func NewAuthService() *AuthService {
-	return &AuthService{
-		redisHash:   redisHashService.NewRedisHashService(),
-		redisCommon: redisCommonService.NewRedisCommonService(),
-		user:        userService.NewUserService(),
-	}
+	return &AuthService{}
+}
+
+func (s *AuthService) init() {
+	s.once.Do(func() {
+
+		// ensure mongo is ready
+		if err := db.EnsureMongo(); err != nil {
+			s.initErr = err
+			return
+		}
+
+		userRepo := mongo.NewUserRepo(db.MongoDB)
+
+		s.user = mongo.NewUserService(userRepo)
+
+		s.redisHash = redisHashService.NewRedisHashService()
+		s.redisCommon = redisCommonService.NewRedisCommonService()
+	})
 }
 
 func toStr(v int64) string {
@@ -55,7 +73,10 @@ func toStr(v int64) string {
 }
 
 func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
-	logger.Error("CTX TYPE", nil, logger.F("type", fmt.Sprintf("%T", ctx)))
+	s.init()
+	if s.initErr != nil {
+		return nil, apperrors.ErrMongo
+	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	_, err := s.user.Find(
@@ -433,71 +454,6 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 	}, nil
 }
 
-func (s *AuthService) MeService(ctx context.Context, accessToken string, refreshToken string) (*MeResponse, string, error) {
-	accessClaims, err := utils.ValidateAccessToken(accessToken)
-
-	if err == nil {
-		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
-		if err != nil {
-			logger.Error("meService: failed to make objectId: ", err)
-			return nil, "", autherror.ErrUnauthorized
-		}
-
-		user, err := s.user.FindByID(ctx, objID)
-		if err != nil {
-			if errors.Is(err, mongoerror.ErrNotFound) {
-				logger.Error("meService: user not found", err)
-				return nil, "", autherror.ErrUnauthorized
-			}
-			logger.Error("meService: failed to fetch user", err)
-			return nil, "", apperrors.ErrMongo
-		}
-
-		return &MeResponse{
-			Id:     user.ID.Hex(),
-			Name:   user.Name,
-			Email:  user.Email,
-			Avatar: user.Avatar,
-		}, "", nil
-	}
-	if !errors.Is(err, utilserror.ErrTokenExpired) {
-		return nil, "", autherror.ErrUnauthorized
-	}
-
-	refreshClaims, err := utils.ValidateRefreshToken(refreshToken)
-	if err != nil {
-		return nil, "", autherror.ErrSessionExpired
-	}
-	newAccessToken, err := utils.GenerateAccessToken(refreshClaims.UserID)
-	if err != nil {
-		return nil, "", apperrors.ErrUtils
-	}
-	objID, err := primitive.ObjectIDFromHex(refreshClaims.UserID)
-	if err != nil {
-		logger.Error("meService: failed to make objectId: ", err)
-		return nil, "", autherror.ErrUnauthorized
-	}
-
-	user, err := s.user.FindByID(ctx, objID)
-	if err != nil {
-
-		if errors.Is(err, mongoerror.ErrNotFound) {
-			logger.Error("meService: user not found (refresh)", err)
-			return nil, "", autherror.ErrUnauthorized
-		}
-
-		logger.Error("meService: failed to fetch user (refresh)", err)
-		return nil, "", apperrors.ErrMongo
-	}
-
-	return &MeResponse{
-		Id:     user.ID.Hex(),
-		Name:   user.Name,
-		Email:  user.Email,
-		Avatar: user.Avatar,
-	}, newAccessToken, nil
-}
-
 func (s *AuthService) LogoutService(ctx context.Context, refreshToken string) error {
 	if refreshToken == "" {
 		return nil
@@ -576,4 +532,69 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 	return &TokenPair{
 		AccessToken: newAccess,
 	}, nil
+}
+
+func (s *AuthService) MeService(ctx context.Context, accessToken string, refreshToken string) (*MeResponse, string, error) {
+	accessClaims, err := utils.ValidateAccessToken(accessToken)
+
+	if err == nil {
+		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
+		if err != nil {
+			logger.Error("meService: failed to make objectId: ", err)
+			return nil, "", autherror.ErrUnauthorized
+		}
+
+		user, err := s.user.FindByID(ctx, objID)
+		if err != nil {
+			if errors.Is(err, mongoerror.ErrNotFound) {
+				logger.Error("meService: user not found", err)
+				return nil, "", autherror.ErrUnauthorized
+			}
+			logger.Error("meService: failed to fetch user", err)
+			return nil, "", apperrors.ErrMongo
+		}
+
+		return &MeResponse{
+			Id:     user.ID.Hex(),
+			Name:   user.Name,
+			Email:  user.Email,
+			Avatar: user.Avatar,
+		}, "", nil
+	}
+	if !errors.Is(err, utilserror.ErrTokenExpired) {
+		return nil, "", autherror.ErrUnauthorized
+	}
+
+	refreshClaims, err := utils.ValidateRefreshToken(refreshToken)
+	if err != nil {
+		return nil, "", autherror.ErrSessionExpired
+	}
+	newAccessToken, err := utils.GenerateAccessToken(refreshClaims.UserID)
+	if err != nil {
+		return nil, "", apperrors.ErrUtils
+	}
+	objID, err := primitive.ObjectIDFromHex(refreshClaims.UserID)
+	if err != nil {
+		logger.Error("meService: failed to make objectId: ", err)
+		return nil, "", autherror.ErrUnauthorized
+	}
+
+	user, err := s.user.FindByID(ctx, objID)
+	if err != nil {
+
+		if errors.Is(err, mongoerror.ErrNotFound) {
+			logger.Error("meService: user not found (refresh)", err)
+			return nil, "", autherror.ErrUnauthorized
+		}
+
+		logger.Error("meService: failed to fetch user (refresh)", err)
+		return nil, "", apperrors.ErrMongo
+	}
+
+	return &MeResponse{
+		Id:     user.ID.Hex(),
+		Name:   user.Name,
+		Email:  user.Email,
+		Avatar: user.Avatar,
+	}, newAccessToken, nil
 }
