@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -482,7 +481,10 @@ func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*mode
 		logger.Error("loginService: email and password missing: ", nil)
 		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
 	}
-
+	s.init()
+	if s.initErr != nil {
+		return nil, apperrors.ErrMongo
+	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	user, err := s.user.Find(
@@ -546,7 +548,6 @@ func (s *AuthService) MeService(ctx context.Context, accessToken string, refresh
 	if s.initErr != nil {
 		return nil, "", apperrors.ErrMongo
 	}
-	fmt.Println(accessToken)
 	accessClaims, err := utils.ValidateAccessToken(accessToken)
 	if err == nil {
 		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)

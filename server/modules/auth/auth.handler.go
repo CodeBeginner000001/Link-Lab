@@ -226,12 +226,19 @@ func Login(c *fiber.Ctx) error {
 		Path:     "/",
 		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
+	c.Cookie(&fiber.Cookie{
+		Name:     "access_token",
+		Value:    accessToken,
+		HTTPOnly: true,
+		Secure:   config.IsProduction(),
+		SameSite: fiber.CookieSameSiteStrictMode,
+		Path:     "/",
+		Expires:  time.Now().Add(config.RefreshTokenTTL),
+	})
 	return http.Success(
 		c,
 		"Login successful",
-		map[string]interface{}{
-			"accessToken": accessToken,
-		},
+		nil,
 	)
 }
 
