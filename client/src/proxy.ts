@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isPublicRoute } from "./middleware/auth/check-route";
-import { isAccessTokenValid, isRefreshTokenValid } from "./middleware/auth/token";
 
 export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -16,15 +15,7 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  if (await isAccessTokenValid(accessToken)) {
-    return NextResponse.next();
-  }
-
-  if (await isRefreshTokenValid(refreshToken)) {
-    return NextResponse.next();
-  }
-
-  return NextResponse.redirect(new URL("/login", req.url));
+  return NextResponse.next();
 }
 export const config = {
   matcher: [

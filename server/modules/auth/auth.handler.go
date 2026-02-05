@@ -173,7 +173,7 @@ func Me(c *fiber.Ctx) error {
 		logger.Error("me: failed", err)
 		if errors.Is(err, autherror.ErrUnauthorized) ||
 			errors.Is(err, autherror.ErrSessionExpired) {
-
+			clearCookie(c, "refresh_token")
 			clearCookie(c, "access_token")
 		}
 
@@ -186,7 +186,7 @@ func Me(c *fiber.Ctx) error {
 			Value:    newAccessToken,
 			HTTPOnly: true,
 			Secure:   config.IsProduction(),
-			SameSite: fiber.CookieSameSiteStrictMode,
+			SameSite: fiber.CookieSameSiteNoneMode,
 			Path:     "/",
 			Expires:  time.Now().Add(config.AccessTokenTTL),
 		})

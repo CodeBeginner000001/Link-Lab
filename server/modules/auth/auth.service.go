@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"sync"
@@ -37,13 +38,14 @@ type EmailEvent struct {
 }
 
 type AuthService struct {
-	once sync.Once
+	mu sync.Mutex
+
+	initialized bool
+	initErr     error
 
 	redisHash   *redisHashService.RedisHashService
 	redisCommon *redisCommonService.RedisCommonService
 	user        *mongo.UserService
-
-	initErr error
 }
 
 func NewAuthService() *AuthService {
@@ -51,21 +53,26 @@ func NewAuthService() *AuthService {
 }
 
 func (s *AuthService) init() {
-	s.once.Do(func() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-		// ensure mongo is ready
-		if err := db.EnsureMongo(); err != nil {
-			s.initErr = err
-			return
-		}
+	if s.initialized {
+		return
+	}
 
-		userRepo := mongo.NewUserRepo(db.MongoDB)
+	if err := db.EnsureMongo(); err != nil {
+		s.initErr = err
+		return
+	}
 
-		s.user = mongo.NewUserService(userRepo)
+	userRepo := mongo.NewUserRepo(db.MongoDB)
 
-		s.redisHash = redisHashService.NewRedisHashService()
-		s.redisCommon = redisCommonService.NewRedisCommonService()
-	})
+	s.user = mongo.NewUserService(userRepo)
+	s.redisHash = redisHashService.NewRedisHashService()
+	s.redisCommon = redisCommonService.NewRedisCommonService()
+
+	s.initialized = true
+	s.initErr = nil
 }
 
 func toStr(v int64) string {
@@ -535,8 +542,12 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 }
 
 func (s *AuthService) MeService(ctx context.Context, accessToken string, refreshToken string) (*MeResponse, string, error) {
+	s.init()
+	if s.initErr != nil {
+		return nil, "", apperrors.ErrMongo
+	}
+	fmt.Println(accessToken)
 	accessClaims, err := utils.ValidateAccessToken(accessToken)
-
 	if err == nil {
 		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
 		if err != nil {

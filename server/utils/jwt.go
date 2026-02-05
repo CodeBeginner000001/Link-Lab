@@ -88,7 +88,7 @@ func ValidateRefreshToken(tokenString string) (*RefreshTokenClaims, error) {
 
 func ValidateAccessToken(tokenString string) (*AccessTokenClaims, error) {
 	if tokenString == "" {
-		return nil, utilserror.ErrValidatingToken
+		return nil, utilserror.ErrTokenExpired
 	}
 	token, err := jwt.ParseWithClaims(
 		tokenString,

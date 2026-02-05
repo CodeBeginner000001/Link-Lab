@@ -147,3 +147,37 @@ export const VerifySignUpOTP = async (otp: string) => {
     };
   }
 };
+
+export const GetCurrentUser = async (cookieData: string) => {
+  try {
+    const response = await fetch(`${Base_URL}/me`, {
+      method: "GET",
+      headers:{
+        Cookie: cookieData
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+    const data = await response.json();
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: {
+        success: false,
+        message: "Server unreachable. Please try again later.",
+        errors: [],
+      },
+    };
+  }
+};
