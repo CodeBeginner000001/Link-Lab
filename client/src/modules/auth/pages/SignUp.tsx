@@ -1,13 +1,12 @@
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import MotionWrapper from "../../../components/common/MotionWrapper";
 import AuthDivider from "../components/AuthDivider";
 import AuthFooter from "../components/AuthFooter";
 import AuthHero from "../components/AuthHero";
 import AuthNavBar from "../components/common/AuthNavBar";
 import GoogleButton from "../components/common/GoogleButton";
-import MotionWrapper from "../components/common/MotionWrapper";
 import SignUpForm from "../components/SignUpForm";
-import { redirect } from "next/navigation";
-import { Bounce, toast } from "react-toastify";
 
 export default async function SignUp() {
   const cookieStore = await cookies();
@@ -29,7 +28,7 @@ export default async function SignUp() {
           <AuthDivider dividerLine="Or continue with email" />
           <SignUpForm />
           <AuthFooter
-            href="/signin"
+            href="/login"
             buttonLabel="Sign in"
             headline="Already have an account?"
           />

@@ -13,5 +13,5 @@ export function getUserFriendlyMessage(res: CustomErrorApiResponse) {
         return res.error.message.split(":")[1] || "Unexpected error occurred.";
     }
   }
-  return res.result.data.message;
+  return res.result.message;
 }

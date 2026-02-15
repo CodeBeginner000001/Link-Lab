@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 )
 
 func GenerateAvatar(name string, email string) (string, error) {
@@ -19,7 +20,7 @@ func GenerateAvatar(name string, email string) (string, error) {
 	}
 	defer resp.Body.Close()
 
-	path := fmt.Sprintf("uploads/avatars/%s.png", email)
+	path := fmt.Sprintf("uploads/avatars/%s.png", strings.Split(email, ".com"))
 
 	file, err := os.Create(path)
 	if err != nil {

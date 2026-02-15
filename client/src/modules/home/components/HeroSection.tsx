@@ -60,36 +60,38 @@ export default function HeroSection() {
               </Button>
             </Link>
             <Button variant="heroOutline" size="xl">
-              <Link href="/signin">Sign In</Link>
+              <Link href="/login">Log In</Link>
             </Button>
           </motion.div>
           <motion.div
-          initial = {{ opacity: 0}}
-          animate = {{ opacity: 1}}
-          transition={{ duration: 0.6, delay: 0.5}}
-          className="flex flex-wrap items-center justify-center gap-8 md:gap-16 mt-16"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.5 }}
+            className="flex flex-wrap items-center justify-center gap-8 md:gap-16 mt-16"
           >
-            {
-                heroContent.map((stat) =>(
-                    <div key={stat.label} className="text-center">
-                        <div className="text-3xl md:text-4xl font-bold gradient-text">{stat.value}</div>
-                        <div className="text-[hsl(var(--muted-foreground))] text-sm mt-1">{stat.label}</div>
-                    </div>
-                ))
-            }
+            {heroContent.map((stat) => (
+              <div key={stat.label} className="text-center">
+                <div className="text-3xl md:text-4xl font-bold gradient-text">
+                  {stat.value}
+                </div>
+                <div className="text-[hsl(var(--muted-foreground))] text-sm mt-1">
+                  {stat.label}
+                </div>
+              </div>
+            ))}
           </motion.div>
         </div>
       </div>
       <motion.div
-      animate={{y: [0,-50,0]}}
-      transition={{duration: 5, repeat: Infinity, ease: 'easeInOut'}}
-      className="absolute top-1/3 left-[15%] w-16 h-16 bg-[hsl(var(--primary)/0.2)] rounded-2xl backdrop-blur-sm border border-[hsl(var(--primary)/0.3)] hidden lg:block"
+        animate={{ y: [0, -50, 0] }}
+        transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute top-1/3 left-[15%] w-16 h-16 bg-[hsl(var(--primary)/0.2)] rounded-2xl backdrop-blur-sm border border-[hsl(var(--primary)/0.3)] hidden lg:block"
       />
 
       <motion.div
-      animate={{y: [0,50,0]}}
-      transition={{duration: 6, repeat: Infinity, ease: 'easeInOut'}}
-      className="absolute bottom-1/3 right-[10%] w-20 h-20 bg-[hsl(var(--purple)/0.2)] rounded-full backdrop-blur-sm border border-[hsl(var(--purple)/0.3)] hidden lg:block"
+        animate={{ y: [0, 50, 0] }}
+        transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+        className="absolute bottom-1/3 right-[10%] w-20 h-20 bg-[hsl(var(--purple)/0.2)] rounded-full backdrop-blur-sm border border-[hsl(var(--purple)/0.3)] hidden lg:block"
       />
     </section>
   );

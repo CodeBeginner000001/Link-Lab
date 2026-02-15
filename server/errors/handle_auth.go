@@ -16,7 +16,9 @@ func HandleAuthError(err error) *http.AppError {
 		return http.BadRequest(err.Error())
 
 	case errors.Is(err, autherror.ErrInvalidToken),
-		errors.Is(err, autherror.ErrUnauthorized):
+		errors.Is(err, autherror.ErrUnauthorized),
+		errors.Is(err, autherror.ErrRefreshTokenExpired),
+		errors.Is(err, autherror.ErrAccessTokenExpired):
 		return http.UnAuthorized(err.Error())
 
 	case errors.Is(err, autherror.ErrUserAlreadyExists):

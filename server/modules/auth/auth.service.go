@@ -509,6 +509,10 @@ func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*mode
 }
 
 func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken string) (*TokenPair, error) {
+	s.init()
+	if s.initErr != nil {
+		return nil, apperrors.ErrMongo
+	}
 	blackListKey := "blacklist:refresh:" + refreshToken
 
 	exists, err := s.redisCommon.Exists(ctx, blackListKey)
@@ -519,14 +523,22 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 	if exists {
 		return nil, apperrors.WrapAuth(autherror.ErrSessionExpired)
 	}
+
 	claims, err := utils.ValidateRefreshToken(refreshToken)
 	if err != nil {
+		if errors.Is(err, utilserror.ErrTokenExpired) {
+			return nil, apperrors.WrapAuth(autherror.ErrRefreshTokenExpired)
+		}
 		logger.Error("refreshTokenService: refresh token validation failed: ", err)
 		return nil, apperrors.WrapAuth(autherror.ErrInvalidToken)
 	}
 	newAccess, err := utils.GenerateAccessToken(claims.UserID)
 	if err != nil {
 		logger.Error("refreshTokenService: access token generation failed: ", err)
+		return nil, apperrors.ErrUtils
+	}
+	newRefreshToken, err := utils.GenerateRefreshToken(claims.UserID)
+	if err != nil {
 		return nil, apperrors.ErrUtils
 	}
 
@@ -539,56 +551,27 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 	}
 
 	return &TokenPair{
-		AccessToken: newAccess,
+		AccessToken:  newAccess,
+		RefreshToken: newRefreshToken,
 	}, nil
 }
 
-func (s *AuthService) MeService(ctx context.Context, accessToken string, refreshToken string) (*MeResponse, string, error) {
+func (s *AuthService) MeService(ctx context.Context, accessToken string) (*MeResponse, error) {
 	s.init()
 	if s.initErr != nil {
-		return nil, "", apperrors.ErrMongo
+		return nil, apperrors.ErrMongo
 	}
 	accessClaims, err := utils.ValidateAccessToken(accessToken)
-	if err == nil {
-		objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
-		if err != nil {
-			logger.Error("meService: failed to make objectId: ", err)
-			return nil, "", autherror.ErrUnauthorized
+	if err != nil {
+		if errors.Is(err, utilserror.ErrTokenExpired) {
+			return nil, apperrors.WrapAuth(autherror.ErrAccessTokenExpired)
 		}
-
-		user, err := s.user.FindByID(ctx, objID)
-		if err != nil {
-			if errors.Is(err, mongoerror.ErrNotFound) {
-				logger.Error("meService: user not found", err)
-				return nil, "", autherror.ErrUnauthorized
-			}
-			logger.Error("meService: failed to fetch user", err)
-			return nil, "", apperrors.ErrMongo
-		}
-
-		return &MeResponse{
-			Id:     user.ID.Hex(),
-			Name:   user.Name,
-			Email:  user.Email,
-			Avatar: user.Avatar,
-		}, "", nil
+		return nil, apperrors.WrapAuth(autherror.ErrUnauthorized)
 	}
-	if !errors.Is(err, utilserror.ErrTokenExpired) {
-		return nil, "", autherror.ErrUnauthorized
-	}
-
-	refreshClaims, err := utils.ValidateRefreshToken(refreshToken)
+	objID, err := primitive.ObjectIDFromHex(accessClaims.UserID)
 	if err != nil {
-		return nil, "", autherror.ErrSessionExpired
-	}
-	newAccessToken, err := utils.GenerateAccessToken(refreshClaims.UserID)
-	if err != nil {
-		return nil, "", apperrors.ErrUtils
-	}
-	objID, err := primitive.ObjectIDFromHex(refreshClaims.UserID)
-	if err != nil {
-		logger.Error("meService: failed to make objectId: ", err)
-		return nil, "", autherror.ErrUnauthorized
+		logger.Error("meService: invalid user id:", err)
+		return nil, apperrors.WrapAuth(autherror.ErrUnauthorized)
 	}
 
 	user, err := s.user.FindByID(ctx, objID)
@@ -596,11 +579,11 @@ func (s *AuthService) MeService(ctx context.Context, accessToken string, refresh
 
 		if errors.Is(err, mongoerror.ErrNotFound) {
 			logger.Error("meService: user not found (refresh)", err)
-			return nil, "", autherror.ErrUnauthorized
+			return nil, apperrors.WrapAuth(autherror.ErrUnauthorized)
 		}
 
 		logger.Error("meService: failed to fetch user (refresh)", err)
-		return nil, "", apperrors.ErrMongo
+		return nil, apperrors.ErrMongo
 	}
 
 	return &MeResponse{
@@ -608,5 +591,5 @@ func (s *AuthService) MeService(ctx context.Context, accessToken string, refresh
 		Name:   user.Name,
 		Email:  user.Email,
 		Avatar: user.Avatar,
-	}, newAccessToken, nil
+	}, nil
 }

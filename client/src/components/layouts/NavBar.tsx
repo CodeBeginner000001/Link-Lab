@@ -1,13 +1,15 @@
 "use client";
-import Link from "next/link";
 import Logo from "@/components/Logo";
-import ToggleTheme from "@/components/ui/ToggleTheme";
 import { Button } from "@/components/ui/Button";
-import { motion } from "framer-motion";
+import ToggleTheme from "@/components/ui/ToggleTheme";
+import { useAuth } from "@/Provider/AuthUserProvider";
 import { navItems } from "@/utils/content";
-import { useState } from "react";
+import { motion } from "framer-motion";
 import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { useState } from "react";
 export default function NavBar() {
+  const user = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   return (
     <motion.nav
@@ -37,15 +39,26 @@ export default function NavBar() {
           {/* Action */}
           <div className="hidden md:flex items-center gap-3">
             <ToggleTheme />
-            <Link href="/signin">
-              <Button variant="ghost" className="cursor-pointer">
-                Sign In
-              </Button>
-            </Link>
-            <Link href="/signup">
-              <Button className="cursor-pointer">Get Started</Button>
-            </Link>
+            {user ? (
+              <>
+                <Link href="/dashboard">
+                  <Button>Dashboard</Button>
+                </Link>
+                
+              </>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost">Sign In</Button>
+                </Link>
+
+                <Link href="/signup">
+                  <Button>Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
+
           {/* mobile view */}
           <div className="flex md:hidden items-center gap-2">
             <ToggleTheme />
@@ -81,7 +94,7 @@ export default function NavBar() {
               ))}
 
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 pt-4 border-t border-[hsl(var(--border)/0.5)] justify-center">
-                <Link href="/signin">
+                <Link href="/login">
                   <Button variant="outline" className="mx-auto w-full sm:w-60">
                     Sign In
                   </Button>

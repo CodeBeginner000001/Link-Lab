@@ -49,7 +49,7 @@ export default function SignUpOTPForm({
       resendOTP.error.message.split(": ")[1] ===
       "Session expired, Please start again"
     ) {
-      redirect("/signup");
+      router.replace("/signup");
     }
   };
 
@@ -67,7 +67,7 @@ export default function SignUpOTPForm({
     setLoading(false);
     if (verifyOTP.result) {
       notify(verifyOTP.result.message, "success");
-      router.push("/dashboard");
+      router.replace("/dashboard")
       return;
     }
     notify(getUserFriendlyMessage(verifyOTP), "error");
@@ -75,7 +75,7 @@ export default function SignUpOTPForm({
       verifyOTP.error.message.split(": ")[1] ===
       "Session expired, Please start again"
     ) {
-      redirect("/signup");
+      router.replace("/signup");
     }
   };
 

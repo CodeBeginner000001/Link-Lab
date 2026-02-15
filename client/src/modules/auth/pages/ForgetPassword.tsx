@@ -78,7 +78,7 @@ export default function ForgetPasswordForm() {
           </Button>
           <p className="text-center text-sm text-[hsl(var(--muted-foreground)/0.9)] mt-6">
             Remember your Password?{" "}
-            <Link href="signin">
+            <Link href="/login">
               <button className="text-[hsl(var(--primary))] hover:underline font-medium">
                 Sign In
               </button>

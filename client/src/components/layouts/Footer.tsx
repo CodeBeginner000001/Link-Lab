@@ -34,7 +34,7 @@ export default function Footer() {
         </div>
         <div className="border-t border-[hsl(var(--border))] mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-[hsl(var(--muted-foreground))] text-sm text-center">
-            © 2024 LinkLab. All rights reserved.
+            © 2025 LinkLab. All rights reserved.
           </p>
           <div className="flex gap-6">
             <a href="#" className="text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">

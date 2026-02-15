@@ -55,9 +55,8 @@ func RegisterUser(c *fiber.Ctx) error {
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Expires:  time.Now().Add(config.SignupSessionTTL),
 	})
-	return http.Success(c, "User registeration process initiated", fiber.Map{
+	return http.Success(c, resData.Message, fiber.Map{
 		"email":   resData.Email,
-		"message": resData.Message,
 	})
 }
 
@@ -157,39 +156,19 @@ func ResendOTP(c *fiber.Ctx) error {
 
 func Me(c *fiber.Ctx) error {
 	accessToken := c.Cookies("access_token")
-	refreshToken := c.Cookies("refresh_token")
 
-	if accessToken == "" && refreshToken == "" {
-		return http.UnAuthorized("Unauthorized")
+	if accessToken == "" {
+		return http.UnAuthorized("Access token is expired")
 	}
 
-	user, newAccessToken, err := authService.MeService(
+	user, err := authService.MeService(
 		c.Context(),
 		accessToken,
-		refreshToken,
 	)
 
 	if err != nil {
 		logger.Error("me: failed", err)
-		if errors.Is(err, autherror.ErrUnauthorized) ||
-			errors.Is(err, autherror.ErrSessionExpired) {
-			clearCookie(c, "refresh_token")
-			clearCookie(c, "access_token")
-		}
-
 		return apperrors.HandleError(err)
-	}
-
-	if newAccessToken != "" {
-		c.Cookie(&fiber.Cookie{
-			Name:     "access_token",
-			Value:    newAccessToken,
-			HTTPOnly: true,
-			Secure:   config.IsProduction(),
-			SameSite: fiber.CookieSameSiteNoneMode,
-			Path:     "/",
-			Expires:  time.Now().Add(config.AccessTokenTTL),
-		})
 	}
 
 	return http.Success(c, "User fetched", user)
@@ -262,6 +241,15 @@ func RefreshToken(c *fiber.Ctx) error {
 		Path:     "/",
 		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
+	c.Cookie(&fiber.Cookie{
+		Name:     "refresh_token",
+		Value:    tokens.RefreshToken,
+		HTTPOnly: true,
+		Secure:   config.IsProduction(),
+		SameSite: fiber.CookieSameSiteStrictMode,
+		Path:     "/",
+		Expires:  time.Now().Add(config.AccessTokenTTL),
+	})
 	return http.Success(c, "Token refreshed successfully", nil)
 }
 
@@ -273,5 +261,6 @@ func Logout(c *fiber.Ctx) error {
 		}
 	}
 	clearCookie(c, "refresh_token")
+	clearCookie(c, "access_token")
 	return http.Success(c, "Logout successful", nil)
 }

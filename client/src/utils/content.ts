@@ -17,6 +17,8 @@ import {
   Link2,
   Sparkles,
   Crown,
+  LayoutDashboard,
+  Settings,
 } from "lucide-react";
 
 export const heroContent = [
@@ -221,3 +223,46 @@ export const footerLinks = {
   Resources: ["Documentation", "Help Center", "Community", "Status"],
   Legal: ["Privacy", "Terms", "Security"],
 };
+
+export const menuItems = [
+  { 
+    section: 'Overview',
+    items: [
+      { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
+    ]
+  },
+  { 
+    section: 'Tools',
+    items: [
+      { icon: Link2, label: 'URL Shortener', path: '/dashboard/url-shortener' },
+      { icon: QrCode, label: 'QR Code Generator', path: '/dashboard/qr-generator' },
+      { icon: ScanLine, label: 'Scan QR Scanner', path: '/dashboard/qr-scanner' },
+      { icon: Edit3, label: 'Dynamic QR Editor', path: '/dashboard/qr-editor', pro: true },
+      { icon: ExternalLink, label: 'Link Expander', path: '/dashboard/link-expander' },
+      { icon: LinkIcon, label: 'Broken Link Checker', path: '/dashboard/broken-link-checker' },
+      { icon: Barcode, label: 'Barcode Generator', path: '/dashboard/barcode-generator' },
+      { icon: ScanBarcode, label: 'Barcode Decoder', path: '/dashboard/barcode-decoder' },
+      { icon: Globe, label: 'DNS & Domain Checker', path: '/dashboard/dns-checker' },
+      { icon: Clock, label: 'One-Time Links', path: '/dashboard/one-time-link', pro: true },
+    ]
+  },
+  { 
+    section: 'Account',
+    items: [
+      { icon: Settings, label: 'Settings', path: '/settings' },
+    ]
+  },
+];
+
+export const dashBoardTools = [
+  { name: "URL Shortener", href: "/dashboard/url-shortener", icon: Link2 },
+  { name: "QR Generator", href: "/dashboard/qr-generator", icon: QrCode },
+  { name: "QR Scanner", href: "/dashboard/qr-scanner", icon: ScanLine },
+  { name: "Dynamic QR Editor", href: "/dashboard/dynamic-qr", icon: Edit3 },
+  { name: "Link Expander", href: "/dashboard/link-expander", icon: ExternalLink },
+  { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
+  { name: "Barcode Generator", href: "/dashboard/barcode-generator", icon: Barcode },
+  { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanLine },
+  { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
+  { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
+];

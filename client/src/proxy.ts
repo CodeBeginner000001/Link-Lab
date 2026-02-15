@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isPublicRoute } from "./middleware/auth/check-route";
 
-export async function proxy(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (isPublicRoute(pathname)) {
@@ -15,11 +15,12 @@ export async function proxy(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+  response.headers.set("x-pathname", pathname);
+
+  return response;
 }
+
 export const config = {
-  matcher: [
-    // run proxy on all routes except static assets
-    "/((?!_next/static|_next/image|favicon.ico).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };

@@ -24,6 +24,7 @@ export default function SignUpForm() {
     password?: string;
     confirmPassword?: string;
   }>({});
+  
   const notify = useToastNotification();
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -48,7 +49,7 @@ export default function SignUpForm() {
     );
     setLoading(false);
     if (signupResult.result?.success) {
-      notify(signupResult.result.data.message, "success");
+      notify(signupResult.result.message, "success");
       router.push('/signup/verify/OTP')
       return;
     }

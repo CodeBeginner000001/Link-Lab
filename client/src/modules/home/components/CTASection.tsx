@@ -34,9 +34,9 @@ export default function CTASection() {
                 <ArrowRight className="w-5 h-5 hidden min-[310px]:flex group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
-            <Link href="/signin">
+            <Link href="/login">
               <Button variant="heroOutline" size="lg">
-                Sign In
+                Log In
               </Button>
             </Link>
           </div>

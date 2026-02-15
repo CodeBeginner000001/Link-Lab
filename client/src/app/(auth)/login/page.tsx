@@ -1,7 +1,5 @@
-"use client"
-
-import SignInForm from "@/modules/auth/pages/SignInForm"
+import Login from "@/modules/auth/pages/Login"
 
 export default function Page() {
-    return <SignInForm />
+    return <Login />
 }

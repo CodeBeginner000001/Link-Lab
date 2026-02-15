@@ -12,6 +12,8 @@ var (
 	ErrInvalidCredentials = errors.New("Invalid credentials")
 	ErrInvalidToken       = errors.New("Invalid token")
 	ErrUnauthorized   = errors.New("unauthorized")
+	ErrRefreshTokenExpired = errors.New("Refresh token is expired")
+	ErrAccessTokenExpired = errors.New("Access token is expired")
 	
 	ErrSignupAlreadyInProgress         = errors.New("Signup already in progress")
 	ErrForgetPasswordAlreadyInProgress = errors.New("Password reset already in progress")

@@ -1,10 +1,10 @@
+import { GetSessionData } from "@/service/auth";
 import { Mail } from "lucide-react";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import MotionWrapper from "../../../components/common/MotionWrapper";
 import Header from "../components/common/Header";
-import MotionWrapper from "../components/common/MotionWrapper";
 import OTPForm from "../components/OTPForm";
-import { GetSessionData } from "@/service/auth";
 
 export default async function SignUpOTPVerification() {
   const cookieStore = await cookies();
