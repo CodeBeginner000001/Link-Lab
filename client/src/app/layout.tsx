@@ -17,7 +17,6 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const user = await GetCurrentUser();
-
   return (
     <html lang="en" className={dmSans.variable}>
       <body>

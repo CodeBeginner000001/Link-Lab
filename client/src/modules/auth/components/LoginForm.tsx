@@ -4,7 +4,7 @@ import { getUserFriendlyMessage } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/react-toastify";
 import { AnimatePresence, motion } from "framer-motion";
 import { Lock, Mail } from "lucide-react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import FormField from "./common/FormField";
 import SubmitButton from "./common/SubmitButton";
@@ -37,8 +37,9 @@ export default function LoginForm() {
     setLoading(false);
     if (loginResult.result?.success) {
       notify(loginResult.result.message, "success");
-      router.replace("/");
-      window.location.href = "/dashboard";
+      router.replace("/dashboard");
+      router.refresh();
+      return;
     }
     if (loginResult.statusCode === 422 && loginResult.error) {
       const fieldErrors: Record<string, string> = {};

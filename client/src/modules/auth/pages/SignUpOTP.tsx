@@ -19,7 +19,7 @@ export default async function SignUpOTPVerification() {
   return (
     <>
       <div className="flex flex-1 items-center justify-center">
-        <MotionWrapper>
+        <MotionWrapper className="max-w-md">
           <Header
             icon={Mail}
             heading="Enter verification code"

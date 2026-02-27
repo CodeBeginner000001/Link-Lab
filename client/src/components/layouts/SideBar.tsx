@@ -1,7 +1,5 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { useState } from "react";
 import Logo from "../Logo";
 import { LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
@@ -10,119 +8,71 @@ import { usePathname } from "next/navigation";
 import { cn } from "@/utils/tailwindcss-merger";
 
 export default function SideBar() {
-  const [isHovered, setIsHovered] = useState(false);
   const pathname = usePathname();
 
   return (
-    <motion.aside
-      initial={false}
-      animate={{ width: isHovered ? 250 : 80 }}
-      transition={{ duration: 0.25, ease: "easeInOut" }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="h-full flex flex-col bg-background border-r border-[hsl(var(--sidebar-border))]"
-    >
-      {/* HEADER */}
+    <aside className="peer/sidebar group/sidebar fixed left-0 top-0 z-50 h-screen w-20 hover:w-64 transition-[width] duration-300 ease-in-out flex flex-col overflow-hidden bg-[hsl(var(--background))] border-r border-[hsl(var(--sidebar-border))] no-scrollbar">
       <div className="flex items-center h-16 border-b px-4 border-[hsl(var(--sidebar-border))]">
-        <Link href={"/"} className="flex items-center gap-2">
+        <Link href="/" className="flex items-center gap-2 min-w-0">
           <Logo size="md" showText={false} />
-
-          <motion.span
-            initial={false}
-            animate={{
-              opacity: isHovered ? 1 : 0,
-              width: isHovered ? "auto" : 0,
-            }}
-            transition={{ duration: 0.2 }}
-            className="whitespace-nowrap overflow-hidden text-xl font-bold tracking-tight"
-          >
+          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden text-xl font-bold tracking-tight transition-all duration-200">
             <span className="gradient-text">Link</span>
             <span className="text-foreground">Lab</span>
-          </motion.span>
+          </span>
         </Link>
       </div>
 
-      {/* MAIN NAV (SCROLLABLE) */}
       <nav className="flex flex-col gap-2 flex-1 overflow-y-auto p-4">
-        {/* Dashboard */}
         <Link
           href="/dashboard"
           className={cn(
-            "flex items-center gap-2 px-3 py-2 rounded-lg min-h-10 transition-colors text-muted-foreground hover:bg-gray-400/15",
+            "flex items-center justify-center group-hover/sidebar:justify-start gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
             pathname === "/dashboard" &&
               "text-[hsl(var(--sidebar-primary))] bg-gray-400/15",
           )}
         >
           <LayoutDashboard className="w-5 h-5 shrink-0" />
-          <motion.span
-            initial={false}
-            animate={{
-              opacity: isHovered ? 1 : 0,
-              width: isHovered ? "auto" : 0,
-            }}
-            transition={{ duration: 0.2 }}
-            className="whitespace-nowrap overflow-hidden text-sm"
-          >
+          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden text-sm transition-all duration-200">
             Dashboard
-          </motion.span>
+          </span>
         </Link>
 
-        {/* Tools Label */}
-        {isHovered && (
-          <div className="pt-4 px-3 text-xs uppercase text-muted-foreground">
-            Tools
-          </div>
-        )}
+        <div className="max-h-0 opacity-0 overflow-hidden px-0 group-hover/sidebar:max-h-10 group-hover/sidebar:opacity-100 group-hover/sidebar:px-3 group-hover/sidebar:pt-4 text-xs uppercase text-muted-foreground transition-all duration-200">
+          Tools
+        </div>
 
-        {/* Tools */}
         {dashBoardTools.map(({ name, href, icon: Icon }) => (
           <Link
             key={name}
             href={href}
             className={cn(
-              "flex items-center text-sm gap-2 px-3 py-2 rounded-lg min-h-10 transition-colors text-muted-foreground hover:bg-gray-400/15",
+              "flex items-center justify-center group-hover/sidebar:justify-start text-sm gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
               pathname === href && "text-[hsl(var(--primary))] bg-gray-400/15",
             )}
           >
             <Icon className="w-5 h-5 shrink-0" />
-            <motion.span
-              initial={false}
-              animate={{
-                opacity: isHovered ? 1 : 0,
-                width: isHovered ? "auto" : 0,
-              }}
-              transition={{ duration: 0 }}
-              className="whitespace-nowrap overflow-hidden"
-            >
+            <span className="w-fit opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden transition-all duration-200">
               {name}
-            </motion.span>
+            </span>
           </Link>
         ))}
       </nav>
 
-      {/* BOTTOM SETTINGS */}
       <div className="p-4">
         <Link
           href="/dashboard/settings"
           className={cn(
-            "flex items-center gap-2 px-3 py-2 rounded-lg min-h-10 transition-colors",
+            "flex items-center justify-center group-hover/sidebar:justify-start gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+            pathname === "/dashboard/settings" &&
+              "text-[hsl(var(--primary))] bg-gray-400/15",
           )}
         >
           <Settings className="h-5 w-5 shrink-0" />
-
-          <motion.span
-            initial={false}
-            animate={{
-              opacity: isHovered ? 1 : 0,
-              width: isHovered ? "auto" : 0,
-            }}
-            transition={{ duration: 0.2 }}
-            className="whitespace-nowrap overflow-hidden"
-          >
+          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden transition-all duration-200">
             Settings
-          </motion.span>
+          </span>
         </Link>
       </div>
-    </motion.aside>
+    </aside>
   );
 }

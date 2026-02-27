@@ -10,6 +10,10 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+type EncryptedData struct {
+	CipherText string
+}
+
 func GenerateOTP(length int) string {
 	if length <= 0 {
 		return ""

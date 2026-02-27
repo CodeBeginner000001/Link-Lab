@@ -12,7 +12,7 @@ export default function Login() {
     <>
       <AuthNavBar link="/" />
       <div className="flex flex-1 items-center justify-center">
-        <MotionWrapper>
+        <MotionWrapper className="max-w-md">
           <AuthHero
             logoSize="lg"
             heading="Welcome back"

@@ -3,7 +3,7 @@ import ToggleTheme from "../ui/ToggleTheme";
 
 export default function Header() {
   return (
-    <header className="h-16 border-b border-[hsl(var(--sidebar-border))] flex items-center justify-end px-6 gap-4 bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+    <header className="fixed top-0 inset-x-0 h-16 border-b border-[hsl(var(--sidebar-border))] bg-background/80 px-6 backdrop-blur-sm flex items-center justify-end gap-4">
       <ToggleTheme />
       <UserAvatar/>
     </header>

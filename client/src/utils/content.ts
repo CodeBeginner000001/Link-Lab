@@ -96,7 +96,7 @@ export const tools = [
   },
   {
     icon: ScanLine,
-    title: "Scan QR Code",
+    title: "QR Code Scanner",
     description:
       "Instantly scan and decode QR codes from images or your camera.",
   },
@@ -119,7 +119,7 @@ export const tools = [
   },
   {
     icon: Edit3,
-    title: "Dynamic QR Editor",
+    title: "Dynamic QR Generator",
     description: "Edit QR code destinations anytime without reprinting codes.",
   },
   {
@@ -143,11 +143,11 @@ export const tools = [
 export const title = [
   "URL Shortener",
   "QR Code Generator",
-  "Scan QR Code",
+  "QR Code Scanner",
   "Link Expander",
   "Broken Link Checker",
   "Barcode Generator",
-  "Dynamic QR Editor",
+  "Dynamic QR Generator",
   "Barcode Decoder",
   "DNS & Domain Checker",
   "One-Time Links",
@@ -236,8 +236,8 @@ export const menuItems = [
     items: [
       { icon: Link2, label: 'URL Shortener', path: '/dashboard/url-shortener' },
       { icon: QrCode, label: 'QR Code Generator', path: '/dashboard/qr-generator' },
-      { icon: ScanLine, label: 'Scan QR Scanner', path: '/dashboard/qr-scanner' },
-      { icon: Edit3, label: 'Dynamic QR Editor', path: '/dashboard/qr-editor', pro: true },
+      { icon: ScanLine, label: 'QR Code Scanner', path: '/dashboard/qr-scanner' },
+      { icon: Edit3, label: 'Dynamic QR Generator', path: '/dashboard/dynamic-qr', pro: true },
       { icon: ExternalLink, label: 'Link Expander', path: '/dashboard/link-expander' },
       { icon: LinkIcon, label: 'Broken Link Checker', path: '/dashboard/broken-link-checker' },
       { icon: Barcode, label: 'Barcode Generator', path: '/dashboard/barcode-generator' },
@@ -256,9 +256,9 @@ export const menuItems = [
 
 export const dashBoardTools = [
   { name: "URL Shortener", href: "/dashboard/url-shortener", icon: Link2 },
-  { name: "QR Generator", href: "/dashboard/qr-generator", icon: QrCode },
-  { name: "QR Scanner", href: "/dashboard/qr-scanner", icon: ScanLine },
-  { name: "Dynamic QR Editor", href: "/dashboard/dynamic-qr", icon: Edit3 },
+  { name: "QR Code Generator", href: "/dashboard/qr-generator", icon: QrCode },
+  { name: "QR Code Scanner", href: "/dashboard/qr-scanner", icon: ScanLine },
+  { name: "Dynamic QR Generator", href: "/dashboard/dynamic-qr", icon: Edit3 },
   { name: "Link Expander", href: "/dashboard/link-expander", icon: ExternalLink },
   { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
   { name: "Barcode Generator", href: "/dashboard/barcode-generator", icon: Barcode },

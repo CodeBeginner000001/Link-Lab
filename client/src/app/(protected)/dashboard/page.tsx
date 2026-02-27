@@ -1,4 +1,4 @@
-import Dashboard from "@/modules/dashboard"
+import Dashboard from "@/modules/dashboard/pages"
 
 const page = () => {
   return (
@@ -9,3 +9,4 @@ const page = () => {
 }
 
 export default page
+
