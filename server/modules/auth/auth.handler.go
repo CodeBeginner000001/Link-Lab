@@ -3,20 +3,32 @@ package auth
 import (
 	"context"
 	"errors"
+	"time"
+
 	"linklab-server/config"
 	apperrors "linklab-server/errors"
 	"linklab-server/errors/autherror"
 	"linklab-server/http"
 	"linklab-server/logger"
 	"linklab-server/utils"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
-var authService = NewAuthService()
+type AuthHandler struct {
+	authService *AuthService
+}
 
-func AuthHealth(c *fiber.Ctx) error {
+func NewAuthHandler(authService *AuthService) *AuthHandler {
+	if authService == nil {
+		panic("auth handler service must not be nil")
+	}
+	return &AuthHandler{
+		authService: authService,
+	}
+}
+
+func (h *AuthHandler) AuthHealth(c *fiber.Ctx) error {
 	return c.SendString("Auth route is working! 🔐")
 }
 
@@ -32,14 +44,14 @@ func clearCookie(c *fiber.Ctx, name string) {
 	})
 }
 
-func RegisterUser(c *fiber.Ctx) error {
+func (h *AuthHandler) RegisterUser(c *fiber.Ctx) error {
 	body, ok := c.Locals("body").(*RegisterRequest)
 	if !ok {
 		return http.InvalidRequestBody()
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	resData, err := authService.RegisterUserService(ctx, *body)
+	resData, err := h.authService.RegisterUserService(ctx, *body)
 
 	if err != nil {
 		logger.Error("registerUser: api failed due to: ", err)
@@ -56,17 +68,17 @@ func RegisterUser(c *fiber.Ctx) error {
 		Expires:  time.Now().Add(config.SignupSessionTTL),
 	})
 	return http.Success(c, resData.Message, fiber.Map{
-		"email":   resData.Email,
+		"email": resData.Email,
 	})
 }
 
-func GetSignupSession(c *fiber.Ctx) error {
+func (h *AuthHandler) GetSignupSession(c *fiber.Ctx) error {
 	sessionId := c.Cookies("signup_session")
 	if sessionId == "" {
 		logger.Debug("resendOTP: signup session missing")
 		return http.UnAuthorized("Signup session expired")
 	}
-	sessionData, err := authService.GetSignupSessionDataService(c.Context(), sessionId)
+	sessionData, err := h.authService.GetSignupSessionDataService(c.Context(), sessionId)
 	if err != nil {
 		if errors.Is(err, autherror.ErrSessionExpired) ||
 			errors.Is(err, autherror.ErrSessionCorrupted) {
@@ -77,7 +89,7 @@ func GetSignupSession(c *fiber.Ctx) error {
 	return http.Success(c, "Signup session active", sessionData)
 }
 
-func VerifyOTP(c *fiber.Ctx) error {
+func (h *AuthHandler) VerifyOTP(c *fiber.Ctx) error {
 	body, ok := c.Locals("body").(*VerifyOTPRequest)
 	if !ok {
 		return http.InvalidRequestBody()
@@ -89,7 +101,7 @@ func VerifyOTP(c *fiber.Ctx) error {
 		return http.UnAuthorized("Signup session expired")
 	}
 
-	user, err := authService.VerifyOTPService(c.Context(), sessionId, body.OTP)
+	user, err := h.authService.VerifyOTPService(c.Context(), sessionId, body.OTP)
 	if err != nil {
 		logger.Error("verifyOTP: api failed due to: ", err)
 		if errors.Is(err, autherror.ErrSessionExpired) ||
@@ -134,14 +146,14 @@ func VerifyOTP(c *fiber.Ctx) error {
 	)
 }
 
-func ResendOTP(c *fiber.Ctx) error {
+func (h *AuthHandler) ResendOTP(c *fiber.Ctx) error {
 	sessionId := c.Cookies("signup_session")
 	if sessionId == "" {
 		logger.Error("resendOTP: signup session missing", nil)
 		return http.UnAuthorized("Signup session expired")
 	}
 
-	resendOTPData, err := authService.ResendOTPService(c.Context(), sessionId)
+	resendOTPData, err := h.authService.ResendOTPService(c.Context(), sessionId)
 	if err != nil {
 		logger.Error("resendOTP: api failed due to: ", err)
 		if errors.Is(err, autherror.ErrSessionExpired) ||
@@ -154,14 +166,14 @@ func ResendOTP(c *fiber.Ctx) error {
 	return http.Success(c, "OTP sent successfully", resendOTPData)
 }
 
-func Me(c *fiber.Ctx) error {
+func (h *AuthHandler) Me(c *fiber.Ctx) error {
 	accessToken := c.Cookies("access_token")
 
 	if accessToken == "" {
 		return http.UnAuthorized("Access token is expired")
 	}
 
-	user, err := authService.MeService(
+	user, err := h.authService.MeService(
 		c.Context(),
 		accessToken,
 	)
@@ -174,12 +186,12 @@ func Me(c *fiber.Ctx) error {
 	return http.Success(c, "User fetched", user)
 }
 
-func Login(c *fiber.Ctx) error {
+func (h *AuthHandler) Login(c *fiber.Ctx) error {
 	body, ok := c.Locals("body").(*LoginRequest)
 	if !ok {
 		return http.InvalidRequestBody()
 	}
-	user, err := authService.LoginService(c.Context(), *body)
+	user, err := h.authService.LoginService(c.Context(), *body)
 
 	if err != nil {
 		logger.Error("login: api failed due to: ", err)
@@ -212,7 +224,7 @@ func Login(c *fiber.Ctx) error {
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(config.RefreshTokenTTL),
+		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
 	return http.Success(
 		c,
@@ -221,13 +233,13 @@ func Login(c *fiber.Ctx) error {
 	)
 }
 
-func RefreshToken(c *fiber.Ctx) error {
+func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
 	if refreshToken == "" {
 		logger.Debug("refreshToken: refresh session token missing")
 		return http.UnAuthorized("Session expired")
 	}
-	tokens, err := authService.RefreshTokenService(c.Context(), refreshToken)
+	tokens, err := h.authService.RefreshTokenService(c.Context(), refreshToken)
 	if err != nil {
 		logger.Error("refreshToken: api failed due to: ", err)
 		return apperrors.HandleError(err)
@@ -248,15 +260,15 @@ func RefreshToken(c *fiber.Ctx) error {
 		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(config.AccessTokenTTL),
+		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
 	return http.Success(c, "Token refreshed successfully", nil)
 }
 
-func Logout(c *fiber.Ctx) error {
+func (h *AuthHandler) Logout(c *fiber.Ctx) error {
 	refreshToken := c.Cookies("refresh_token")
 	if refreshToken != "" {
-		if err := authService.LogoutService(c.Context(), refreshToken); err != nil {
+		if err := h.authService.LogoutService(c.Context(), refreshToken); err != nil {
 			logger.Error("logout: blacklisting refresh token failed: ", err)
 		}
 	}

@@ -6,12 +6,10 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"linklab-server/aws/sqs"
 	"linklab-server/config"
-	"linklab-server/db"
 	apperrors "linklab-server/errors"
 	"linklab-server/errors/autherror"
 	"linklab-server/errors/mongoerror"
@@ -37,41 +35,24 @@ type EmailEvent struct {
 }
 
 type AuthService struct {
-	mu sync.Mutex
-
-	initialized bool
-	initErr     error
-
 	redisHash   *redisHashService.RedisHashService
 	redisCommon *redisCommonService.RedisCommonService
 	user        *mongo.UserService
 }
 
-func NewAuthService() *AuthService {
-	return &AuthService{}
-}
-
-func (s *AuthService) init() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.initialized {
-		return
+func NewAuthService(
+	user *mongo.UserService,
+	redisHash *redisHashService.RedisHashService,
+	redisCommon *redisCommonService.RedisCommonService,
+) *AuthService {
+	if user == nil || redisHash == nil || redisCommon == nil {
+		panic("auth service dependencies must not be nil")
 	}
-
-	if err := db.EnsureMongo(); err != nil {
-		s.initErr = err
-		return
+	return &AuthService{
+		user:        user,
+		redisHash:   redisHash,
+		redisCommon: redisCommon,
 	}
-
-	userRepo := mongo.NewUserRepo(db.MongoDB)
-
-	s.user = mongo.NewUserService(userRepo)
-	s.redisHash = redisHashService.NewRedisHashService()
-	s.redisCommon = redisCommonService.NewRedisCommonService()
-
-	s.initialized = true
-	s.initErr = nil
 }
 
 func toStr(v int64) string {
@@ -79,10 +60,6 @@ func toStr(v int64) string {
 }
 
 func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
-	s.init()
-	if s.initErr != nil {
-		return nil, apperrors.ErrMongo
-	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	_, err := s.user.Find(
@@ -310,10 +287,6 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 		return nil, apperrors.WrapAuth(autherror.ErrOTPExpired)
 	}
 
-	if err := db.EnsureMongo(); err != nil {
-		logger.Error("verifyOTPService: mongodb unavailable", err)
-		return nil, apperrors.ErrMongo
-	}
 	user, err := s.user.CreateUser(ctx,
 		data["name"],
 		data["email"],
@@ -481,10 +454,6 @@ func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*mode
 		logger.Error("loginService: email and password missing: ", nil)
 		return nil, apperrors.WrapAuth(autherror.ErrInvalidCredentials)
 	}
-	s.init()
-	if s.initErr != nil {
-		return nil, apperrors.ErrMongo
-	}
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
 	user, err := s.user.Find(
@@ -509,10 +478,6 @@ func (s *AuthService) LoginService(ctx context.Context, req LoginRequest) (*mode
 }
 
 func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken string) (*TokenPair, error) {
-	s.init()
-	if s.initErr != nil {
-		return nil, apperrors.ErrMongo
-	}
 	blackListKey := "blacklist:refresh:" + refreshToken
 
 	exists, err := s.redisCommon.Exists(ctx, blackListKey)
@@ -557,10 +522,6 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 }
 
 func (s *AuthService) MeService(ctx context.Context, accessToken string) (*MeResponse, error) {
-	s.init()
-	if s.initErr != nil {
-		return nil, apperrors.ErrMongo
-	}
 	accessClaims, err := utils.ValidateAccessToken(accessToken)
 	if err != nil {
 		if errors.Is(err, utilserror.ErrTokenExpired) {

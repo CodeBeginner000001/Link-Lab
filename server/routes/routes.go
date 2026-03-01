@@ -1,11 +1,15 @@
 package routes
 
 import (
+	authHandlers "linklab-server/modules/auth"
+
 	"github.com/gofiber/fiber/v2"
 )
 
-func RegisterRoutes(app *fiber.App) {
+func RegisterRoutes(
+	app *fiber.App,
+	authHandler *authHandlers.AuthHandler,
+) {
 	v1 := app.Group("/v1")
-	RegisterAuthRoutes(v1)
-	// RegisterRedisRoutes(v1)
+	RegisterAuthRoutes(v1, authHandler)
 }

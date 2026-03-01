@@ -13,8 +13,8 @@ type MongoConfig struct {
 }
 
 func LoadMongoConfig() MongoConfig {
-	uri := "mongodb://localhost:27017"
-	db := "linklab"
+	uri := "mongodb+srv://linklabAdmin:K3qEVGhllGybBUc8@cluster0.pteigh0.mongodb.net/"
+	db := "prod"
 
 	cfg := MongoConfig{
 		URI:      uri,

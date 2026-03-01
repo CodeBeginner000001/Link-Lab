@@ -7,6 +7,10 @@ import (
 	"linklab-server/http"
 	"linklab-server/logger"
 	middlewares "linklab-server/middleware"
+	authModule "linklab-server/modules/auth"
+	mongoModule "linklab-server/modules/mongo"
+	redisCommonModule "linklab-server/modules/redis/common"
+	redisHashModule "linklab-server/modules/redis/hash"
 	"linklab-server/routes"
 	"log"
 
@@ -24,7 +28,14 @@ func main() {
 	go db.MonitorMongo()
 	db.ConnectRedis()
 	go db.MonitorRedis()
-	
+
+	userRepo := mongoModule.NewUserRepo(db.MongoDB)
+	userService := mongoModule.NewUserService(userRepo)
+	redisHashService := redisHashModule.NewRedisHashService()
+	redisCommonService := redisCommonModule.NewRedisCommonService()
+	authService := authModule.NewAuthService(userService, redisHashService, redisCommonService)
+	authHandler := authModule.NewAuthHandler(authService)
+
 	sqsClient := sqs.NewClient(ctx)
 	sqs.SetClient(sqsClient)
 
@@ -48,12 +59,12 @@ func main() {
 		},
 	})
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "http://localhost:3000",
+		AllowOrigins:     "http://localhost:3000",
 		AllowCredentials: true,
-		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
-		AllowMethods: "GET,POST,PUT,DELETE,OPTIONS",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
+		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 	}))
 	app.Use(middlewares.PanicRecovery())
-	routes.RegisterRoutes(app)
+	routes.RegisterRoutes(app, authHandler)
 	log.Fatal(app.Listen(":4000"))
 }
