@@ -10,8 +10,6 @@ import (
 func RegisterAuthRoutes(router fiber.Router, authHandler *authHandlers.AuthHandler) {
 	auth := router.Group("/auth")
 
-	auth.Get("/health", authHandler.AuthHealth)
-
 	auth.Post("/signup", middlewares.ValidateBody[authHandlers.RegisterRequest](), authHandler.RegisterUser)
 	auth.Get("/otp/session", authHandler.GetSignupSession)
 	auth.Post("/otp/verify", middlewares.ValidateBody[authHandlers.VerifyOTPRequest](), authHandler.VerifyOTP)

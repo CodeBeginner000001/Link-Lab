@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"linklab-server/aws/sqs"
+	"linklab-server/config"
 	"linklab-server/db"
 	"linklab-server/http"
 	"linklab-server/logger"
@@ -19,6 +21,8 @@ import (
 )
 
 func main() {
+	config.LoadEnv()
+
 	logger.Init()
 	defer logger.Sync()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -59,12 +63,14 @@ func main() {
 		},
 	})
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "http://localhost:3000",
+		AllowOrigins:     config.GetEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000"),
 		AllowCredentials: true,
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
 	}))
 	app.Use(middlewares.PanicRecovery())
 	routes.RegisterRoutes(app, authHandler)
-	log.Fatal(app.Listen(":4000"))
+
+	port := config.GetEnv("PORT", "4000")
+	log.Fatal(app.Listen(fmt.Sprintf(":%s", port)))
 }

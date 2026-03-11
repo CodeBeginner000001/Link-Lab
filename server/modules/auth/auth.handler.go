@@ -28,10 +28,6 @@ func NewAuthHandler(authService *AuthService) *AuthHandler {
 	}
 }
 
-func (h *AuthHandler) AuthHealth(c *fiber.Ctx) error {
-	return c.SendString("Auth route is working! 🔐")
-}
-
 func clearCookie(c *fiber.Ctx, name string) {
 	c.Cookie(&fiber.Cookie{
 		Name:     name,
