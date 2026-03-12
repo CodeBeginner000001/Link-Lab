@@ -2,10 +2,11 @@ package app
 
 import (
 	"context"
+	"errors"
 	"linklab-server/aws/sqs"
 	"linklab-server/config"
 	"linklab-server/db"
-	"linklab-server/http"
+	apphttp "linklab-server/http"
 	"linklab-server/logger"
 	middlewares "linklab-server/middleware"
 	authModule "linklab-server/modules/auth"
@@ -42,17 +43,38 @@ func New(ctx context.Context) *fiber.App {
 	app := fiber.New(fiber.Config{
 		AppName: "LinkLab Auth API",
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			if appErr, ok := err.(*http.AppError); ok {
-				return c.Status(appErr.StatusCode).JSON(http.APIResponse{
+			if appErr, ok := err.(*apphttp.AppError); ok {
+				return c.Status(appErr.StatusCode).JSON(apphttp.APIResponse{
 					Success: false,
 					Message: appErr.Message,
 					Errors:  appErr.Fields,
 				})
 			}
 
-			logger.Error("Error from App bootstrap", err)
+			var fiberErr *fiber.Error
+			if errors.As(err, &fiberErr) {
+				if fiberErr.Code >= fiber.StatusInternalServerError {
+					logger.Error(
+						"Fiber internal error",
+						err,
+						logger.F("path", c.Path()),
+						logger.F("method", c.Method()),
+					)
+				}
+				return c.Status(fiberErr.Code).JSON(apphttp.APIResponse{
+					Success: false,
+					Message: fiberErr.Message,
+				})
+			}
 
-			return c.Status(500).JSON(http.APIResponse{
+			logger.Error(
+				"Unhandled app error",
+				err,
+				logger.F("path", c.Path()),
+				logger.F("method", c.Method()),
+			)
+
+			return c.Status(fiber.StatusInternalServerError).JSON(apphttp.APIResponse{
 				Success: false,
 				Message: "Internal server error",
 			})
