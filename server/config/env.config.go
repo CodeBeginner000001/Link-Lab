@@ -4,14 +4,14 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
 
 func LoadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("No .env file found, using system environment variables")
+	if err := godotenv.Load(); err != nil {
+		log.Printf("No .env file found, using system environment variables: %v", err)
 	}
 }
 
@@ -36,5 +36,6 @@ func GetEnvInt(key string, fallback int) int {
 }
 
 func IsProd() bool {
-	return GetEnv("ENV", "dev") == "prod"
+	env := strings.ToLower(GetEnv("ENV", "dev"))
+	return env == "prod" || env == "production" || os.Getenv("VERCEL") == "1"
 }
