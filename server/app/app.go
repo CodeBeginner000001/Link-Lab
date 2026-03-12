@@ -25,10 +25,20 @@ func New(ctx context.Context) *fiber.App {
 
 	logger.Init()
 
-	db.ConnectMongo()
-	go db.MonitorMongo()
-	db.ConnectRedis()
-	go db.MonitorRedis()
+	if err := db.ConnectMongo(); err != nil {
+		logger.Error("MongoDB bootstrap failed", err)
+		panic(err)
+	}
+	if !config.IsServerless() {
+		go db.MonitorMongo()
+	}
+	if err := db.ConnectRedis(); err != nil {
+		logger.Error("Redis bootstrap failed", err)
+		panic(err)
+	}
+	if !config.IsServerless() {
+		go db.MonitorRedis()
+	}
 
 	userRepo := mongoModule.NewUserRepo(db.MongoDB)
 	userService := mongoModule.NewUserService(userRepo)

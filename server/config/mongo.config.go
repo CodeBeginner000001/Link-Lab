@@ -13,7 +13,10 @@ type MongoConfig struct {
 }
 
 func LoadMongoConfig() MongoConfig {
-	uri := GetEnv("MONGODB_URL", "")
+	uri := GetEnv(
+		"MONGODB_URL",
+		GetEnv("MongoDB_URL", GetEnv("MONGODB_URI", GetEnv("MONGO_URI", ""))),
+	)
 	db := GetEnv("MONGO_DB", "dev")
 
 	cfg := MongoConfig{
@@ -31,7 +34,7 @@ func LoadMongoConfig() MongoConfig {
 		cfg.Database = "linklab"
 	} else {
 		if cfg.URI == "" {
-			log.Fatal("MongoDB_URL is required in production and is missing: ")
+			log.Fatal("MongoDB URI is required in production. Set MONGODB_URL (or MongoDB_URL).")
 		}
 	}
 

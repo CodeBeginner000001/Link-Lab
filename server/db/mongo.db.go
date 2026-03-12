@@ -26,47 +26,46 @@ func GetMongoSourceURI(cfg config.MongoConfig) string {
 	return "prod uri can't be exposed"
 }
 
-func ConnectMongo() {
+func ConnectMongo() error {
 	cfg := config.LoadMongoConfig()
+	maxRetries := cfg.MaxRetries
+	if config.IsServerless() && maxRetries > 1 {
+		maxRetries = 1
+	}
+	var lastErr error
 
-	for {
-		for attempt := 1; attempt <= cfg.MaxRetries; attempt++ {
-			logger.Info("🔄 MongoDB connection attempt", logger.F("Attempt", attempt), logger.F("Max retries", cfg.MaxRetries))
-			ctx, cancel := context.WithTimeout(
-				context.Background(),
-				time.Duration(cfg.ConnectTimeoutSeconds)*time.Second,
-			)
-
-			client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.URI))
-			if err == nil {
-				err = client.Ping(ctx, nil)
-			}
-
-			cancel()
-
-			if err == nil {
-				MongoClient = client
-				MongoDB = client.Database(cfg.Database)
-				mongoHealthy.Store(true)
-				logger.Info("📦 Mongo connection source", logger.F("source: ", GetMongoSourceURI(cfg)))
-				logger.Info("✅ MongoDB connected")
-				return
-			}
-
-			logger.Error("❌ MongoDB connection failed:", err)
-			time.Sleep(time.Duration(cfg.RetryDelaySeconds) * time.Second)
-		}
-
-		logger.Info(
-			fmt.Sprintf(
-				"⏳ MongoDB connection failed after %d attempts. Retrying after %d seconds...",
-				cfg.MaxRetries,
-				cfg.CooldownSeconds,
-			),
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		logger.Info("🔄 MongoDB connection attempt", logger.F("Attempt", attempt), logger.F("Max retries", maxRetries))
+		ctx, cancel := context.WithTimeout(
+			context.Background(),
+			time.Duration(cfg.ConnectTimeoutSeconds)*time.Second,
 		)
 
-		time.Sleep(time.Duration(cfg.CooldownSeconds) * time.Second)
+		client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.URI))
+		if err == nil {
+			err = client.Ping(ctx, nil)
+		}
+
+		cancel()
+
+		if err == nil {
+			MongoClient = client
+			MongoDB = client.Database(cfg.Database)
+			mongoHealthy.Store(true)
+			logger.Info("📦 Mongo connection source", logger.F("source: ", GetMongoSourceURI(cfg)))
+			logger.Info("✅ MongoDB connected")
+			return nil
+		}
+
+		lastErr = err
+		logger.Error("❌ MongoDB connection failed:", err)
+		if attempt < maxRetries {
+			time.Sleep(time.Duration(cfg.RetryDelaySeconds) * time.Second)
+		}
 	}
+
+	mongoHealthy.Store(false)
+	return fmt.Errorf("MongoDB connection failed after %d attempt(s): %w", maxRetries, lastErr)
 }
 
 func IsMongoHealthy() bool {
@@ -97,7 +96,9 @@ func MonitorMongo() {
 				logger.Warn("⚠️ MongoDB became unavailable, reconnecting...")
 			}
 			mongoHealthy.Store(false)
-			ConnectMongo()
+			if reconnectErr := ConnectMongo(); reconnectErr != nil {
+				logger.Error("MongoDB reconnect failed", reconnectErr)
+			}
 			continue
 		}
 
@@ -108,4 +109,3 @@ func MonitorMongo() {
 		mongoHealthy.Store(true)
 	}
 }
-

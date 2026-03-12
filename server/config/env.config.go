@@ -39,3 +39,7 @@ func IsProd() bool {
 	env := strings.ToLower(GetEnv("ENV", "dev"))
 	return env == "prod" || env == "production" || os.Getenv("VERCEL") == "1"
 }
+
+func IsServerless() bool {
+	return os.Getenv("VERCEL") == "1"
+}
