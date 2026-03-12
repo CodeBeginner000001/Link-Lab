@@ -10,7 +10,10 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var appConfig = config.LoadAppConfig()
+
 func GenerateAccessToken(userID string) (string, error) {
+	
 	if userID == "" {
 		return "", utilserror.ErrGeneratingAccessToken
 	}
@@ -18,13 +21,13 @@ func GenerateAccessToken(userID string) (string, error) {
 	claims := AccessTokenClaims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.AccessTokenTTL)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(appConfig.AccessTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(config.JWTAccessSecret))
+	signed, err := token.SignedString([]byte(appConfig.JWTAccessSecret))
 	if err != nil {
 		return "", utilserror.ErrGeneratingAccessToken
 	}
@@ -39,13 +42,13 @@ func GenerateRefreshToken(userID string) (string, error) {
 	claims := RefreshTokenClaims{
 		UserID: userID,
 		RegisteredClaims: jwt.RegisteredClaims{
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(config.RefreshTokenTTL)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(appConfig.RefreshTokenTTL)),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	signed, err := token.SignedString([]byte(config.JWTRefreshSecret))
+	signed, err := token.SignedString([]byte(appConfig.JWTRefreshSecret))
 	if err != nil {
 		return "", utilserror.ErrGeneratingRefreshToken
 	}
@@ -64,7 +67,7 @@ func ValidateRefreshToken(tokenString string) (*RefreshTokenClaims, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, utilserror.ErrValidatingToken
 			}
-			return []byte(config.JWTRefreshSecret), nil
+			return []byte(appConfig.JWTRefreshSecret), nil
 		},
 	)
 	if err != nil {
@@ -97,7 +100,7 @@ func ValidateAccessToken(tokenString string) (*AccessTokenClaims, error) {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, utilserror.ErrValidatingToken
 			}
-			return []byte(config.JWTAccessSecret), nil
+			return []byte(appConfig.JWTAccessSecret), nil
 		},
 	)
 	if err != nil {
