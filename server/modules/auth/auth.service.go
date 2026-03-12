@@ -59,6 +59,8 @@ func toStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
+var awsConfig = config.LoadAWSConfig()
+
 func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
@@ -163,7 +165,7 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		if err := sqs.Send(
 			bgCtx,
 			sqs.GetClient(),
-			config.SQSQueueURL,
+			awsConfig.SQSQueueURL,
 			string(payload),
 		); err != nil {
 			logger.Error("async SQS send failed", err, logger.F("email", email))
@@ -421,7 +423,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 	err = sqs.Send(
 		ctx,
 		sqs.GetClient(),
-		config.SQSQueueURL,
+		awsConfig.SQSQueueURL,
 		string(payload),
 	)
 	if err != nil {

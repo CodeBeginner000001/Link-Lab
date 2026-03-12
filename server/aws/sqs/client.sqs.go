@@ -3,9 +3,7 @@ package sqs
 import (
 	"context"
 	"log"
-
-	awsConfig "linklab-server/config"
-
+	linklab_config "linklab-server/config"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	awssqs "github.com/aws/aws-sdk-go-v2/service/sqs"
@@ -14,13 +12,14 @@ import (
 var client *awssqs.Client
 
 func NewClient(ctx context.Context) *awssqs.Client {
+	awsCfg:= linklab_config.LoadAWSConfig()
 	cfg, err := config.LoadDefaultConfig(
 		ctx,
-		config.WithRegion(awsConfig.AWSRegion),
+		config.WithRegion(awsCfg.Region),
 		config.WithCredentialsProvider(
 			credentials.NewStaticCredentialsProvider(
-				awsConfig.AWSAccessKeyID,
-				awsConfig.AWSSecretAccessKey,
+				awsCfg.AccessKeyID,
+				awsCfg.SecretAccessKey,
 				"",
 			),
 		),

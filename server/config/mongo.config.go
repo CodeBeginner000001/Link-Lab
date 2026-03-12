@@ -13,21 +13,26 @@ type MongoConfig struct {
 }
 
 func LoadMongoConfig() MongoConfig {
-	uri := "mongodb+srv://linklabAdmin:K3qEVGhllGybBUc8@cluster0.pteigh0.mongodb.net/"
-	db := "prod"
+	uri := GetEnv("MONGODB_URL", "")
+	db := GetEnv("MONGO_DB", "dev")
 
 	cfg := MongoConfig{
 		URI:      uri,
 		Database: db,
 
-		ConnectTimeoutSeconds: 5,
-		MaxRetries:            5,
-		RetryDelaySeconds:     2,
-		CooldownSeconds:       30,
+		ConnectTimeoutSeconds: GetEnvInt("MONGO_CONNECT_TIMEOUT_SECONDS", 5),
+		MaxRetries:            GetEnvInt("MONGO_MAX_RETRIES", 5),
+		RetryDelaySeconds:     GetEnvInt("MONGO_RETRY_DELAY_SECONDS", 2),
+		CooldownSeconds:       GetEnvInt("MONGO_COOLDOWN_SECONDS", 30),
 	}
 
-	if cfg.URI == "" || cfg.Database == "" {
-		log.Fatal("Mongo configuration not set")
+	if !IsProd() {
+		cfg.URI = "mongodb://localhost:27017"
+		cfg.Database = "linklab"
+	} else {
+		if cfg.URI == "" {
+			log.Fatal("MongoDB_URL is required in production and is missing: ")
+		}
 	}
 
 	return cfg

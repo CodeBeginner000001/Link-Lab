@@ -19,6 +19,13 @@ var (
 	mongoHealthy atomic.Bool
 )
 
+func GetMongoSourceURI(cfg config.MongoConfig) string {
+	if !config.IsProd() {
+		return cfg.URI
+	}
+	return "prod uri can't be exposed"
+}
+
 func ConnectMongo() {
 	cfg := config.LoadMongoConfig()
 
@@ -41,6 +48,7 @@ func ConnectMongo() {
 				MongoClient = client
 				MongoDB = client.Database(cfg.Database)
 				mongoHealthy.Store(true)
+				logger.Info("📦 Mongo connection source", logger.F("source: ", GetMongoSourceURI(cfg)))
 				logger.Info("✅ MongoDB connected")
 				return
 			}
