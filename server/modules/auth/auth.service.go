@@ -59,8 +59,6 @@ func toStr(v int64) string {
 	return strconv.FormatInt(v, 10)
 }
 
-var awsConfig = config.LoadAWSConfig()
-
 func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterRequest) (*RegisterServiceResponse, error) {
 	email := strings.ToLower(strings.TrimSpace(req.Email))
 
@@ -161,6 +159,7 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 	go func(email string, payload []byte) {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		awsConfig := config.LoadAWSConfig()
 
 		if err := sqs.Send(
 			bgCtx,
@@ -420,6 +419,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 		logger.Error("resendOTPService: marshal email event failed: ", err, logger.F("email", data["email"]))
 		return nil, apperrors.ErrUtils
 	}
+	awsConfig := config.LoadAWSConfig()
 	err = sqs.Send(
 		ctx,
 		sqs.GetClient(),

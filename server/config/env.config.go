@@ -1,7 +1,6 @@
 package config
 
 import (
-	"log"
 	"os"
 	"strconv"
 
@@ -9,10 +8,7 @@ import (
 )
 
 func LoadEnv() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("No .env file found, using system environment variables")
-	}
+	_ = godotenv.Load()
 }
 
 func GetEnv(key, fallback string) string {

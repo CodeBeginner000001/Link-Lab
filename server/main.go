@@ -1,75 +1,17 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"linklab-server/aws/sqs"
+	"linklab-server/app"
 	"linklab-server/config"
-	"linklab-server/db"
-	"linklab-server/http"
-	"linklab-server/logger"
-	middlewares "linklab-server/middleware"
-	authModule "linklab-server/modules/auth"
-	mongoModule "linklab-server/modules/mongo"
-	redisCommonModule "linklab-server/modules/redis/common"
-	redisHashModule "linklab-server/modules/redis/hash"
-	"linklab-server/routes"
 	"log"
-
-	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 )
 
 func main() {
-	config.LoadEnv()
-
-	logger.Init()
-	defer logger.Sync()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	db.ConnectMongo()
-	go db.MonitorMongo()
-	db.ConnectRedis()
-	go db.MonitorRedis()
-
-	userRepo := mongoModule.NewUserRepo(db.MongoDB)
-	userService := mongoModule.NewUserService(userRepo)
-	redisHashService := redisHashModule.NewRedisHashService()
-	redisCommonService := redisCommonModule.NewRedisCommonService()
-	authService := authModule.NewAuthService(userService, redisHashService, redisCommonService)
-	authHandler := authModule.NewAuthHandler(authService)
-
-	sqsClient := sqs.NewClient(ctx)
-	sqs.SetClient(sqsClient)
-
-	app := fiber.New(fiber.Config{
-		AppName: "LinkLab Auth API",
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			if appErr, ok := err.(*http.AppError); ok {
-				return c.Status(appErr.StatusCode).JSON(http.APIResponse{
-					Success: false,
-					Message: appErr.Message,
-					Errors:  appErr.Fields,
-				})
-			}
-
-			logger.Error("Error from Main.go", err)
-
-			return c.Status(500).JSON(http.APIResponse{
-				Success: false,
-				Message: "Internal server error",
-			})
-		},
-	})
-	app.Use(cors.New(cors.Config{
-		AllowOrigins:     config.GetEnv("CORS_ALLOWED_ORIGINS", "http://localhost:3000"),
-		AllowCredentials: true,
-		AllowHeaders:     "Origin, Content-Type, Accept, Authorization",
-		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS",
-	}))
-	app.Use(middlewares.PanicRecovery())
-	routes.RegisterRoutes(app, authHandler)
+	app, err := app.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	port := config.GetEnv("PORT", "4000")
 	log.Fatal(app.Listen(fmt.Sprintf(":%s", port)))

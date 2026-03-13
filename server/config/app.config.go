@@ -1,12 +1,11 @@
 package config
 
-import "time"
+import (
+	"os"
+	"time"
+)
 
-func IsProduction() bool {
-	return false
-}
-
-const (
+var (
 	Env      = "dev"
 	LogLevel = "info"
 
@@ -25,3 +24,19 @@ var (
 	AccessTokenTTL  = 15 * time.Minute
 	RefreshTokenTTL = 30 * 24 * time.Hour
 )
+
+func InitAppConfig() {
+	Env = GetEnv("ENV", "dev")
+	LogLevel = GetEnv("LOG_LEVEL", "info")
+
+	JWTAccessSecret = []byte(GetEnv("JWT_ACCESS_SECRET", string(JWTAccessSecret)))
+	JWTRefreshSecret = []byte(GetEnv("JWT_REFRESH_SECRET", string(JWTRefreshSecret)))
+
+	AccessTokenTTL = time.Duration(GetEnvInt("ACCESS_TOKEN_TTL_MINUTES", 15)) * time.Minute
+	RefreshTokenTTL = time.Duration(GetEnvInt("REFRESH_TOKEN_TTL_HOURS", 30*24)) * time.Hour
+}
+
+func IsProduction() bool {
+	vercelEnv := os.Getenv("VERCEL_ENV")
+	return Env == "prod" || vercelEnv == "preview" || vercelEnv == "production"
+}
