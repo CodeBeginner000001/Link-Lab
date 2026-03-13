@@ -1,17 +1,22 @@
 package routes
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"fmt"
+	"linklab-server/assets"
 
-const healthPageHTML = `<!doctype html>
+	"github.com/gofiber/fiber/v2"
+)
+
+func healthPageHTML() string {
+	return fmt.Sprintf(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Golang Server Health</title>
-  <link rel="icon" type="image/svg+xml" href="/assets/golang.svg?v=3" />
-  <link rel="alternate icon" type="image/png" href="/assets/go.png?v=3" />
-  <link rel="shortcut icon" type="image/png" href="/assets/go.png?v=3" />
   <title>LinkLab API Health</title>
+  <link rel="icon" type="image/svg+xml" href="%s" />
+  <link rel="alternate icon" type="image/png" href="%s" />
+  <link rel="shortcut icon" type="image/png" href="%s" />
   <style>
     :root {
       color-scheme: light;
@@ -74,7 +79,7 @@ const healthPageHTML = `<!doctype html>
     }
 
     p {
-    margin: 0;
+      margin: 0;
       font-size: 1.02rem;
       color: var(--muted);
     }
@@ -94,18 +99,24 @@ const healthPageHTML = `<!doctype html>
 <body>
   <main class="card">
     <div class="brand-row">
-    <img class="logo" src="/assets/golang.svg" alt="Go logo" />
-      <img class="logo" src="/assets/go.png" alt="Go logo" />
+      <img class="logo" src="%s" alt="Go logo" />
+      <img class="logo" src="%s" alt="Go logo" />
       <div class="brand-text">LinkLab API</div>
     </div>
     <h1><span class="dot"></span>Server is running</h1>
     <p>Health check endpoint: <strong>/v1/health</strong></p>
-    <p>Health check endpoint is available.</p>
   </main>
 </body>
-</html>`
+</html>`,
+		assets.GolangSVGDataURI(),
+		assets.GoPNGDataURI(),
+		assets.GoPNGDataURI(),
+		assets.GolangSVGDataURI(),
+		assets.GoPNGDataURI(),
+	)
+}
 
 func HealthCard(c *fiber.Ctx) error {
 	c.Set("Content-Type", "text/html; charset=utf-8")
-	return c.Status(fiber.StatusOK).SendString(healthPageHTML)
+	return c.Status(fiber.StatusOK).SendString(healthPageHTML())
 }
