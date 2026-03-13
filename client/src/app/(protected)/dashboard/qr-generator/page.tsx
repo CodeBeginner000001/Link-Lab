@@ -11,7 +11,8 @@ const page = async ({ searchParams }: QRGeneratorPageProps) => {
 
   return (
     <>
-      <QRGenerator searchParams={resolvedSearchParams} />
+    <p>dfdfdfffd</p>
+      {/* <QRGenerator searchParams={resolvedSearchParams} /> */}
     </>
   );
 };
