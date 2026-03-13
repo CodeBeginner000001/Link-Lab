@@ -6,11 +6,11 @@ import {
   SignUpApiSuccessResponse,
   VerifySignUpOTPApiSuccessResponse,
 } from "@/interfaces/api";
+import { BACKEND_API_URL } from "@/config/api";
 
-const BASE_URL = "http://localhost:4000/v1"
 export const signup = async (name: string, email: string, password: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/signup`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -49,7 +49,7 @@ export const signup = async (name: string, email: string, password: string) => {
 
 export const GetSessionData = async (cookieData: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/otp/session`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/otp/session`, {
       method: "GET",
       headers: {
         Cookie: cookieData,
@@ -82,7 +82,7 @@ export const GetSessionData = async (cookieData: string) => {
 
 export const ResendOTP = async () => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/otp/resend`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/otp/resend`, {
       method: "POST",
       credentials: "include",
       cache: "no-store",
@@ -113,7 +113,7 @@ export const ResendOTP = async () => {
 
 export const VerifySignUpOTP = async (otp: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/otp/verify`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/otp/verify`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -150,7 +150,7 @@ export const VerifySignUpOTP = async (otp: string) => {
 
 export const login = async (email: string, password: string) => {
   try {
-    const response = await fetch(`${BASE_URL}/auth/login`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

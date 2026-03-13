@@ -2,6 +2,14 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Set the backend API base URL before starting the frontend:
+
+```bash
+cp .env.example .env
+```
+
+Update `NEXT_PUBLIC_BACKEND_URL` in `.env` if your Go API is not running on `http://localhost:4000/v1`.
+
 First, run the development server:
 
 ```bash

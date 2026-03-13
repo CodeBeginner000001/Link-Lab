@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-
-const BASE_URL = "http://localhost:4000/v1";
+import { BACKEND_API_URL } from "@/config/api";
 
 export async function GET(req: Request) {
   const cookie = req.headers.get("cookie");
 
-  const backendResponse = await fetch(`${BASE_URL}/auth/refresh`, {
+  const backendResponse = await fetch(`${BACKEND_API_URL}/auth/refresh`, {
     method: "POST",
     headers: {
       Cookie: cookie || "",

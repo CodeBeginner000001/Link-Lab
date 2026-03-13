@@ -1,7 +1,6 @@
 import { cookies } from "next/headers";
 import { cache } from "react";
-
-const BASE_URL = "http://localhost:4000/v1";
+import { BACKEND_API_URL } from "@/config/api";
 
 export type AuthUser = {
   id: string;
@@ -14,7 +13,7 @@ export const GetCurrentUser = cache(async (): Promise<AuthUser | null> => {
   try {
     const cookieStore = await cookies();
 
-    const response = await fetch(`${BASE_URL}/auth/me`, {
+    const response = await fetch(`${BACKEND_API_URL}/auth/me`, {
       method: "GET",
       headers: {
         Cookie: cookieStore.toString(),
