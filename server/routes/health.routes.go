@@ -29,9 +29,11 @@ func healthPageHTML() string {
     }
 
     body {
-      margin: 20px auto;
-      display: grid;
-      place-items: center;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
       font-family: "Trebuchet MS", "Segoe UI", sans-serif;
       background: #ffffff;
       color: var(--text);
@@ -76,12 +78,6 @@ func healthPageHTML() string {
       color: #111827;
     }
 
-    p {
-      margin: 0;
-      font-size: 1.02rem;
-      color: var(--muted);
-    }
-
     .dot {
       display: inline-block;
       width: 9px;
@@ -101,7 +97,6 @@ func healthPageHTML() string {
       <img class="logo" src="%s" alt="Go logo" />
     </div>
     <h1><span class="dot"></span>Server is running</h1>
-    <p>Health check endpoint: <strong>/v1/health</strong></p>
   </main>
 </body>
 </html>`,
