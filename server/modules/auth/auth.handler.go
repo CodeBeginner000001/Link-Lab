@@ -17,7 +17,6 @@ import (
 
 type AuthHandler struct {
 	authService *AuthService
-	appConfig config.AppConfig
 }
 
 func NewAuthHandler(authService *AuthService) *AuthHandler {
@@ -26,7 +25,6 @@ func NewAuthHandler(authService *AuthService) *AuthHandler {
 	}
 	return &AuthHandler{
 		authService: authService,
-		appConfig: config.LoadAppConfig(),
 	}
 }
 
@@ -36,7 +34,7 @@ func clearCookie(c *fiber.Ctx, name string) {
 		Value:    "",
 		Path:     "/",
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteLaxMode,
 		Expires:  time.Unix(0, 0),
 	})
@@ -61,9 +59,9 @@ func (h *AuthHandler) RegisterUser(c *fiber.Ctx) error {
 		Value:    resData.SessionId,
 		Path:     "/",
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteLaxMode,
-		Expires:  time.Now().Add(h.appConfig.SignupSessionTTL),
+		Expires:  time.Now().Add(config.SignupSessionTTL),
 	})
 	return http.Success(c, resData.Message, fiber.Map{
 		"email": resData.Email,
@@ -122,19 +120,19 @@ func (h *AuthHandler) VerifyOTP(c *fiber.Ctx) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.RefreshTokenTTL),
+		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
 	c.Cookie(&fiber.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.AccessTokenTTL),
+		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
 	clearCookie(c, "signup_session")
 
@@ -210,19 +208,19 @@ func (h *AuthHandler) Login(c *fiber.Ctx) error {
 		Name:     "refresh_token",
 		Value:    refreshToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.RefreshTokenTTL),
+		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
 	c.Cookie(&fiber.Cookie{
 		Name:     "access_token",
 		Value:    accessToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.AccessTokenTTL),
+		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
 	return http.Success(
 		c,
@@ -246,19 +244,19 @@ func (h *AuthHandler) RefreshToken(c *fiber.Ctx) error {
 		Name:     "access_token",
 		Value:    tokens.AccessToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.AccessTokenTTL),
+		Expires:  time.Now().Add(config.AccessTokenTTL),
 	})
 	c.Cookie(&fiber.Cookie{
 		Name:     "refresh_token",
 		Value:    tokens.RefreshToken,
 		HTTPOnly: true,
-		Secure:   config.IsProd(),
+		Secure:   config.IsProduction(),
 		SameSite: fiber.CookieSameSiteStrictMode,
 		Path:     "/",
-		Expires:  time.Now().Add(h.appConfig.RefreshTokenTTL),
+		Expires:  time.Now().Add(config.RefreshTokenTTL),
 	})
 	return http.Success(c, "Token refreshed successfully", nil)
 }

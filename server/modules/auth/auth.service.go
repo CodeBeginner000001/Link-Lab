@@ -38,8 +38,6 @@ type AuthService struct {
 	redisHash   *redisHashService.RedisHashService
 	redisCommon *redisCommonService.RedisCommonService
 	user        *mongo.UserService
-	awsConfig   config.AWSConfig
-	appConfig   config.AppConfig
 }
 
 func NewAuthService(
@@ -54,8 +52,6 @@ func NewAuthService(
 		user:        user,
 		redisHash:   redisHash,
 		redisCommon: redisCommon,
-		awsConfig:   config.LoadAWSConfig(),
-		appConfig: config.LoadAppConfig(),
 	}
 }
 
@@ -87,7 +83,7 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		ctx,
 		lockKey,
 		sessionID,
-		s.appConfig.SignupSessionTTL,
+		config.SignupSessionTTL,
 	)
 	if err != nil {
 		logger.Error("registerUserService: failed to acquire signup lock: ", err)
@@ -133,9 +129,9 @@ func (s *AuthService) RegisterUserService(ctx context.Context, req RegisterReque
 		"otp":                 otp,
 		"otp_attempts":        toStr(0),
 		"otp_resend_attempts": toStr(0),
-		"otp_resend_after":    toStr(now.Add(s.appConfig.ResendCoolDown).Unix()),
-		"otp_expires_at":      toStr(now.Add(s.appConfig.OtpExpirationTime).Unix()),
-	}, s.appConfig.SignupSessionTTL)
+		"otp_resend_after":    toStr(now.Add(config.ResendCoolDown).Unix()),
+		"otp_expires_at":      toStr(now.Add(config.OtpExpirationTime).Unix()),
+	}, config.SignupSessionTTL)
 	if err != nil {
 		logger.Error("registerUserService: redis hash create failed: ", err)
 		return nil, apperrors.ErrRedis
@@ -256,7 +252,7 @@ func (s *AuthService) VerifyOTPService(ctx context.Context, sessionId string, ot
 		)
 		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
-	if attempts >= s.appConfig.OTPAttempts {
+	if attempts >= config.OTPAttempts {
 		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
 			logger.Error("verifyOTPService: release signup lock failed: ", err)
 		}
@@ -338,7 +334,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 		}
 		return nil, apperrors.WrapAuth(autherror.ErrSessionCorrupted)
 	}
-	if reattempts >= s.appConfig.MaxOTPResendAttempts {
+	if reattempts >= config.MaxOTPResendAttempts {
 		if err := s.redisCommon.ReleaseLock(ctx, "signup_lock:"+data["email"], sessionId); err != nil {
 			logger.Error("resendOTPService: release signup lock failed: ", err)
 		}
@@ -381,7 +377,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 		logger.Error("resendOTPService: failed to increment otp_resend_attempts: ", err, logger.F("key", sessionKey))
 		return nil, apperrors.ErrRedis
 	}
-	nextResendAt := toStr(time.Now().Add(s.appConfig.ResendCoolDown).Unix())
+	nextResendAt := toStr(time.Now().Add(config.ResendCoolDown).Unix())
 	err = s.redisHash.CreateORUpdateHashFieldStrict(
 		ctx,
 		sessionKey,
@@ -396,7 +392,7 @@ func (s *AuthService) ResendOTPService(ctx context.Context, sessionId string) (*
 		ctx,
 		sessionKey,
 		"otp_expires_at",
-		toStr(time.Now().Add(s.appConfig.OtpExpirationTime).Unix()),
+		toStr(time.Now().Add(config.OtpExpirationTime).Unix()),
 	)
 	if err != nil {
 		logger.Error("resendOTPService: failed to reset otp_expires_at: ", err)
@@ -448,7 +444,7 @@ func (s *AuthService) LogoutService(ctx context.Context, refreshToken string) er
 	if err := s.redisCommon.Blacklist(
 		ctx,
 		blackListKey,
-		s.appConfig.RefreshTokenTTL,
+		config.RefreshTokenTTL,
 	); err != nil {
 		logger.Error("logoutService: failed to blacklist refresh token", err)
 	}
@@ -516,7 +512,7 @@ func (s *AuthService) RefreshTokenService(ctx context.Context, refreshToken stri
 	if err := s.redisCommon.Blacklist(
 		ctx,
 		blackListKey,
-		s.appConfig.RefreshTokenTTL,
+		config.RefreshTokenTTL,
 	); err != nil {
 		logger.Error("refreshTokenService: failed to blacklist refresh token: ", err)
 	}

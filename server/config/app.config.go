@@ -2,41 +2,26 @@ package config
 
 import "time"
 
-type AppConfig struct {
-	Env      string
-	LogLevel string
-
-	OTPAttempts          int
-	MaxOTPResendAttempts int
-
-	ResendCoolDown    time.Duration
-	OtpExpirationTime time.Duration
-	SignupSessionTTL  time.Duration
-	ForgotPasswordTTL time.Duration
-
-	JWTAccessSecret  []byte
-	JWTRefreshSecret []byte
-	AccessTokenTTL   time.Duration
-	RefreshTokenTTL  time.Duration
+func IsProduction() bool {
+	return false
 }
 
-func LoadAppConfig() AppConfig {
-	return AppConfig{
-		Env:      GetEnv("ENV", "dev"),
-		LogLevel: GetEnv("LOG_LEVEL", "info"),
+const (
+	Env      = "dev"
+	LogLevel = "info"
 
-		OTPAttempts:          GetEnvInt("OTP_ATTEMPTS", 2),
-		MaxOTPResendAttempts: GetEnvInt("MAX_OTP_RESEND_ATTEMPTS", 2),
+	OTPAttempts          = 2
+	MaxOTPResendAttempts = 2
+	ResendCoolDown       = 5 * time.Second
+	OtpExpirationTime    = 1 * time.Minute
+	SignupSessionTTL     = 5 * time.Minute
+	ForgotPasswordTTL    = 10 * time.Minute
+)
 
-		ResendCoolDown:    time.Duration(GetEnvInt("RESEND_COOLDOWN_SECONDS", 5)) * time.Second,
-		OtpExpirationTime: time.Duration(GetEnvInt("OTP_EXPIRATION_SECONDS", 60)) * time.Second,
-		SignupSessionTTL:  time.Duration(GetEnvInt("SIGNUP_SESSION_TTL_SECONDS", 300)) * time.Second,
-		ForgotPasswordTTL: time.Duration(GetEnvInt("FORGOT_PASSWORD_TTL_SECONDS", 600)) * time.Second,
+var (
+	JWTAccessSecret  = []byte("djkfvdbvk2323j3232k2d")
+	JWTRefreshSecret = []byte("djkvdvkdvkd2342dww23e")
 
-		JWTAccessSecret:  []byte(GetEnv("JWT_ACCESS_SECRET", "devbbkj78Daccessbhj78secret")),
-		JWTRefreshSecret: []byte(GetEnv("JWT_REFRESH_SECRET", "devDDRb7723refresh7790Wsecret")),
-
-		AccessTokenTTL:  time.Duration(GetEnvInt("ACCESS_TOKEN_TTL_SECONDS", 900)) * time.Second,
-		RefreshTokenTTL: time.Duration(GetEnvInt("REFRESH_TOKEN_TTL_SECONDS", 604800)) * time.Second,
-	}
-}
+	AccessTokenTTL  = 15 * time.Minute
+	RefreshTokenTTL = 30 * 24 * time.Hour
+)

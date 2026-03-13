@@ -12,9 +12,8 @@ type Field = zap.Field
 
 func Init() {
 	var cfg zap.Config
-	var appConfig = config.LoadAppConfig()
 
-	if appConfig.Env == "prod" {
+	if config.Env == "prod" {
 		cfg = zap.NewProductionConfig()
 	} else {
 		cfg = zap.NewDevelopmentConfig()
@@ -22,7 +21,7 @@ func Init() {
 		cfg.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	}
 
-	cfg.Level = zap.NewAtomicLevelAt(parseLevel(appConfig.LogLevel))
+	cfg.Level = zap.NewAtomicLevelAt(parseLevel(config.LogLevel))
 	cfg.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
 
 	l, err := cfg.Build(zap.AddCallerSkip(1))
