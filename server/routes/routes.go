@@ -10,6 +10,7 @@ func RegisterRoutes(
 	app *fiber.App,
 	authHandler *authHandlers.AuthHandler,
 ) {
+	app.Static("/assets", "./assets")
 	v1 := app.Group("/v1")
 
 	app.Get("/", HealthCard)
