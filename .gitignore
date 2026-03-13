@@ -1,1 +1,8 @@
-server/config/aws.config.go
+server/.env
+server/.env.*
+!server/.env.example
+client/.env
+client/.env.*
+!client/.env.example
+.vercel
+.gocache

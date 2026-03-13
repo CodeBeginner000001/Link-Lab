@@ -14,9 +14,7 @@ func healthPageHTML() string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>LinkLab API Health</title>
-  <link rel="icon" type="image/svg+xml" href="%s" />
-  <link rel="alternate icon" type="image/png" href="%s" />
-  <link rel="shortcut icon" type="image/png" href="%s" />
+  <link rel="icon" type="image/svg+xml" sizes="any" href="%s" />
   <style>
     :root {
       color-scheme: light;
@@ -101,16 +99,13 @@ func healthPageHTML() string {
     <div class="brand-row">
       <img class="logo" src="%s" alt="Go logo" />
       <img class="logo" src="%s" alt="Go logo" />
-      <div class="brand-text">LinkLab API</div>
     </div>
     <h1><span class="dot"></span>Server is running</h1>
     <p>Health check endpoint: <strong>/v1/health</strong></p>
   </main>
 </body>
 </html>`,
-		assets.GolangSVGDataURI(),
-		assets.GoPNGDataURI(),
-		assets.GoPNGDataURI(),
+		assets.GolangSVGInlineDataURI(),
 		assets.GolangSVGDataURI(),
 		assets.GoPNGDataURI(),
 	)

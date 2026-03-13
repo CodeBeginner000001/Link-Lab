@@ -4,6 +4,7 @@ import (
 	_ "embed"
 	"encoding/base64"
 	"fmt"
+	"net/url"
 )
 
 //go:embed go.png
@@ -18,4 +19,8 @@ func GoPNGDataURI() string {
 
 func GolangSVGDataURI() string {
 	return fmt.Sprintf("data:image/svg+xml;base64,%s", base64.StdEncoding.EncodeToString(golangSVG))
+}
+
+func GolangSVGInlineDataURI() string {
+	return fmt.Sprintf("data:image/svg+xml,%s", url.PathEscape(string(golangSVG)))
 }
