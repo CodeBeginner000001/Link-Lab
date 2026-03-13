@@ -14,7 +14,7 @@ func RegisterRoutes(
 
 	v1 := app.Group("/v1")
 
-	v1.Get("/health", HealthCard)
+	app.Get("/health", HealthCard)
 
 	RegisterAuthRoutes(v1, authHandler)
 }
