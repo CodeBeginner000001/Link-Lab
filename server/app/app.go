@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -62,6 +63,13 @@ func Build() (*fiber.App, error) {
 						Success: false,
 						Message: appErr.Message,
 						Errors:  appErr.Fields,
+					})
+				}
+
+				if errors.Is(err, fiber.ErrNotFound) {
+					return c.Status(fiber.StatusNotFound).JSON(http.APIResponse{
+						Success: false,
+						Message: "Not found",
 					})
 				}
 

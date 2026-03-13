@@ -13,7 +13,7 @@ func healthPageHTML() string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LinkLab API Health</title>
+  <title>Golang Server Health</title>
   <link rel="icon" type="image/svg+xml" sizes="any" href="%s" />
   <style>
     :root {
@@ -100,7 +100,7 @@ func healthPageHTML() string {
   </main>
 </body>
 </html>`,
-		assets.GolangSVGInlineDataURI(),
+		assets.GoServerFaviconDataURI(),
 		assets.GolangSVGDataURI(),
 		assets.GoPNGDataURI(),
 	)
