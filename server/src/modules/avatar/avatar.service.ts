@@ -11,7 +11,6 @@ export class AvatarService {
     '#0F766E',
     '#B91C1C',
     '#4338CA',
-    '#76014b',
   ];
   generateAvatar(name: string) {
     const cleanName = name.trim();
