@@ -7,13 +7,11 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 import { AvatarService } from './avatar.service';
-import { Public } from 'src/decorators/public.decorator';
 
 @Controller('v1/avatar')
 export class AvatarController {
   constructor(private readonly avatarService: AvatarService) {}
   @Get()
-  @Public()
   getAvatar(@Query('name') name: string, @Res() res: Response) {
     if (!name || !name.trim()) {
       throw new BadRequestException('name is required');

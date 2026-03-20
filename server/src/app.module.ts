@@ -7,11 +7,12 @@ import { AppLogger } from './common/app.logger';
 import { ConfigModule } from '@nestjs/config';
 import { validateEnv } from './config/env.validator';
 import { DbModule } from './common/db/db.module';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { SuccessResponseInterceptor } from './interceptors/success-response.interceptor';
 import { AvatarModule } from './modules/avatar/avatar.module';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 
 @Module({
   imports: [
@@ -27,6 +28,10 @@ import { AvatarModule } from './modules/avatar/avatar.module';
   ],
   controllers: [AppController],
   providers: [
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
     {
       provide: APP_GUARD,
       useClass: JwtAuthGuard,

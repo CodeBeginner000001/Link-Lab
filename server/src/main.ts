@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import * as os from 'os';
 import { AppModule } from './app.module';
 import { AppLogger } from './common/app.logger';
+import { ValidationPipe, BadRequestException } from '@nestjs/common';
 
 function getLocalIp(): string {
   const networkInterface = os.networkInterfaces();
@@ -40,6 +41,25 @@ async function bootstrap() {
   });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+      stopAtFirstError: false,
+      exceptionFactory: (errors) => {
+        const messages = errors.flatMap((error) =>
+          error.constraints ? Object.values(error.constraints) : [],
+        );
+
+        throw new BadRequestException({
+          message: messages.length ? messages : ['Validation failed'],
+          error: 'Validation Error',
+        });
+      },
+    }),
+  );
 
   const host = process.env.HOST || '0.0.0.0';
   const port = Number(process.env.PORT || 3000);
