@@ -63,6 +63,7 @@ async function bootstrap() {
 
   const host = process.env.HOST || '0.0.0.0';
   const port = Number(process.env.PORT || 3000);
+  app.setGlobalPrefix('v1');
   await app.listen(port, host);
   const localIp = getLocalIp();
   printStartupBanner(logger, {

@@ -13,6 +13,7 @@ import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { SuccessResponseInterceptor } from './interceptors/success-response.interceptor';
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
+import { RedisModule } from './modules/redis/redis.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AllExceptionsFilter } from './filters/all-exceptions.filter';
     DbModule,
     AuthModule,
     AvatarModule,
+    RedisModule,
   ],
   controllers: [AppController],
   providers: [
