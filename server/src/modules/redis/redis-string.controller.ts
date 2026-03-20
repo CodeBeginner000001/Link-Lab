@@ -20,7 +20,7 @@ import { RedisStringService } from './redis-string.service';
 import { Public } from 'src/decorators/public.decorator';
 import { Internal } from 'src/decorators/internal.decorator';
 
-@Controller('redis/string')
+@Controller('v1/redis/string')
 @Public()
 @Internal()
 export class RedisStringController {

@@ -20,7 +20,7 @@ import {
 } from './dto/hash.dto';
 import { RedisHashService } from './redis-hash.service';
 
-@Controller('redis/hash')
+@Controller('v1/redis/hash')
 // @Public()
 @Internal()
 export class RedisHashController {
