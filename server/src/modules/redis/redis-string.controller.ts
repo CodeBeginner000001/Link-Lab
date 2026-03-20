@@ -18,9 +18,11 @@ import {
 } from './dto/string.dto';
 import { RedisStringService } from './redis-string.service';
 import { Public } from 'src/decorators/public.decorator';
+import { Internal } from 'src/decorators/internal.decorator';
 
 @Controller('redis/string')
 @Public()
+@Internal()
 export class RedisStringController {
   constructor(private readonly redisStringService: RedisStringService) {}
   @Post()

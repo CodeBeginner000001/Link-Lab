@@ -9,7 +9,7 @@ import {
   Put,
   Query,
 } from '@nestjs/common';
-import { Public } from 'src/decorators/public.decorator';
+import { Internal } from 'src/decorators/internal.decorator';
 import {
   CreateRedisHashDto,
   DeleteRedisHashFieldsDto,
@@ -21,7 +21,8 @@ import {
 import { RedisHashService } from './redis-hash.service';
 
 @Controller('redis/hash')
-@Public()
+// @Public()
+@Internal()
 export class RedisHashController {
   constructor(private readonly redisHashService: RedisHashService) {}
 

@@ -18,7 +18,10 @@ export const envSchema = z
     MONGO_MAX_RETRIES: z.coerce.number().int().nonnegative().default(5),
     MONGO_RETRY_DELAY_SECONDS: z.coerce.number().int().nonnegative().default(2),
     MONGO_COOLDOWN_SECONDS: z.coerce.number().int().nonnegative().default(30),
-
+    INTERNAL_API_KEY: z
+      .string()
+      .min(8, 'INTERNAL_API_KEY must be at least 8 characters')
+      .max(10, 'INTERNAL_API_KEY must 10 characters'),
     JWT_ACCESS_SECRET: z
       .string()
       .min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),

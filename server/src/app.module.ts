@@ -14,7 +14,6 @@ import { SuccessResponseInterceptor } from './interceptors/success-response.inte
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 import { RedisModule } from './modules/redis/redis.module';
-
 @Module({
   imports: [
     ConfigModule.forRoot({
