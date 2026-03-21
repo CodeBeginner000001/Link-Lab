@@ -1,5 +1,6 @@
 const PUBLIC_ROUTES = [
     "/",
+    "/logo.png",
     "/login",
     "/signup",
     "/signup/verify/OTP",

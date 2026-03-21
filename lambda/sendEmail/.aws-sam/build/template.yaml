@@ -1,0 +1,22 @@
+Globals:
+  Function:
+    Timeout: 10
+    Runtime: nodejs22.x
+    MemorySize: 256
+    Tracing: Active
+Resources:
+  EmailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: index.handler
+      CodeUri: EmailFunction
+      ReservedConcurrentExecutions: 5
+      Environment:
+        Variables:
+          SMTP_HOST: smtp.gmail.com
+          SMTP_PORT: 587
+          SMTP_USER: ashu2100ag@gmail.com
+          SMTP_PASS: zzvb oyvc cafa ywix
+          FROM_EMAIL: ashu2100ag@gmail.com
+    Metadata:
+      SamResourceId: EmailFunction

@@ -1,0 +1,20 @@
+{
+  "Records": [
+    {
+      "messageId": "12345-abcde-67890",
+      "receiptHandle": "AQEB123456...",
+      "body": "{\"to\":\"ashu2005ag@gmail.com\",\"subject\":\"Verify your OTP\",\"html\":\"<p>Your OTP is <b>123456</b></p>\"}",
+      "attributes": {
+        "ApproximateReceiveCount": "1",
+        "SentTimestamp": "1690001112222",
+        "SenderId": "AIDAEXAMPLE",
+        "ApproximateFirstReceiveTimestamp": "1690001113333"
+      },
+      "messageAttributes": {},
+      "md5OfBody": "098f6bcd4621d373cade4e832627b4f6",
+      "eventSource": "aws:sqs",
+      "eventSourceARN": "arn:aws:sqs:ap-south-1:123456789012:MyQueue",
+      "awsRegion": "ap-south-1"
+    }
+  ]
+}
