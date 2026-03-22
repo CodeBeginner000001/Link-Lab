@@ -34,6 +34,7 @@ export class SqsService {
 
     const payload: EmailQueueMessage = {
       type: params.type,
+      senderName: params.senderName || 'LinkLab',
       to: params.to.trim(),
       subject: params.subject,
       template: params.template,
@@ -54,36 +55,6 @@ export class SqsService {
         new SendMessageCommand({
           QueueUrl: this.queueUrl,
           MessageBody: JSON.stringify(payload),
-          MessageAttributes: {
-            jobType: {
-              DataType: 'String',
-              StringValue: payload.type,
-            },
-            to: {
-              DataType: 'String',
-              StringValue: payload.to,
-            },
-            ...(payload.template
-              ? {
-                  template: {
-                    DataType: 'String',
-                    StringValue: payload.template,
-                  },
-                }
-              : {}),
-            ...(payload.subject
-              ? {
-                  subject: {
-                    DataType: 'String',
-                    StringValue: payload.subject,
-                  },
-                }
-              : {}),
-            project: {
-              DataType: 'String',
-              StringValue: payload.meta?.project ?? 'LINK_LAB',
-            },
-          },
         }),
       );
 

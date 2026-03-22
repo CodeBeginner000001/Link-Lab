@@ -2,7 +2,6 @@ import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AppLogger } from 'src/common/app.logger';
-import { RedisService } from 'src/common/db/redis.service';
 import {
   EmailDeliveryException,
   SignupAlreadyInProgressException,
@@ -19,35 +18,29 @@ import {
   normalizeEmail,
   normalizeName,
 } from 'src/utils/auth.utils';
-import { RedisHashService } from '../redis/redis-hash.service';
-import { SignupDto } from './dto/signup.dto';
+import { renderTemplate } from 'src/utils/email.utils';
 import {
   getSignupLockKey,
   getSignupSessionKey,
 } from 'src/utils/redis-key.utils';
+import { RedisHashService } from '../redis/redis-hash.service';
 import { RedisStringService } from '../redis/redis-string.service';
+import { SignupDto } from './dto/signup.dto';
 import {
   buildVerifyEmailContext,
   VERIFY_EMAIL_TEMPLATE,
 } from './template/verify-email.templates';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
   private readonly context = AuthService.name;
 
-  private readonly otpAttempts = Number(process.env.OTP_ATTEMPTS ?? 5);
-  private readonly maxOtpResendAttempts = Number(
-    process.env.MAX_OTP_RESEND_ATTEMPTS ?? 5,
-  );
-  private readonly resendCooldownSeconds = Number(
-    process.env.RESEND_COOLDOWN ?? 5,
-  );
-  private readonly otpExpirationMinutes = Number(
-    process.env.OTP_EXPIRATION ?? 1,
-  );
-  private readonly signupSessionTtlMinutes = Number(
-    process.env.SIGNUP_SESSION_TTL ?? 5,
-  );
+  private readonly otpAttempts: number;
+  private readonly maxOtpResendAttempts: number;
+  private readonly resendCooldownSeconds: number;
+  private readonly otpExpirationMinutes: number;
+  private readonly signupSessionTtlMinutes: number;
   private readonly otpLength = 6;
   private readonly passwordSaltRounds = 12;
 
@@ -56,10 +49,28 @@ export class AuthService {
     private readonly userModel: Model<UserDocument>,
     private readonly redisHashService: RedisHashService,
     private readonly redisStringService: RedisStringService,
-    private readonly redisService: RedisService,
     private readonly sqsService: SqsService,
     private readonly logger: AppLogger,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.otpAttempts = this.configService.get<number>('OTP_ATTEMPTS', 3);
+    this.maxOtpResendAttempts = this.configService.get<number>(
+      'MAX_OTP_RESEND_ATTEMPTS',
+      5,
+    );
+    this.resendCooldownSeconds = this.configService.get<number>(
+      'RESEND_COOLDOWN_SECOND',
+      60,
+    );
+    this.otpExpirationMinutes = this.configService.get<number>(
+      'OTP_EXPIRATION_MINUTES',
+      5,
+    );
+    this.signupSessionTtlMinutes = this.configService.get<number>(
+      'SIGNUP_SESSION_TTL_MINUTES',
+      5,
+    );
+  }
   async signup(dto: SignupDto) {
     const email = normalizeEmail(dto.email);
     const name = normalizeName(dto.name);
@@ -117,12 +128,19 @@ export class AuthService {
         signupSession,
         sessionTtlSeconds,
       );
+      const context = buildVerifyEmailContext(
+        name,
+        otp,
+        this.otpExpirationMinutes,
+      );
+      const html = renderTemplate(VERIFY_EMAIL_TEMPLATE, context);
       await this.sqsService.sendMail({
         type: 'VERIFY_EMAIL',
+        senderName: 'Verify OTP - Link Lab',
         to: email,
         subject: 'Verify your email address',
-        html: VERIFY_EMAIL_TEMPLATE,
-        context: buildVerifyEmailContext(name, otp, this.otpExpirationMinutes),
+        html,
+        context,
         meta: {
           source: 'Link Lab',
           requestId: sessionId,

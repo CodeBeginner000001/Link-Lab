@@ -72,13 +72,13 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                         cellpadding="0"
                         cellspacing="0"
                         border="0"
-                        width="44"
-                        height="44"
+                        width="20"
+                        height="20"
                         style="
-                          width: 30px;
-                          height: 30px;
-                          border-radius: 12px;
-                          background-color: #111827;
+                          width: 20px;
+                          height: 20px;
+                          background-color: #000000;
+                          border-radius: 50%;
                         "
                       >
                         <tr>
@@ -86,20 +86,20 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                             <img
                               src="{{senderLogo}}"
                               alt="{{senderName}}"
-                              width="26"
-                              height="26"
+                              width="36"
+                              height="36"
                               style="
                                 display: block;
-                                width: 36px;
-                                height: 36px;
-                                object-fit: contain;
+                                width: 46px;
+                                height: 46px;
+                                object-fit: cover;
                               "
                             />
                           </td>
                         </tr>
                       </table>
                     </td>
-                    <td width="10"></td>
+                    <td width="12"></td>
                     <td
                       valign="middle"
                       style="
@@ -157,27 +157,117 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                   style="margin: 0 auto 28px"
                 >
                   <tr>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp1}}
                     </td>
                     <td width="8"></td>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp2}}
                     </td>
                     <td width="8"></td>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp3}}
                     </td>
                     <td width="8"></td>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp4}}
                     </td>
                     <td width="8"></td>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp5}}
                     </td>
                     <td width="8"></td>
-                    <td align="center" valign="middle" width="50" height="58" style="width: 50px; height: 58px; border-radius: 12px; background-color: #f7f9fb; border: 1.5px solid rgba(31, 184, 166, 0.35); font-size: 22px; font-weight: 700; color: #111827;">
+                    <td
+                      align="center"
+                      valign="middle"
+                      width="50"
+                      height="58"
+                      style="
+                        width: 50px;
+                        height: 58px;
+                        border-radius: 12px;
+                        background-color: #f7f9fb;
+                        border: 1.5px solid rgba(31, 184, 166, 0.35);
+                        font-size: 22px;
+                        font-weight: 700;
+                        color: #111827;
+                      "
+                    >
                       {{otp6}}
                     </td>
                   </tr>
@@ -251,8 +341,8 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                     color: #737b88;
                   "
                 >
-                  If you didn't create an account with {{senderName}}, please disregard
-                  this email. No action is needed on your part.
+                  If you didn't create an account with {{senderName}}, please
+                  disregard this email. No action is needed on your part.
                 </p>
 
                 <p
@@ -263,8 +353,8 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                     color: #737b88;
                   "
                 >
-                  For security, if you have concerns about your account's safety,
-                  please contact our support team immediately.
+                  For security, if you have concerns about your account's
+                  safety, please contact our support team immediately.
                 </p>
               </td>
             </tr>

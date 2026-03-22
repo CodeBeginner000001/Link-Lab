@@ -1,11 +1,13 @@
 import { Global, Module } from '@nestjs/common';
 import { AppLogger } from '../app.logger';
-import { MongoService } from './mongo.service';
 import { RedisService } from './redis.service';
+import { MongoModule } from './mongo.module';
+import { MongoService } from './mongo.service';
 
 @Global()
 @Module({
-  providers: [AppLogger, MongoService, RedisService],
-  exports: [MongoService, RedisService],
+  imports: [MongoModule],
+  providers: [AppLogger, RedisService, MongoService],
+  exports: [AppLogger, MongoModule, MongoService, RedisService],
 })
 export class DbModule {}

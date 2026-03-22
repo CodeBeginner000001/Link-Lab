@@ -7,7 +7,7 @@ exports.handler = async (event) => {
 
       const mailOptions = {
         from: {
-          name: body.senderName || "Link Lab",
+          name: body.senderName,
           address: process.env.FROM_EMAIL,
         },
         to: body.to,

@@ -6,6 +6,7 @@ export type MailJobType =
 
 export interface EmailQueueMessage {
   type: MailJobType;
+  senderName: string;
   to: string;
   subject?: string;
   template?: string;
@@ -23,6 +24,7 @@ export interface EmailQueueMessage {
 
 export interface SendMailQueueParams {
   type: MailJobType;
+  senderName: string;
   to: string;
   subject?: string;
   template?: string;
