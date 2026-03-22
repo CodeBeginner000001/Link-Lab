@@ -7,18 +7,20 @@ exports.handler = async (event) => {
 
       const mailOptions = {
         from: {
-          name: 'Tag Wallet',
-          address : process.env.FROM_EMAIL
+          name: body.senderName || "Link Lab",
+          address: process.env.FROM_EMAIL,
         },
         to: body.to,
         subject: body.subject,
         html: body.html,
       };
+
       const info = await transporter.sendMail(mailOptions);
       console.log("Email sent:", info.messageId);
     } catch (err) {
       console.error("Error sending email for record:", record.messageId, err);
     }
   }
-  console.log("run successfully")
+
+  console.log("run successfully");
 };

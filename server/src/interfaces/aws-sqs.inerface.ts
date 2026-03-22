@@ -30,6 +30,8 @@ export interface SendMailQueueParams {
   context?: Record<string, any>;
   meta?: {
     source?: string;
+    senderName?: string;
+    senderLogo?: string;
     userId?: string;
     requestId?: string;
   };

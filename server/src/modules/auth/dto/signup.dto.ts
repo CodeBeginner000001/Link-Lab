@@ -16,6 +16,7 @@ export class SignupDto {
 
   @IsEmail({}, { message: 'Please provide a valid email address' })
   @IsNotEmpty({ message: 'Email is required' })
+  @MaxLength(255)
   email!: string;
 
   @IsString({ message: 'Password must be a string' })

@@ -43,7 +43,7 @@ export class SqsService {
         source: params.meta?.source ?? 'Link Lab',
         project: 'LINK_LAB',
         senderName: 'Link Lab',
-        senderLogo: 'https://your-cdn-domain.com/brands/link-lab/logo.png',
+        senderLogo: 'https://linklab-solutions.vercel.app/logo.png',
         userId: params.meta?.userId,
         requestId: params.meta?.requestId,
       },
