@@ -7,6 +7,7 @@ export interface SignupSession {
   otpExpiresAt: string;
   otpAttemptsLeft: number;
   resendAttemptsLeft: number;
+  resendCooldownSeconds: number;
   expiresAt: string;
   createdAt: string;
   lastResendAttemptAt?: string | null;

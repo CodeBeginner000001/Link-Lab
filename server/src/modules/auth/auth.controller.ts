@@ -36,6 +36,7 @@ export class AuthController {
       message: result.message,
       email: result.email,
       expiresInMinutes: result.expiresInMinutes,
+      resendCooldownSeconds: result.resendCooldownSeconds,
       signupSessionExpiresInMinutes: result.signupSessionExpiresInMinutes,
     };
   }
@@ -63,5 +64,16 @@ export class AuthController {
     });
 
     return result;
+  }
+  @Public()
+  @Post('resend-otp')
+  async resendOtp(@Req() req: express.Request) {
+    const sessionId = getCookieValue(req, 'signup_session');
+
+    if (!sessionId) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    return this.authService.resendSignupOtp(sessionId);
   }
 }

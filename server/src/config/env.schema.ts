@@ -41,7 +41,7 @@ export const envSchema = z
 
     OTP_ATTEMPTS: z.coerce.number().int().positive().default(5),
     MAX_OTP_RESEND_ATTEMPTS: z.coerce.number().int().positive().default(5),
-    RESEND_COOLDOWN_MINUTES: z.coerce.number().positive().default(5),
+    RESEND_COOLDOWN_SECOND: z.coerce.number().positive().default(5),
     OTP_EXPIRATION_MINUTES: z.coerce.number().positive().default(1),
     SIGNUP_SESSION_MINUTES: z.coerce.number().positive().default(5),
     FORGET_PASSWORD_MINUTES: z.coerce.number().positive().default(10),

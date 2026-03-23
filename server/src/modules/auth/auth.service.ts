@@ -6,8 +6,10 @@ import { AppLogger } from 'src/common/app.logger';
 import {
   EmailDeliveryException,
   InvalidOtpException,
-  OtpExpiredException,
   OtpAttemptsExceededException,
+  OtpExpiredException,
+  ResendAttemptsExceededException,
+  ResendOtpCooldownException,
   SignupAlreadyInProgressException,
   SignupSessionNotFoundException,
   UserAlreadyExistsException,
@@ -133,6 +135,7 @@ export class AuthService {
         otp,
         otpAttemptsLeft: this.otpAttempts,
         resendAttemptsLeft: this.maxOtpResendAttempts,
+        resendCooldownSeconds: this.resendCooldownSeconds,
         otpExpirationMinutes: this.otpExpirationMinutes,
         signupSessionTtlMinutes: this.signupSessionTtlMinutes,
       });
@@ -171,6 +174,7 @@ export class AuthService {
         email,
         sessionId,
         expiresInMinutes: this.otpExpirationMinutes,
+        resendCooldownSeconds: this.resendCooldownSeconds,
         signupSessionExpiresInMinutes: this.signupSessionTtlMinutes,
       };
     } catch (error) {
@@ -285,6 +289,90 @@ export class AuthService {
         avatar: createdUser.avatar ?? null,
       },
     };
+  }
+  async resendSignupOtp(sessionId: string) {
+    if (!sessionId) {
+      throw new SignupSessionNotFoundException();
+    }
+    const sessionKey = getSignupSessionKey(sessionId);
+    const { value } =
+      await this.redisHashService.get<SignupSession>(sessionKey);
+
+    if (!value) {
+      throw new SignupSessionNotFoundException();
+    }
+    if (new Date(value.expiresAt).getTime() <= Date.now()) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    if ((value.resendAttemptsLeft ?? 0) <= 0) {
+      await this.clearSignupState(getSignupLockKey(value.email), sessionKey);
+      throw new ResendAttemptsExceededException();
+    }
+    if (value.lastResendAttemptAt) {
+      const lastAttemptAt = new Date(value.lastResendAttemptAt).getTime();
+      const nextAllowedAt = lastAttemptAt + this.resendCooldownSeconds * 1000;
+
+      if (Date.now() < nextAllowedAt) {
+        const retryAfterSeconds = Math.ceil(
+          (nextAllowedAt - Date.now()) / 1000,
+        );
+        throw new ResendOtpCooldownException(retryAfterSeconds);
+      }
+    }
+    const otp = generateOtp(this.otpLength);
+    const resendAttemptsLeft = Math.max((value.resendAttemptsLeft ?? 0) - 1, 0);
+
+    await this.redisHashService.updateFields<SignupSession>(
+      sessionKey,
+      {
+        otp,
+        resendAttemptsLeft,
+        lastResendAttemptAt: new Date().toISOString(),
+      },
+      undefined,
+      true,
+    );
+    const context = buildVerifyEmailContext(
+      value.name,
+      otp,
+      this.otpExpirationMinutes,
+    );
+    const html = renderTemplate(VERIFY_EMAIL_TEMPLATE, context);
+    try {
+      await this.sqsService.sendMail({
+        type: 'VERIFY_EMAIL',
+        senderName: 'Verify OTP - Link Lab',
+        to: value.email,
+        subject: 'Verify your email address',
+        html,
+        context,
+        meta: {
+          source: 'Link Lab',
+          requestId: value.sessionId,
+        },
+      });
+
+      this.logger.log(
+        `OTP resent successfully for ${value.email}`,
+        this.context,
+      );
+
+      return {
+        message: 'A new verification OTP has been queued successfully.',
+        email: value.email,
+        expiresInMinutes: this.otpExpirationMinutes,
+        resendAttemptsLeft,
+      };
+    } catch (error) {
+      this.logger.error(
+        `Failed to resend OTP for ${value.email}`,
+        error instanceof Error ? error.stack : String(error),
+        this.context,
+      );
+
+      throw new EmailDeliveryException();
+    }
   }
 
   private async clearSignupState(

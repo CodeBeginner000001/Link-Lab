@@ -77,10 +77,19 @@ export class OtpAttemptsExceededException extends BadRequestException {
   }
 }
 
-export class OtpResendCooldownException extends BadRequestException {
+export class ResendOtpCooldownException extends BadRequestException {
   constructor(retryAfterSeconds: number) {
     super({
-      message: `Please wait ${retryAfterSeconds} second${retryAfterSeconds === 1 ? '' : 's'} before trying OTP verification again`,
+      message: `Please wait ${retryAfterSeconds} second${retryAfterSeconds === 1 ? '' : 's'} before requesting a new OTP`,
+      error: 'Too Many Requests',
+    });
+  }
+}
+
+export class ResendAttemptsExceededException extends BadRequestException {
+  constructor() {
+    super({
+      message: 'Maximum OTP resend attempts exceeded. Please sign up again',
       error: 'Too Many Requests',
     });
   }
