@@ -7,6 +7,7 @@ export const envSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
     HOST: z.string().default('0.0.0.0'),
     CORS_ORIGIN: z.string().default('*'),
+    BACKEND_URL: z.string().default('http://localhost:4000/v1'),
 
     MONGO_URI: z.string().trim().min(1).optional(),
     MONGO_DB: z.string().trim().min(1).optional(),

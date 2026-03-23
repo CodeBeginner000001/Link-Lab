@@ -17,7 +17,9 @@ import { AppLogger } from '../app.logger';
             : configService.getOrThrow<string>('MONGO_URI');
 
         const mongoDb =
-          env === 'dev' ? 'dev' : configService.get<string>('MONGO_DB', 'prod');
+          env === 'dev'
+            ? 'linklab'
+            : configService.get<string>('MONGO_DB', 'prod');
 
         const connectTimeoutMs =
           configService.get<number>('MONGO_CONNECT_TIMEOUT_SECONDS', 5) * 1000;

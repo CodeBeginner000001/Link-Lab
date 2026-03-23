@@ -354,7 +354,17 @@ export const VERIFY_EMAIL_TEMPLATE = `<!DOCTYPE html>
                   "
                 >
                   For security, if you have concerns about your account's
-                  safety, please contact our support team immediately.
+                  safety, please contact our support team
+                  <a
+                    href="mailto:{{supportEmail}}"
+                    style="
+                      color: hsl(174, 72%, 38%);
+                      text-decoration: underline;
+                      text-underline-offset: 2px;
+                    "
+                    >{{supportEmail}}</a
+                  >
+                  immediately.
                 </p>
               </td>
             </tr>
@@ -406,5 +416,6 @@ export function buildVerifyEmailContext(
     year: new Date().getFullYear(),
     senderName: 'Link Lab',
     senderLogo: 'https://linklab-solutions.vercel.app/logo.png',
+    supportEmail: 'ashu2100ag@gmail.com',
   };
 }

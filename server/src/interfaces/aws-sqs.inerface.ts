@@ -17,6 +17,7 @@ export interface EmailQueueMessage {
     project?: string;
     senderName?: string;
     senderLogo?: string;
+    supportEmail?: string;
     userId?: string;
     requestId?: string;
   };
@@ -34,6 +35,7 @@ export interface SendMailQueueParams {
     source?: string;
     senderName?: string;
     senderLogo?: string;
+    supportEmail?: string;
     userId?: string;
     requestId?: string;
   };

@@ -30,6 +30,7 @@
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.4",
+    "cookie-parser": "^1.4.7",
     "crypto": "^1.0.1",
     "ioredis": "^5.10.0",
     "mongoose": "^9.3.0",

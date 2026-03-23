@@ -1,8 +1,9 @@
+import { BadRequestException, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import * as os from 'os';
 import { AppModule } from './app.module';
 import { AppLogger } from './common/app.logger';
-import { ValidationPipe, BadRequestException } from '@nestjs/common';
 
 function getLocalIp(): string {
   const networkInterface = os.networkInterfaces();
@@ -41,7 +42,7 @@ async function bootstrap() {
   });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
-
+  app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,

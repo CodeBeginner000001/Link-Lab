@@ -1,12 +1,17 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { AppLogger } from 'src/common/app.logger';
 import {
   EmailDeliveryException,
+  InvalidOtpException,
+  OtpAttemptsExceededException,
   SignupAlreadyInProgressException,
+  SignupSessionNotFoundException,
   UserAlreadyExistsException,
 } from 'src/exceptions/auth.exception';
+import { SignupSession } from 'src/interfaces/auth.interface';
 import { User, UserDocument } from 'src/models/user.schema';
 import { SqsService } from 'src/services/aws/sqs/sqs.service';
 import {
@@ -25,12 +30,11 @@ import {
 } from 'src/utils/redis-key.utils';
 import { RedisHashService } from '../redis/redis-hash.service';
 import { RedisStringService } from '../redis/redis-string.service';
-import { SignupDto } from './dto/signup.dto';
+import { SignupDto, VerifyOtpDto } from './dto/signup.dto';
 import {
   buildVerifyEmailContext,
   VERIFY_EMAIL_TEMPLATE,
 } from './template/verify-email.templates';
-import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class AuthService {
@@ -88,7 +92,7 @@ export class AuthService {
 
     const sessionId = generateSessionId();
     const lockKey = getSignupLockKey(email);
-    const sessionKey = getSignupSessionKey(email);
+    const sessionKey = getSignupSessionKey(sessionId);
     const sessionTtlSeconds = getMinutesToSeconds(this.signupSessionTtlMinutes);
 
     const lockResult = await this.redisStringService.createIfNotExists(
@@ -119,8 +123,8 @@ export class AuthService {
         otp,
         otpAttemptsLeft: this.otpAttempts,
         resendAttemptsLeft: this.maxOtpResendAttempts,
-        resendCooldownSeconds: this.resendCooldownSeconds,
         otpExpirationMinutes: this.otpExpirationMinutes,
+        signupSessionTtlMinutes: this.signupSessionTtlMinutes,
       });
 
       await this.redisHashService.create(
@@ -155,6 +159,7 @@ export class AuthService {
       return {
         message: 'Signup successful. Verification OTP has been sent.',
         email,
+        sessionId,
         expiresInMinutes: this.otpExpirationMinutes,
         signupSessionExpiresInMinutes: this.signupSessionTtlMinutes,
       };
@@ -177,6 +182,72 @@ export class AuthService {
       });
     }
   }
+
+  async verifySignupOtp(dto: VerifyOtpDto, sessionId: string) {
+    if (!sessionId) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    const sessionKey = getSignupSessionKey(sessionId);
+    const { value } =
+      await this.redisHashService.get<SignupSession>(sessionKey);
+
+    if (!value) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    if (new Date(value.expiresAt).getTime() <= Date.now()) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    if ((value.otpAttemptsLeft ?? 0) <= 0) {
+      throw new OtpAttemptsExceededException();
+    }
+    if (String(value.otp) !== dto.otp) {
+      const attemptsLeft = Math.max((value.otpAttemptsLeft ?? 0) - 1, 0);
+
+      await this.redisHashService.updateFields<SignupSession>(
+        sessionKey,
+        {
+          otpAttemptsLeft: attemptsLeft,
+        },
+        undefined,
+        true,
+      );
+
+      if (attemptsLeft <= 0) {
+        await this.clearSignupState(getSignupLockKey(value.email), sessionKey);
+        throw new OtpAttemptsExceededException();
+      }
+
+      throw new InvalidOtpException(attemptsLeft);
+    }
+    const existingUser = await this.userModel
+      .findOne({ email: value.email })
+      .lean();
+    if (existingUser) {
+      await this.clearSignupState(getSignupLockKey(value.email), sessionKey);
+      throw new UserAlreadyExistsException();
+    }
+    const createdUser = await this.userModel.create({
+      name: value.name,
+      email: value.email,
+      password: value.passwordHash,
+    });
+
+    await this.clearSignupState(getSignupLockKey(value.email), sessionKey);
+
+    return {
+      message: 'Email verified successfully.',
+      user: {
+        id: createdUser._id,
+        name: createdUser.name,
+        email: createdUser.email,
+        avatar: createdUser.avatar ?? null,
+      },
+    };
+  }
+
   private async clearSignupState(
     lockKey: string,
     sessionKey: string,

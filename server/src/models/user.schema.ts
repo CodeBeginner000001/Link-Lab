@@ -59,6 +59,12 @@ UserSchema.pre('save', function () {
   }
 
   if (!this.avatar) {
+    const backendUrl = process.env.BACKEND_URL;
+
+    if (!backendUrl) {
+      throw new Error('BACKEND_URL is not configured');
+    }
+
     this.avatar = buildAvatarUrl(this.name, this.email);
   }
 });

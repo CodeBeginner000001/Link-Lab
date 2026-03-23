@@ -2,9 +2,10 @@ import {
   IsEmail,
   IsNotEmpty,
   IsString,
-  MinLength,
-  MaxLength,
+  Length,
   Matches,
+  MaxLength,
+  MinLength,
 } from 'class-validator';
 
 export class SignupDto {
@@ -28,4 +29,12 @@ export class SignupDto {
       'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
   })
   password!: string;
+}
+
+export class VerifyOtpDto {
+  @IsString({ message: 'OTP must be a string' })
+  @IsNotEmpty({ message: 'OTP is required' })
+  @Length(6, 6, { message: 'OTP must be exactly 6 digits' })
+  @Matches(/^\d{6}$/, { message: 'OTP must contain only numbers' })
+  otp!: string;
 }
