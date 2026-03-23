@@ -328,6 +328,9 @@ export class AuthService {
       {
         otp,
         resendAttemptsLeft,
+        otpExpiresAt: new Date(
+          Date.now() + this.otpExpirationMinutes * 60 * 1000,
+        ).toISOString(),
         lastResendAttemptAt: new Date().toISOString(),
       },
       undefined,
