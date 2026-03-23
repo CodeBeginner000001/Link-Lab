@@ -4,7 +4,7 @@ import { HydratedDocument } from 'mongoose';
 export type UserDocument = HydratedDocument<User>;
 
 function buildAvatarUrl(name: string, email: string): string {
-  return `${process.env.BACKEND_URL}/avatar?name=${encodeURIComponent(name || email)}`;
+  return `${process.env.BACKEND_URL}/v1/avatar?name=${encodeURIComponent(name || email)}`;
 }
 
 @Schema({
