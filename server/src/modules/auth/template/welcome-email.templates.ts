@@ -471,31 +471,30 @@ export const WELCOME_EMAIL_TEMPLATE = `<!DOCTYPE html>
     </table>
   </body>
 </html>`;
-export function buildWelcomeEmailContext(name: string) {
+export function buildWelcomeEmailContext(params: {
+  name: string;
+  frontend: string;
+  label1: string;
+  label1Url: string;
+  label2: string;
+  label2Url: string;
+  label3: string;
+  label3Url: string;
+}) {
   return {
-    userName: name,
+    userName: params.name,
     senderName: 'Link Lab',
     senderLogo: 'https://linklab-solutions.vercel.app/logo.png',
     supportEmail: 'ashu2100ag@gmail.com',
-    dashboardUrl: process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL}/dashboard`
-      : 'http://localhost:3000/dashboard',
-    quickGuideUrl: process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL}/quick-guide`
-      : 'http://localhost:3000/quick-guide',
+    dashboardUrl: `${params.frontend}/dashboard`,
+    quickGuideUrl: `${params.frontend}/quick-guide`,
     quickGuideLabel: 'quick start guide',
-    Label1: 'Privacy Policy',
-    Label1Url: process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL}/privacy-policy`
-      : 'http://localhost:3000/privacy-policy',
-    Label2: 'Help Center',
-    Label2Url: process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL}/help-center`
-      : 'http://localhost:3000/help-center',
-    Label3: 'Contact Us',
-    Label3Url: process.env.FRONTEND_URL
-      ? `${process.env.FRONTEND_URL}/contact`
-      : 'http://localhost:3000/contact',
+    Label1: params.label1,
+    Label1Url: params.label1Url,
+    Label2: params.label2,
+    Label2Url: params.label2Url,
+    Label3: params.label3,
+    Label3Url: params.label3Url,
     year: new Date().getFullYear(),
   };
 }

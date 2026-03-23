@@ -4,6 +4,7 @@ export interface SignupSession {
   email: string;
   passwordHash: string;
   otp: string;
+  otpExpiresAt: string;
   otpAttemptsLeft: number;
   resendAttemptsLeft: number;
   expiresAt: string;

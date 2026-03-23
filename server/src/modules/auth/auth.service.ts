@@ -6,6 +6,7 @@ import { AppLogger } from 'src/common/app.logger';
 import {
   EmailDeliveryException,
   InvalidOtpException,
+  OtpExpiredException,
   OtpAttemptsExceededException,
   SignupAlreadyInProgressException,
   SignupSessionNotFoundException,
@@ -35,6 +36,10 @@ import {
   buildVerifyEmailContext,
   VERIFY_EMAIL_TEMPLATE,
 } from './template/verify-email.templates';
+import {
+  buildWelcomeEmailContext,
+  WELCOME_EMAIL_TEMPLATE,
+} from './template/welcome-email.templates';
 
 @Injectable()
 export class AuthService {
@@ -45,6 +50,7 @@ export class AuthService {
   private readonly resendCooldownSeconds: number;
   private readonly otpExpirationMinutes: number;
   private readonly signupSessionTtlMinutes: number;
+  private readonly frontendURL: string;
   private readonly otpLength = 6;
   private readonly passwordSaltRounds = 12;
 
@@ -73,6 +79,10 @@ export class AuthService {
     this.signupSessionTtlMinutes = this.configService.get<number>(
       'SIGNUP_SESSION_TTL_MINUTES',
       5,
+    );
+    this.frontendURL = this.configService.get<string>(
+      'FRONTEND_URL',
+      'http://localhost:3000',
     );
   }
   async signup(dto: SignupDto) {
@@ -200,9 +210,14 @@ export class AuthService {
       throw new SignupSessionNotFoundException();
     }
 
+    if (new Date(value.otpExpiresAt).getTime() <= Date.now()) {
+      throw new OtpExpiredException();
+    }
+
     if ((value.otpAttemptsLeft ?? 0) <= 0) {
       throw new OtpAttemptsExceededException();
     }
+
     if (String(value.otp) !== dto.otp) {
       const attemptsLeft = Math.max((value.otpAttemptsLeft ?? 0) - 1, 0);
 
@@ -233,6 +248,30 @@ export class AuthService {
       name: value.name,
       email: value.email,
       password: value.passwordHash,
+    });
+    const welcomeContext = buildWelcomeEmailContext({
+      name: value.name,
+      frontend: this.frontendURL,
+      label1: 'Privacy Policy',
+      label1Url: `${this.frontendURL}/privacy-policy`,
+      label2: 'Help Center',
+      label2Url: `${this.frontendURL}/help-center`,
+      label3: 'Contact Us',
+      label3Url: `${this.frontendURL}/contact`,
+    });
+    const welcomeHtml = renderTemplate(WELCOME_EMAIL_TEMPLATE, welcomeContext);
+
+    await this.sqsService.sendMail({
+      type: 'WELCOME_EMAIL',
+      senderName: 'Welcome - Link Lab',
+      to: value.email,
+      subject: 'Welcome to Link Lab',
+      html: welcomeHtml,
+      context: welcomeContext,
+      meta: {
+        source: 'Link Lab',
+        requestId: value.sessionId,
+      },
     });
 
     await this.clearSignupState(getSignupLockKey(value.email), sessionKey);

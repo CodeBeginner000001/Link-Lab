@@ -50,6 +50,15 @@ export class SignupSessionNotFoundException extends GoneException {
   }
 }
 
+export class OtpExpiredException extends GoneException {
+  constructor() {
+    super({
+      message: 'OTP has expired. Please request a new one.',
+      error: 'Gone',
+    });
+  }
+}
+
 export class InvalidOtpException extends UnauthorizedException {
   constructor(attemptsLeft: number) {
     super({

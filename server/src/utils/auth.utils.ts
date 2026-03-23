@@ -53,6 +53,7 @@ export function buildSignupSession(params: {
     otp: params.otp,
     otpAttemptsLeft: params.otpAttemptsLeft,
     resendAttemptsLeft: params.resendAttemptsLeft,
+    otpExpiresAt: getExpiryIsoFromNow(params.otpExpirationMinutes),
     createdAt: new Date().toISOString(),
     expiresAt: getExpiryIsoFromNow(params.signupSessionTtlMinutes),
   };
