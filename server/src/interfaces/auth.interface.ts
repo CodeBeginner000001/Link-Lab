@@ -28,3 +28,8 @@ export interface ForgotPasswordSession {
   resetToken?: string | null;
   resetTokenExpiresAt?: string | null;
 }
+
+export interface JwtPayload {
+  sub: string;
+  email: string;
+}

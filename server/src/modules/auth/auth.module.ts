@@ -7,10 +7,12 @@ import { RedisHashService } from '../redis/redis-hash.service';
 import { RedisStringService } from '../redis/redis-string.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
+import { JwtModule } from '@nestjs/jwt';
 
 @Module({
   imports: [
     ConfigModule,
+    JwtModule.register({}),
     MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]),
     SqsModule,
   ],

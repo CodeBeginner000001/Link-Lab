@@ -15,6 +15,15 @@ export class UserAlreadyExistsException extends ConflictException {
     });
   }
 }
+
+export class UserNotFoundException extends NotFoundException {
+  constructor() {
+    super({
+      message: 'Invalid Credentials. Please check email carefully',
+      error: 'Not Found',
+    });
+  }
+}
 export class SignupAlreadyInProgressException extends ConflictException {
   constructor() {
     super({
@@ -46,6 +55,14 @@ export class SignupSessionNotFoundException extends GoneException {
   constructor() {
     super({
       message: 'Signup session not found or expired',
+      error: 'Gone',
+    });
+  }
+}
+export class ForgetPasswordSessionNotFoundException extends GoneException {
+  constructor() {
+    super({
+      message: 'Forget Password session not found or expired',
       error: 'Gone',
     });
   }
@@ -92,14 +109,6 @@ export class ResendAttemptsExceededException extends BadRequestException {
     super({
       message: 'Maximum OTP resend attempts exceeded. Please sign up again',
       error: 'Too Many Requests',
-    });
-  }
-}
-export class UserNotFoundException extends NotFoundException {
-  constructor() {
-    super({
-      message: 'Invalid Credentials. Please check email carefully',
-      error: 'Not Found',
     });
   }
 }
@@ -154,6 +163,24 @@ export class InvalidCredentialsException extends UnauthorizedException {
   constructor() {
     super({
       message: 'Invalid email or password',
+      error: 'Unauthorized',
+    });
+  }
+}
+
+export class RefreshTokenMissingException extends UnauthorizedException {
+  constructor() {
+    super({
+      message: 'Refresh token is missing',
+      error: 'Unauthorized',
+    });
+  }
+}
+
+export class RefreshTokenInvalidException extends UnauthorizedException {
+  constructor() {
+    super({
+      message: 'Refresh token is invalid or expired',
       error: 'Unauthorized',
     });
   }

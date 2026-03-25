@@ -13,6 +13,7 @@ import { RequestContextMiddleware } from './middleware/request-context.middlewar
 import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { RedisModule } from './modules/redis/redis.module';
+import { JwtModule } from '@nestjs/jwt';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -22,6 +23,7 @@ import { RedisModule } from './modules/redis/redis.module';
       validate: validateEnv,
     }),
     DbModule,
+    JwtModule.register({}),
     AuthModule,
     AvatarModule,
     RedisModule,

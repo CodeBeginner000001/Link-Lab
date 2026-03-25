@@ -1,17 +1,23 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { StringValue } from 'ms';
 import { AppLogger } from 'src/common/app.logger';
 import {
   EmailDeliveryException,
+  ForgetPasswordSessionNotFoundException,
   ForgotPasswordAlreadyInProgressException,
   ForgotPasswordEmailDeliveryException,
   ForgotPasswordNotVerifiedException,
+  InvalidCredentialsException,
   InvalidOtpException,
   InvalidResetTokenException,
   OtpAttemptsExceededException,
   OtpExpiredException,
+  RefreshTokenInvalidException,
+  RefreshTokenMissingException,
   ResendAttemptsExceededException,
   ResendOtpCooldownException,
   ResetTokenExpiredException,
@@ -22,6 +28,7 @@ import {
 } from 'src/exceptions/auth.exception';
 import {
   ForgotPasswordSession,
+  JwtPayload,
   SignupSession,
 } from 'src/interfaces/auth.interface';
 import { User, UserDocument } from 'src/models/user.schema';
@@ -29,6 +36,7 @@ import { SqsService } from 'src/services/aws/sqs/sqs.service';
 import {
   buildForgotPasswordSession,
   buildSignupSession,
+  comparePassword,
   generateOtp,
   generateSessionId,
   getMinutesToSeconds,
@@ -46,7 +54,7 @@ import {
 import { RedisHashService } from '../redis/redis-hash.service';
 import { RedisStringService } from '../redis/redis-string.service';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forget-password.dto';
-import { SignupDto, VerifyOtpDto } from './dto/signup.dto';
+import { LoginDto, SignupDto, VerifyOtpDto } from './dto/signup.dto';
 import {
   buildForgotPasswordEmailContext,
   FORGOT_PASSWORD_EMAIL_TEMPLATE,
@@ -85,6 +93,8 @@ export class AuthService {
 
   private readonly accessTokenSecret: string;
   private readonly refreshTokenSecret: string;
+  private readonly accessTokenTTL: string;
+  private readonly refreshTokenTTL: string;
 
   constructor(
     @InjectModel(User.name)
@@ -94,6 +104,7 @@ export class AuthService {
     private readonly sqsService: SqsService,
     private readonly logger: AppLogger,
     private readonly configService: ConfigService,
+    private readonly jwtService: JwtService,
   ) {
     this.otpAttempts = this.configService.getOrThrow<number>('OTP_ATTEMPTS');
     this.maxOtpResendAttempts = this.configService.getOrThrow<number>(
@@ -120,6 +131,12 @@ export class AuthService {
       this.configService.getOrThrow<string>('JWT_ACCESS_SECRET');
     this.refreshTokenSecret =
       this.configService.getOrThrow<string>('JWT_REFRESH_SECRET');
+    this.accessTokenTTL = this.configService.getOrThrow<string>(
+      'JWT_ACCESS_EXPIRES_IN',
+    );
+    this.refreshTokenTTL = this.configService.getOrThrow<string>(
+      'JWT_REFRESH_EXPIRES_IN',
+    );
   }
   async signup(dto: SignupDto) {
     const email = normalizeEmail(dto.email);
@@ -292,6 +309,8 @@ export class AuthService {
       email: value.email,
       password: value.passwordHash,
     });
+    const accessToken = await this.generateAccessToken(createdUser);
+    const refreshToken = await this.generateRefreshToken(createdUser);
     const welcomeContext = buildWelcomeEmailContext({
       name: value.name,
       frontend: this.frontendURL,
@@ -327,6 +346,8 @@ export class AuthService {
         email: createdUser.email,
         avatar: createdUser.avatar ?? null,
       },
+      accessToken,
+      refreshToken,
     };
   }
   async resendSignupOtp(sessionId: string) {
@@ -531,7 +552,7 @@ export class AuthService {
   }
   async verifyForgotPasswordOtp(dto: VerifyOtpDto, sessionId: string) {
     if (!sessionId) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     const sessionKey = getForgotPasswordSessionKey(sessionId);
@@ -539,11 +560,11 @@ export class AuthService {
       await this.redisHashService.get<ForgotPasswordSession>(sessionKey);
 
     if (!value) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     if (new Date(value.expiresAt).getTime() <= Date.now()) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
     if (new Date(value.otpExpiresAt).getTime() <= Date.now()) {
       throw new OtpExpiredException();
@@ -655,7 +676,7 @@ export class AuthService {
   }
   async resendForgotPasswordOtp(sessionId: string) {
     if (!sessionId) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     const sessionKey = getForgotPasswordSessionKey(sessionId);
@@ -663,7 +684,7 @@ export class AuthService {
       await this.redisHashService.get<ForgotPasswordSession>(sessionKey);
 
     if (!value) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     if (new Date(value.expiresAt).getTime() <= Date.now()) {
@@ -671,7 +692,7 @@ export class AuthService {
         getForgotPasswordLockKey(value.email),
         sessionKey,
       );
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     if ((value.resendAttemptsLeft ?? 0) <= 0) {
@@ -784,7 +805,7 @@ export class AuthService {
     },
   ) {
     if (!sessionId) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     const sessionKey = getForgotPasswordSessionKey(sessionId);
@@ -792,7 +813,7 @@ export class AuthService {
       await this.redisHashService.get<ForgotPasswordSession>(sessionKey);
 
     if (!value) {
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     if (new Date(value.expiresAt).getTime() <= Date.now()) {
@@ -800,7 +821,7 @@ export class AuthService {
         getForgotPasswordLockKey(value.email),
         sessionKey,
       );
-      throw new SignupSessionNotFoundException();
+      throw new ForgetPasswordSessionNotFoundException();
     }
 
     if (!value.isVerified) {
@@ -920,6 +941,125 @@ export class AuthService {
         error: 'Internal Server Error',
       });
     }
+  }
+  async login(dto: LoginDto) {
+    const email = normalizeEmail(dto.email);
+
+    this.logger.log(`Login request received for ${email}`, this.context);
+
+    const user = await this.userModel
+      .findOne({ email })
+      .select('+password')
+      .exec();
+
+    if (!user) {
+      this.logger.warn(
+        `Login failed: user not found for ${email}`,
+        this.context,
+      );
+      throw new InvalidCredentialsException();
+    }
+
+    const isPasswordValid = await comparePassword(dto.password, user.password);
+
+    if (!isPasswordValid) {
+      this.logger.warn(
+        `Login failed: invalid password for ${email}`,
+        this.context,
+      );
+      throw new InvalidCredentialsException();
+    }
+
+    const accessToken = await this.generateAccessToken(user);
+    const refreshToken = await this.generateRefreshToken(user);
+
+    this.logger.log(`Login successful for ${email}`, this.context);
+
+    return {
+      message: 'Login successful.',
+      user: {
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar ?? null,
+      },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  logout() {
+    this.logger.log('User logged out successfully', this.context);
+
+    return {
+      message: 'Logout successful.',
+    };
+  }
+
+  async refreshAccessToken(refreshToken?: string) {
+    if (!refreshToken) {
+      throw new RefreshTokenMissingException();
+    }
+
+    let payload: JwtPayload;
+
+    try {
+      payload = await this.jwtService.verifyAsync<JwtPayload>(refreshToken, {
+        secret: this.refreshTokenSecret,
+      });
+    } catch {
+      throw new RefreshTokenInvalidException();
+    }
+
+    const user = await this.userModel.findById(payload.sub).lean();
+
+    if (!user) {
+      throw new RefreshTokenInvalidException();
+    }
+
+    const accessToken = await this.generateAccessToken(user);
+
+    this.logger.log(
+      `Access token refreshed successfully for ${user.email}`,
+      this.context,
+    );
+
+    return {
+      message: 'Access token refreshed successfully.',
+      accessToken,
+      user: {
+        id: String(user._id),
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar ?? null,
+      },
+    };
+  }
+
+  private async generateAccessToken(user: UserDocument): Promise<string> {
+    return this.jwtService.signAsync<JwtPayload>(
+      {
+        sub: String(user._id),
+        email: user.email,
+      },
+      {
+        secret: this.accessTokenSecret,
+        expiresIn: this.accessTokenTTL as StringValue,
+      },
+    );
+  }
+
+  private async generateRefreshToken(user: UserDocument): Promise<string> {
+    return this.jwtService.signAsync<JwtPayload>(
+      {
+        sub: String(user._id),
+        email: user.email,
+      },
+      {
+        secret: this.refreshTokenSecret,
+        expiresIn: this.refreshTokenTTL as StringValue,
+      },
+    );
   }
 
   private async clearSignupState(
