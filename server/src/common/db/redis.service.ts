@@ -23,21 +23,15 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
     return this.clientInstance;
   }
   async onModuleInit(): Promise<void> {
-    const env = this.configService.get<string>('ENV', 'dev');
+    const env = this.configService.getOrThrow<string>('ENV');
 
-    const host =
-      env === 'dev'
-        ? '127.0.0.1'
-        : this.configService.get<string>('REDIS_HOST');
+    const host = this.configService.getOrThrow<string>('REDIS_HOST');
 
-    const port =
-      env === 'dev' ? 6379 : this.configService.get<number>('REDIS_PORT', 6379);
+    const port = this.configService.getOrThrow<number>('REDIS_PORT');
 
-    const password =
-      env === 'dev' ? '' : this.configService.get<string>('REDIS_PASSWORD', '');
+    const password = this.configService.getOrThrow<string>('REDIS_PASSWORD');
 
-    const db =
-      env === 'dev' ? 0 : this.configService.get<number>('REDIS_DB', 0);
+    const db = this.configService.getOrThrow<number>('REDIS_DB');
 
     const upstashUrl =
       env === 'dev'
@@ -45,18 +39,19 @@ export class RedisService implements OnModuleInit, OnApplicationShutdown {
         : this.configService.get<string>('UPSTASH_REDIS_URL');
 
     const connectTimeoutMs =
-      this.configService.get<number>('REDIS_CONNECT_TIMEOUT_SECONDS', 5) * 1000;
+      this.configService.getOrThrow<number>('REDIS_CONNECT_TIMEOUT_SECONDS') *
+      1000;
 
     const maxRetries = Math.max(
-      this.configService.get<number>('REDIS_MAX_RETRIES', 5),
+      this.configService.getOrThrow<number>('REDIS_MAX_RETRIES'),
       1,
     );
 
     const retryDelayMs =
-      this.configService.get<number>('REDIS_RETRY_DELAY_SECONDS', 2) * 1000;
+      this.configService.getOrThrow<number>('REDIS_RETRY_DELAY_SECONDS') * 1000;
 
     const cooldownMs =
-      this.configService.get<number>('REDIS_COOLDOWN_SECONDS', 30) * 1000;
+      this.configService.getOrThrow<number>('REDIS_COOLDOWN_SECONDS') * 1000;
 
     const target =
       env === 'dev'

@@ -3,6 +3,7 @@ import {
   ConflictException,
   GoneException,
   InternalServerErrorException,
+  NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
 
@@ -91,6 +92,69 @@ export class ResendAttemptsExceededException extends BadRequestException {
     super({
       message: 'Maximum OTP resend attempts exceeded. Please sign up again',
       error: 'Too Many Requests',
+    });
+  }
+}
+export class UserNotFoundException extends NotFoundException {
+  constructor() {
+    super({
+      message: 'Invalid Credentials. Please check email carefully',
+      error: 'Not Found',
+    });
+  }
+}
+
+export class ForgotPasswordAlreadyInProgressException extends ConflictException {
+  constructor() {
+    super({
+      message:
+        'A password reset session is already in progress for this email. Please try again after sometime..',
+      error: 'Conflict',
+    });
+  }
+}
+
+export class ForgotPasswordEmailDeliveryException extends InternalServerErrorException {
+  constructor() {
+    super({
+      message: 'Failed send password reset verification email',
+      error: 'Internal Server Error',
+    });
+  }
+}
+export class ForgotPasswordNotVerifiedException extends BadRequestException {
+  constructor() {
+    super({
+      message: 'Forgot password OTP has not been verified yet',
+      error: 'Bad Request',
+    });
+  }
+}
+
+export class InvalidResetTokenException extends BadRequestException {
+  constructor() {
+    super({
+      message: 'Invalid reset token',
+      error: 'Bad Request',
+    });
+  }
+}
+
+export class ResetTokenExpiredException extends GoneException {
+  constructor() {
+    super({
+      message:
+        'Reset token has expired. Please restart the forgot password flow',
+      error: 'Gone',
+    });
+  }
+}
+
+export class InvalidCredentialsException extends UnauthorizedException {
+  constructor() {
+    super({
+      message: 'Invalid email or password',
+      error: 'Unauthorized',
     });
   }
 }

@@ -9,7 +9,7 @@ import { AppLogger } from '../app.logger';
     MongooseModule.forRootAsync({
       inject: [ConfigService, AppLogger],
       useFactory: (configService: ConfigService, logger: AppLogger) => {
-        const env = configService.get<string>('ENV', 'dev');
+        const env = configService.getOrThrow<string>('ENV');
 
         const mongoUrl =
           env === 'dev'
@@ -22,15 +22,16 @@ import { AppLogger } from '../app.logger';
             : configService.get<string>('MONGO_DB', 'prod');
 
         const connectTimeoutMs =
-          configService.get<number>('MONGO_CONNECT_TIMEOUT_SECONDS', 5) * 1000;
+          configService.getOrThrow<number>('MONGO_CONNECT_TIMEOUT_SECONDS') *
+          1000;
 
         const maxRetries = Math.max(
-          configService.get<number>('MONGO_MAX_RETRIES', 5),
+          configService.getOrThrow<number>('MONGO_MAX_RETRIES'),
           1,
         );
 
         const retryDelayMs =
-          configService.get<number>('MONGO_RETRY_DELAY_SECONDS', 2) * 1000;
+          configService.getOrThrow<number>('MONGO_RETRY_DELAY_SECONDS') * 1000;
 
         const compassString =
           env === 'dev'

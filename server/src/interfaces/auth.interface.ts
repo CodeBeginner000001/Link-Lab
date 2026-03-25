@@ -12,3 +12,19 @@ export interface SignupSession {
   createdAt: string;
   lastResendAttemptAt?: string | null;
 }
+
+export interface ForgotPasswordSession {
+  sessionId: string;
+  email: string;
+  otp: string;
+  otpExpiresAt: string;
+  otpAttemptsLeft: number;
+  resendAttemptsLeft: number;
+  resendCooldownSeconds: number;
+  createdAt: string;
+  expiresAt: string;
+  lastResendAttemptAt?: string | null;
+  isVerified?: boolean;
+  resetToken?: string | null;
+  resetTokenExpiresAt?: string | null;
+}
