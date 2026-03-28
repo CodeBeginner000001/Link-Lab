@@ -1,7 +1,9 @@
-import { BACKEND_API_URL_ENV } from "@/config/api";
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_API_URL = BACKEND_API_URL_ENV;
+const BACKEND_API_URL =
+  process.env.BACKEND_API_URL ||
+  process.env.NEXT_PUBLIC_BACKEND_API_URL ||
+  "http://localhost:4000/v1";
 
 const ALLOWED_AUTH_PATHS = new Set([
   "login",
@@ -42,45 +44,67 @@ async function handler(
     );
   }
 
-  const targetUrl = new URL(`${BACKEND_API_URL}/auth/${endpoint}`);
-  targetUrl.search = request.nextUrl.search;
+  try {
+    const targetUrl = new URL(`${BACKEND_API_URL}/auth/${endpoint}`);
+    targetUrl.search = request.nextUrl.search;
+    console.info(
+      `[auth-proxy] ${request.method} ${targetUrl.toString()}`,
+    );
 
-  const headers = new Headers();
-  const contentType = request.headers.get("content-type");
-  const cookieHeader = request.headers.get("cookie");
+    const headers = new Headers();
+    const contentType = request.headers.get("content-type");
+    const cookieHeader = request.headers.get("cookie");
 
-  if (contentType) {
-    headers.set("content-type", contentType);
+    if (contentType) {
+      headers.set("content-type", contentType);
+    }
+
+    if (cookieHeader) {
+      headers.set("cookie", cookieHeader);
+    }
+
+    const backendResponse = await fetch(targetUrl.toString(), {
+      method: request.method,
+      headers,
+      body:
+        request.method === "GET" || request.method === "HEAD"
+          ? undefined
+          : await request.text(),
+      cache: "no-store",
+    });
+
+    const response = new NextResponse(await backendResponse.text(), {
+      status: backendResponse.status,
+    });
+    const responseContentType = backendResponse.headers.get("content-type");
+
+    if (responseContentType) {
+      response.headers.set("content-type", responseContentType);
+    }
+
+    for (const setCookieHeader of getSetCookieHeaders(
+      backendResponse.headers,
+    )) {
+      response.headers.append("set-cookie", setCookieHeader);
+    }
+
+    return response;
+  } catch (error) {
+    console.error("[auth-proxy] upstream request failed", {
+      endpoint,
+      backendUrl: BACKEND_API_URL,
+      error: error instanceof Error ? error.message : "unknown error",
+    });
+
+    return NextResponse.json(
+      {
+        success: false,
+        message: ["Unable to reach auth server"],
+        error: "Service Unavailable",
+      },
+      { status: 503 },
+    );
   }
-
-  if (cookieHeader) {
-    headers.set("cookie", cookieHeader);
-  }
-
-  const backendResponse = await fetch(targetUrl.toString(), {
-    method: request.method,
-    headers,
-    body:
-      request.method === "GET" || request.method === "HEAD"
-        ? undefined
-        : await request.text(),
-    cache: "no-store",
-  });
-
-  const response = new NextResponse(await backendResponse.text(), {
-    status: backendResponse.status,
-  });
-  const responseContentType = backendResponse.headers.get("content-type");
-
-  if (responseContentType) {
-    response.headers.set("content-type", responseContentType);
-  }
-
-  for (const setCookieHeader of getSetCookieHeaders(backendResponse.headers)) {
-    response.headers.append("set-cookie", setCookieHeader);
-  }
-
-  return response;
 }
 
 export {
