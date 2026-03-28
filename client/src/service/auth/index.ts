@@ -10,7 +10,8 @@ import {
   VerifySignUpOTPApiSuccessResponse,
 } from "@/interfaces/api";
 
-const BACKEND_API_URL = BACKEND_API_URL_ENV
+const BACKEND_API_URL = BACKEND_API_URL_ENV;
+const FRONTEND_AUTH_API_URL = "/api/auth";
 
 const createServiceUnavailableError = (path: string): ApiErrorResponse => ({
   success: false,
@@ -23,7 +24,7 @@ const createServiceUnavailableError = (path: string): ApiErrorResponse => ({
 
 export const signup = async (name: string, email: string, password: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/signup`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/signup`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -87,7 +88,7 @@ export const GetSessionData = async (cookieData: string) => {
 
 export const ResendOTP = async () => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/resend-otp`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/resend-otp`, {
       method: "POST",
       credentials: "include",
       cache: "no-store",
@@ -114,7 +115,7 @@ export const ResendOTP = async () => {
 
 export const VerifySignUpOTP = async (otp: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/verify-otp`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/verify-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -205,7 +206,7 @@ export const RefreshAccessToken = async (refreshToken: string) => {
 
 export const login = async (email: string, password: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/login`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/login`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
