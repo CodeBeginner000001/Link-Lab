@@ -1,13 +1,50 @@
 "use client";
 import { login } from "@/service/auth";
-import { getUserFriendlyMessage } from "@/utils/custom-error-message";
-import { useToastNotification } from "@/utils/react-toastify";
+import {
+  parseErrorMessage,
+  getUserFriendlyMessage,
+} from "@/utils/custom-error-message";
+import { useToastNotification } from "@/utils/toast";
 import { AnimatePresence, motion } from "framer-motion";
 import { Lock, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import FormField from "./common/FormField";
 import SubmitButton from "./common/SubmitButton";
+
+type LoginFormErrors = {
+  email?: string;
+  password?: string;
+};
+
+const getLoginFieldError = (message: string) => {
+  const parsedMessage = parseErrorMessage(message);
+
+  if (
+    parsedMessage.field === "email" ||
+    parsedMessage.field === "password"
+  ) {
+    return parsedMessage;
+  }
+
+  const normalizedMessage = message.toLowerCase();
+
+  if (normalizedMessage.includes("email")) {
+    return {
+      field: "email",
+      error: message,
+    };
+  }
+
+  if (normalizedMessage.includes("password")) {
+    return {
+      field: "password",
+      error: message,
+    };
+  }
+
+  return null;
+};
 
 export default function LoginForm() {
   const router = useRouter();
@@ -16,10 +53,7 @@ export default function LoginForm() {
     email: "",
     password: "",
   });
-  const [errors, setErrors] = useState<{
-    email?: string;
-    password?: string;
-  }>({});
+  const [errors, setErrors] = useState<LoginFormErrors>({});
   const notify = useToastNotification();
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,23 +69,43 @@ export default function LoginForm() {
     setLoading(true);
     const loginResult = await login(formData.email, formData.password);
     setLoading(false);
+
     if (loginResult.result?.success) {
-      notify(loginResult.result.message, "success");
+      notify(loginResult.result.data.message, "success");
       router.replace("/dashboard");
       router.refresh();
       return;
     }
-    if (loginResult.statusCode === 422 && loginResult.error) {
-      const fieldErrors: Record<string, string> = {};
-      loginResult.error.errors.forEach(
-        ({ field, error }: { field: string; error: string }) => {
-          fieldErrors[field.toLowerCase()] = field + " " + error;
-        },
-      );
-      setErrors(fieldErrors);
-      notify("Please fill form correctly", "error");
-      return;
+
+    if (
+      (loginResult.statusCode === 400 || loginResult.statusCode === 422) &&
+      loginResult.error
+    ) {
+      const fieldErrors: LoginFormErrors = {};
+
+      loginResult.error.message.forEach((message) => {
+        const parsedMessage = getLoginFieldError(message);
+
+        if (!parsedMessage) {
+          return;
+        }
+
+        if (parsedMessage.field === "email") {
+          fieldErrors.email = parsedMessage.error;
+        }
+
+        if (parsedMessage.field === "password") {
+          fieldErrors.password = parsedMessage.error;
+        }
+      });
+
+      if (fieldErrors.email || fieldErrors.password) {
+        setErrors(fieldErrors);
+        notify("Please fill form correctly", "error");
+        return;
+      }
     }
+
     notify(getUserFriendlyMessage(loginResult), "error");
   };
   return (

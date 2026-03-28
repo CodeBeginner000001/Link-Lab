@@ -27,7 +27,7 @@ export class UserNotFoundException extends NotFoundException {
 export class SignupAlreadyInProgressException extends ConflictException {
   constructor() {
     super({
-      message: 'A signup session is already in progress for this email',
+      message: 'Signup is already in progress. Please try again after sometime',
       error: 'Conflict',
     });
   }
@@ -181,6 +181,23 @@ export class RefreshTokenInvalidException extends UnauthorizedException {
   constructor() {
     super({
       message: 'Refresh token is invalid or expired',
+      error: 'Unauthorized',
+    });
+  }
+}
+
+export class AuthenticatedUserNotFoundException extends UnauthorizedException {
+  constructor() {
+    super({
+      message: 'Authenticated user not found',
+      error: 'Unauthorized',
+    });
+  }
+}
+export class AccessTokenExpired extends UnauthorizedException {
+  constructor() {
+    super({
+      message: 'Access token is invalid or expired',
       error: 'Unauthorized',
     });
   }

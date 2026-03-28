@@ -5,12 +5,22 @@ import { Lock, Mail, User } from "lucide-react";
 import { useState } from "react";
 import FormField from "./common/FormField";
 import SubmitButton from "./common/SubmitButton";
-import { getUserFriendlyMessage } from "@/utils/custom-error-message";
-import { useToastNotification } from "@/utils/react-toastify";
+import {
+  parseErrorMessage,
+  getUserFriendlyMessage,
+} from "@/utils/custom-error-message";
+import { useToastNotification } from "@/utils/toast";
 import { useRouter } from "next/navigation";
 
+type SignUpFormErrors = {
+  name?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+};
+
 export default function SignUpForm() {
-  const router = useRouter()
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -18,13 +28,8 @@ export default function SignUpForm() {
     password: "",
     confirmPassword: "",
   });
-  const [errors, setErrors] = useState<{
-    name?: string;
-    email?: string;
-    password?: string;
-    confirmPassword?: string;
-  }>({});
-  
+  const [errors, setErrors] = useState<SignUpFormErrors>({});
+
   const notify = useToastNotification();
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,20 +54,32 @@ export default function SignUpForm() {
     );
     setLoading(false);
     if (signupResult.result?.success) {
-      notify(signupResult.result.message, "success");
-      router.push('/signup/verify/OTP')
+      notify(signupResult.result.data?.message, "success");
+      router.push("/signup/verify/OTP");
       return;
     }
-    if (signupResult.statusCode === 422 && signupResult.error) {
-      const fieldErrors: Record<string, string> = {};
-      signupResult.error.errors.forEach(
-        ({ field, error }: { field: string; error: string }) => {
-          fieldErrors[field.toLowerCase()] = field + " " + error;
-        },
-      );
-      setErrors(fieldErrors);
-      notify("Please fill form correctly", "error");
-      return;
+    if (signupResult.statusCode === 400 && signupResult.error) {
+      const fieldErrors: SignUpFormErrors = {};
+
+      signupResult.error.message.forEach((message) => {
+        const parsedMessage = parseErrorMessage(message);
+
+        if (parsedMessage.field === "name") {
+          fieldErrors.name = parsedMessage.error;
+        }
+        if (parsedMessage.field === "email") {
+          fieldErrors.email = parsedMessage.error;
+        }
+        if (parsedMessage.field === "password") {
+          fieldErrors.password = parsedMessage.error;
+        }
+      });
+
+      if (fieldErrors.name || fieldErrors.email || fieldErrors.password) {
+        setErrors(fieldErrors);
+        notify("Please fill form correctly", "error");
+        return;
+      }
     }
     notify(getUserFriendlyMessage(signupResult), "error");
   };

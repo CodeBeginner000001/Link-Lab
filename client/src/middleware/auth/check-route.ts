@@ -5,7 +5,7 @@ const PUBLIC_ROUTES = [
     "/signup",
     "/signup/verify/OTP",
     "/forgetpassword",
-    "/api/auth/refresh"
+    "/refresh"
 ]
 export function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(

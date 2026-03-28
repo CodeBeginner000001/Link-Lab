@@ -6,6 +6,7 @@ import { Model } from 'mongoose';
 import { StringValue } from 'ms';
 import { AppLogger } from 'src/common/app.logger';
 import {
+  AuthenticatedUserNotFoundException,
   EmailDeliveryException,
   ForgetPasswordSessionNotFoundException,
   ForgotPasswordAlreadyInProgressException,
@@ -221,11 +222,8 @@ export class AuthService {
       );
 
       return {
-        message: 'Signup successful. Verification OTP has been sent.',
-        email,
+        message: 'Signup initiated. Please verify OTP.',
         sessionId,
-        expiresInMinutes: this.otpExpirationMinutes,
-        resendCooldownSeconds: this.resendCooldownSeconds,
         signupSessionExpiresInMinutes: this.signupSessionTtlMinutes,
       };
     } catch (error) {
@@ -340,12 +338,6 @@ export class AuthService {
 
     return {
       message: 'Email verified successfully.',
-      user: {
-        id: createdUser._id,
-        name: createdUser.name,
-        email: createdUser.email,
-        avatar: createdUser.avatar ?? null,
-      },
       accessToken,
       refreshToken,
     };
@@ -423,9 +415,9 @@ export class AuthService {
 
       return {
         message: 'A new verification OTP has been queued successfully.',
-        email: value.email,
-        expiresInMinutes: this.otpExpirationMinutes,
-        resendAttemptsLeft,
+        otpExpiresAt: Math.floor(
+          (Date.now() + this.otpExpirationMinutes * 60 * 1000) / 1000,
+        ),
       };
     } catch (error) {
       this.logger.error(
@@ -437,6 +429,33 @@ export class AuthService {
       throw new EmailDeliveryException();
     }
   }
+
+  async getSessionDetail(sessionId: string) {
+    if (!sessionId) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    const sessionKey = getSignupSessionKey(sessionId);
+    const { value } =
+      await this.redisHashService.get<SignupSession>(sessionKey);
+    if (!value) {
+      throw new SignupSessionNotFoundException();
+    }
+    if (new Date(value.expiresAt).getTime() <= Date.now()) {
+      throw new SignupSessionNotFoundException();
+    }
+
+    const otpExpiresAt = Math.max(
+      0,
+      Math.ceil((new Date(value.otpExpiresAt).getTime() - Date.now()) / 1000),
+    );
+
+    return {
+      email: value.email,
+      otpExpiresAt,
+    };
+  }
+
   async forgotPassword(dto: ForgotPasswordDto) {
     const email = normalizeEmail(dto.email);
 
@@ -1011,7 +1030,12 @@ export class AuthService {
       throw new RefreshTokenInvalidException();
     }
 
-    const user = await this.userModel.findById(payload.sub).lean();
+    const user = await this.userModel
+      .findOne({
+        _id: payload.sub,
+        email: payload.email,
+      })
+      .exec();
 
     if (!user) {
       throw new RefreshTokenInvalidException();
@@ -1027,6 +1051,22 @@ export class AuthService {
     return {
       message: 'Access token refreshed successfully.',
       accessToken,
+    };
+  }
+
+  async getUser(payload: JwtPayload) {
+    const user = await this.userModel
+      .findOne({
+        _id: payload.sub,
+        email: payload.email,
+      })
+      .lean();
+
+    if (!user) {
+      throw new AuthenticatedUserNotFoundException();
+    }
+
+    return {
       user: {
         id: String(user._id),
         name: user.name,

@@ -1,42 +1,43 @@
-"use client"
-import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
+"use client";
+
+import { useAuth } from "@/Provider/AuthUserProvider";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuSeparator,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
-import { User, LogOut } from "lucide-react";
+import { LogOut, User } from "lucide-react";
+import { Avatar, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
-import { AvatarFallback } from "../ui/Avatar";
-import { useAuth } from "@/Provider/AuthUserProvider";
 
-const getInitials = (name: string | null | undefined) => {
-    if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
-  };
+const handleLogOut = () => {
+  
+};
 
 const UserAvatar = () => {
-    const user = useAuth()
+  const user = useAuth();
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-          <Avatar className="h-10 w-10">
-            <AvatarImage src={user?.avatar || undefined} />
-            <AvatarFallback className="bg-[hsl(var(--primary))] w-10 text-black text-lg">
-                {getInitials(user?.name)}
-            </AvatarFallback>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative rounded-full overflow-hidden p-0"
+        >
+          <Avatar className="h-full w-full">
+            <AvatarImage
+              src={user?.avatar || undefined}
+              className="h-full w-full object-cover"
+            />
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-56 rounded-lg border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--background))]">
+      <DropdownMenuContent
+        align="end"
+        className="w-56 rounded-lg border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--background))]"
+      >
         <div className="px-4 py-3">
           <p className="text-sm font-medium">{user?.name}</p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
@@ -53,7 +54,7 @@ const UserAvatar = () => {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-[hsl(var(--destructive))] flex items-center focus:text-[hsl(var(--destructive))] cursor-pointer px-4 py-2 focus-visible:outline-none hover:bg-[hsl(var(--secondary))]">
-          <LogOut className="h-4 w-4 mr-2" />
+          <LogOut className="h-4 w-4 mr-2" onClick={handleLogOut} />
           Sign Out
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -64,6 +65,5 @@ const UserAvatar = () => {
 export default UserAvatar;
 
 // add a refresh in current user
-// remove from middleware 
-// refresh only in access token is not present 
-
+// remove from middleware
+// refresh only in access token is not present

@@ -42,6 +42,12 @@ async function bootstrap() {
   });
   const logger = app.get(AppLogger);
   app.useLogger(logger);
+  app.enableCors({
+    origin: [process.env.CORS_ALLOWED_ORIGINS],
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
+
   app.use(cookieParser());
   app.useGlobalPipes(
     new ValidationPipe({
@@ -49,16 +55,12 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
       transform: true,
       stopAtFirstError: false,
-      exceptionFactory: (errors) => {
-        const messages = errors.flatMap((error) =>
-          error.constraints ? Object.values(error.constraints) : [],
-        );
-
-        throw new BadRequestException({
-          message: messages.length ? messages : ['Validation failed'],
+      exceptionFactory: (errors) =>
+        new BadRequestException({
+          message: 'Validation failed',
           error: 'Validation Error',
-        });
-      },
+          details: errors,
+        }),
     }),
   );
 

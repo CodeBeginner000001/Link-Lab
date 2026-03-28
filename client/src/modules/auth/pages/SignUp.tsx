@@ -1,3 +1,4 @@
+import { GetSessionData } from "@/service/auth";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import MotionWrapper from "../../../components/common/MotionWrapper";
@@ -12,7 +13,11 @@ export default async function SignUp() {
   const cookieStore = await cookies();
   const signupSession = cookieStore.get("signup_session");
   if (signupSession) {
-    redirect('/signup/verify/OTP')
+    const sessionData = await GetSessionData(cookieStore.toString());
+
+    if (sessionData.result) {
+      redirect("/signup/verify/OTP");
+    }
   }
   return (
     <>

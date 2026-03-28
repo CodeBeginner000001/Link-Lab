@@ -6,7 +6,7 @@ export const envSchema = z
     HOST: z.string().default('0.0.0.0'),
     PORT: z.coerce.number().int().positive().default(3000),
     // URLs
-    CORS_ORIGIN: z.string().default('*'),
+    CORS_ALLOWED_ORIGINS: z.string().optional(),
     BACKEND_URL: z.string().default('https://linklab-server.vercel.app/v1'),
     FRONTEND_URL: z.string().default('https://linklab-solutions.vercel.app'),
     // MongoDB connection

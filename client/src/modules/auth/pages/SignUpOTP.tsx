@@ -8,14 +8,11 @@ import OTPForm from "../components/OTPForm";
 
 export default async function SignUpOTPVerification() {
   const cookieStore = await cookies();
-  const signupSession = cookieStore.get("signup_session");
-  if (!signupSession) redirect("/signup");
-
   const sessionData = await GetSessionData(cookieStore.toString());
   if (!sessionData.result) {
     redirect("/signup");
   }
-  const { email, otp_resend_after: resendCooldown } = sessionData.result.data;
+  const { email, otpExpiresAt } = sessionData.result.data;
   return (
     <>
       <div className="flex flex-1 items-center justify-center">
@@ -26,7 +23,7 @@ export default async function SignUpOTPVerification() {
             paraline1="We've sent a 6-digit verification code to"
             paraline2={email}
           />
-          <OTPForm initialCooldown={resendCooldown}/>
+          <OTPForm resendTimeRemaining={otpExpiresAt} />
         </MotionWrapper>
       </div>
     </>

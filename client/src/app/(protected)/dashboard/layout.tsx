@@ -1,10 +1,10 @@
 // app/(protected)/layout.tsx
-import { ReactNode } from "react";
-import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
-import { GetCurrentUser } from "@/service/auth/auth.server";
 import Header from "@/components/layouts/Header";
 import SideBar from "@/components/layouts/SideBar";
+import { GetCurrentUser } from "@/service/auth";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { ReactNode } from "react";
 
 export default async function ProtectedLayout({
   children,
@@ -12,19 +12,12 @@ export default async function ProtectedLayout({
   children: ReactNode;
 }) {
   const cookieStore = await cookies();
-  const refreshToken = cookieStore.get("refresh_token")?.value;
+  const accessToken = cookieStore.get("access_token")?.value;
 
-  const user = await GetCurrentUser();
+  const user = accessToken ? await GetCurrentUser(accessToken) : null;
 
-  if (!user && !refreshToken) {
+  if (!user) {
     redirect("/login");
-  }
-
-  if (!user && refreshToken) {
-    const headerStore = await headers();
-    const pathname = headerStore.get("x-pathname") || "/dashboard";
-
-    redirect(`/refresh?redirect=${encodeURIComponent(pathname)}`);
   }
 
   return (

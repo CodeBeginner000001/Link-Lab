@@ -94,16 +94,26 @@ export default function NavBar() {
               ))}
 
               <div className="flex flex-col sm:flex-row gap-2 sm:gap-6 pt-4 border-t border-[hsl(var(--border)/0.5)] justify-center">
-                <Link href="/login">
-                  <Button variant="outline" className="mx-auto w-full sm:w-60">
-                    Sign In
-                  </Button>
-                </Link>
-                <Link href="/signup">
-                  <Button className="mb-4 mx-auto w-full sm:w-60">
-                    Get Started
-                  </Button>
-                </Link>
+                {user ? (
+                  <Link href="/dashboard">
+                    <Button className="mb-4 mx-auto w-full sm:w-60">
+                      Dashboard
+                    </Button>
+                  </Link>
+                ) : (
+                  <>
+                    <Link href="/login">
+                      <Button variant="outline" className="mx-auto w-full sm:w-60">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/signup">
+                      <Button className="mb-4 mx-auto w-full sm:w-60">
+                        Get Started
+                      </Button>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

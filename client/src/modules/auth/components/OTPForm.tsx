@@ -6,25 +6,29 @@ import {
   InputOTPSlot,
 } from "@/components/ui/InputOTP";
 import { ResendOTP, VerifySignUpOTP } from "@/service/auth";
-import { getUserFriendlyMessage } from "@/utils/custom-error-message";
-import { useToastNotification } from "@/utils/react-toastify";
+import {
+  parseErrorMessage,
+  getUserFriendlyMessage,
+} from "@/utils/custom-error-message";
+import { useToastNotification } from "@/utils/toast";
 import { Loader2, RefreshCw } from "lucide-react";
-import { redirect, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+const getCurrentUnixTime = () => Math.floor(Date.now() / 1000);
+
 export default function SignUpOTPForm({
-  initialCooldown,
+  resendTimeRemaining,
 }: {
-  initialCooldown: string;
+  resendTimeRemaining: number;
 }) {
   const router = useRouter();
   const [otp, setOtp] = useState("");
   const [loading, setLoading] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
-  const [countdown, setCountdown] = useState<number>(() => {
-    const now = Math.floor(Date.now() / 1000);
-    return Math.max(-1, parseInt(initialCooldown) - now);
-  });
+  const [countdown, setCountdown] = useState<number>(
+    resendTimeRemaining > 0 ? resendTimeRemaining : -1,
+  );
   const canResend = countdown === -1;
   const notify = useToastNotification();
 
@@ -34,20 +38,20 @@ export default function SignUpOTPForm({
     const resendOTP = await ResendOTP();
     setResendLoading(false);
     if (resendOTP.result) {
-      setCountdown(() =>
-        Math.max(
-          -1,
-          parseInt(resendOTP.result.data.otp_resend_after) -
-            Math.floor(Date.now() / 1000),
-        ),
-      );
-      notify(resendOTP.result.message, "success");
+      const nextAllowedAt = Number(resendOTP.result.data.otpExpiresAt);
+      const remainingSeconds = nextAllowedAt - getCurrentUnixTime();
+
+      setCountdown(remainingSeconds > 0 ? remainingSeconds : -1);
+      notify(resendOTP.result.data.message, "success");
       return;
     }
     notify(getUserFriendlyMessage(resendOTP), "error");
     if (
-      resendOTP.error.message.split(": ")[1] ===
-      "Session expired, Please start again"
+      resendOTP.error?.message.some(
+        (message) =>
+          parseErrorMessage(message).error ===
+          "Session expired, Please start again",
+      )
     ) {
       router.replace("/signup");
     }
@@ -56,7 +60,7 @@ export default function SignUpOTPForm({
   useEffect(() => {
     if (countdown < 0) return;
     const timer = setTimeout(() => {
-      setCountdown((prev) => prev - 1);
+      setCountdown((prev) => (prev <= 1 ? -1 : prev - 1));
     }, 1000);
     return () => clearTimeout(timer);
   }, [countdown]);
@@ -66,14 +70,17 @@ export default function SignUpOTPForm({
     const verifyOTP = await VerifySignUpOTP(otp);
     setLoading(false);
     if (verifyOTP.result) {
-      notify(verifyOTP.result.message, "success");
-      router.replace("/dashboard")
+      notify(verifyOTP.result.data.message, "success");
+      router.replace("/dashboard");
       return;
     }
     notify(getUserFriendlyMessage(verifyOTP), "error");
     if (
-      verifyOTP.error.message.split(": ")[1] ===
-      "Session expired, Please start again"
+      verifyOTP.error?.message.some(
+        (message) =>
+          parseErrorMessage(message).error ===
+          "Session expired, Please start again",
+      )
     ) {
       router.replace("/signup");
     }

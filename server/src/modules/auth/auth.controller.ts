@@ -1,15 +1,18 @@
-import { Body, Controller, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import express from 'express';
 import { Public } from 'src/decorators/public.decorator';
 import {
+  AccessTokenExpired,
   ForgetPasswordSessionNotFoundException,
   RefreshTokenMissingException,
+  ResendAttemptsExceededException,
   SignupSessionNotFoundException,
 } from 'src/exceptions/auth.exception';
+import { JwtPayload } from 'src/interfaces/auth.interface';
 import { AuthService } from './auth.service';
 import { ForgotPasswordDto, ResetPasswordDto } from './dto/forget-password.dto';
-import { LoginDto, SignupDto, VerifyOtpDto } from './dto/signup.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { LoginDto, SignupDto, VerifyOtpDto } from './dto/signup.dto';
 
 function getCookieValue(req: express.Request, key: string): string | undefined {
   const cookies = req.cookies as Record<string, unknown> | undefined;
@@ -52,6 +55,18 @@ function buildAuthCookieOptions(maxAge?: number): express.CookieOptions {
   };
 }
 
+function clearSessionCookie(
+  res: express.Response,
+  key: 'signup_session' | 'forgot_password_session',
+): void {
+  res.clearCookie(key, {
+    httpOnly: true,
+    secure: process.env.ENV !== 'dev',
+    sameSite: 'lax',
+    path: '/',
+  });
+}
+
 @Controller('v1/auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
@@ -73,10 +88,6 @@ export class AuthController {
 
     return {
       message: result.message,
-      email: result.email,
-      expiresInMinutes: result.expiresInMinutes,
-      resendCooldownSeconds: result.resendCooldownSeconds,
-      signupSessionExpiresInMinutes: result.signupSessionExpiresInMinutes,
     };
   }
 
@@ -87,13 +98,16 @@ export class AuthController {
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const accessTokenMaxAge = getCookieMaxAge(process.env.JWT_ACCESS_EXPIRES_IN);
+    const accessTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_ACCESS_EXPIRES_IN,
+    );
     const refreshTokenMaxAge = getCookieMaxAge(
       process.env.JWT_REFRESH_EXPIRES_IN,
     );
     const sessionId = getCookieValue(req, 'signup_session');
 
     if (!sessionId) {
+      clearSessionCookie(res, 'signup_session');
       throw new SignupSessionNotFoundException();
     }
 
@@ -122,14 +136,50 @@ export class AuthController {
 
   @Public()
   @Post('resend-otp')
-  async resendOtp(@Req() req: express.Request) {
+  async resendOtp(
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
     const sessionId = getCookieValue(req, 'signup_session');
 
     if (!sessionId) {
       throw new SignupSessionNotFoundException();
     }
 
-    return this.authService.resendSignupOtp(sessionId);
+    try {
+      return await this.authService.resendSignupOtp(sessionId);
+    } catch (error) {
+      if (error instanceof ResendAttemptsExceededException) {
+        clearSessionCookie(res, 'signup_session');
+      }
+
+      throw error;
+    }
+  }
+
+  @Public()
+  @Get('signup/session')
+  async getSessionDetail(
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const sessionId = getCookieValue(req, 'signup_session');
+
+    if (!sessionId) {
+      throw new SignupSessionNotFoundException();
+    }
+    try {
+      return await this.authService.getSessionDetail(sessionId);
+    } catch (error) {
+      if (error instanceof SignupSessionNotFoundException) {
+        clearSessionCookie(res, 'signup_session');
+      }
+      if (error instanceof ResendAttemptsExceededException) {
+        clearSessionCookie(res, 'signup_session');
+      }
+
+      throw error;
+    }
   }
 
   @Public()
@@ -179,7 +229,10 @@ export class AuthController {
 
   @Post('forgot-password/resend-otp')
   @Public()
-  async resendForgotPasswordOtp(@Req() req: express.Request) {
+  async resendForgotPasswordOtp(
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
     const cookies = req.cookies as Record<string, unknown> | undefined;
     const sessionId =
       typeof cookies?.forgot_password_session === 'string'
@@ -190,7 +243,15 @@ export class AuthController {
       throw new ForgetPasswordSessionNotFoundException();
     }
 
-    return this.authService.resendForgotPasswordOtp(sessionId);
+    try {
+      return await this.authService.resendForgotPasswordOtp(sessionId);
+    } catch (error) {
+      if (error instanceof ResendAttemptsExceededException) {
+        clearSessionCookie(res, 'forgot_password_session');
+      }
+
+      throw error;
+    }
   }
 
   @Post('forgot-password/reset-password')
@@ -230,7 +291,9 @@ export class AuthController {
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const accessTokenMaxAge = getCookieMaxAge(process.env.JWT_ACCESS_EXPIRES_IN);
+    const accessTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_ACCESS_EXPIRES_IN,
+    );
     const refreshTokenMaxAge = getCookieMaxAge(
       process.env.JWT_REFRESH_EXPIRES_IN,
     );
@@ -296,7 +359,9 @@ export class AuthController {
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const accessTokenMaxAge = getCookieMaxAge(process.env.JWT_ACCESS_EXPIRES_IN);
+    const accessTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_ACCESS_EXPIRES_IN,
+    );
     const cookies = req.cookies as Record<string, unknown> | undefined;
     const cookieRefreshToken =
       typeof cookies?.refresh_token === 'string'
@@ -318,5 +383,14 @@ export class AuthController {
     );
 
     return result;
+  }
+
+  @Post('getUser')
+  async getUser(@Req() req: express.Request & { user?: JwtPayload }) {
+    if (!req.user) {
+      throw new AccessTokenExpired();
+    }
+
+    return this.authService.getUser(req.user);
   }
 }

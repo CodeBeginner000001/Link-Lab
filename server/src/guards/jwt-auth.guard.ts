@@ -10,6 +10,7 @@ import { JwtService } from '@nestjs/jwt';
 import { Request } from 'express';
 import { INTERNAL_API_KEY } from 'src/decorators/internal.decorator';
 import { IS_PUBLIC_KEY } from 'src/decorators/public.decorator';
+import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
 
 type AuthenticatedRequest = Request & {
@@ -54,10 +55,7 @@ export class JwtAuthGuard implements CanActivate {
       request.user = payload;
       return true;
     } catch {
-      throw new UnauthorizedException({
-        message: 'Access token is invalid or expired',
-        error: 'Unauthorized',
-      });
+      throw new AccessTokenExpired();
     }
   }
   private extractTokenFromRequest(req: Request): string | undefined {

@@ -1,50 +1,80 @@
-export interface ApiFieldError {
-  field: string;
-  error: string;
-}
-
 export interface ApiErrorResponse {
-  success: boolean;
-  message: string;
-  errors: ApiFieldError[];
+  success: false;
+  statusCode: number;
+  message: string[];
+  error: string;
+  timeStamp: string;
+  path: string;
 }
 
 export interface ApiSuccessResponse<T> {
   success: true;
   message: string;
   data: T;
+  timeStamp: string;
+  path: string;
+}
+
+export interface AuthUser {
+  id: string;
+  name: string;
+  email: string;
+  avatar: string | null;
 }
 
 export interface SignUpApiDataResponse {
+  message: string;
   email: string;
+  expiresInMinutes: number;
+  resendCooldownSeconds: number;
+  signupSessionExpiresInMinutes: number;
 }
 
 export type SignUpApiSuccessResponse = ApiSuccessResponse<SignUpApiDataResponse>;
 
-export interface LoginApiDataResponse {
+export interface GetSessionDataApiDataResponse {
+  email: string;
+  otpExpiresAt: number;
+}
+
+export type GetSessionDataApiSuccessResponse = ApiSuccessResponse<GetSessionDataApiDataResponse>
+
+export interface GetCurrentUserApiDataResponse {
+  user: AuthUser;
+}
+
+export type GetCurrentUserApiSuccessResponse =
+  ApiSuccessResponse<GetCurrentUserApiDataResponse>;
+
+export interface RefreshAccessTokenApiDataResponse {
   accessToken: string;
+  user: AuthUser;
+}
+
+export type RefreshAccessTokenApiSuccessResponse =
+  ApiSuccessResponse<RefreshAccessTokenApiDataResponse>;
+
+export interface ResendOTPApiDataResponse {
+  message: string;
+  otpExpiresAt: number;
+}
+
+export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataResponse>
+///////////////////////////////////////////////////////
+export interface LoginApiDataResponse {
+  message: string;
+  user: AuthUser;
 }
 
 export type LoginApiSuccessResponse = ApiSuccessResponse<LoginApiDataResponse>;
 
 export interface VerifySignUpOTPApiDataResponse {
   accessToken: string;
+  refreshToken: string;
+  message: string;
 }
 
 export type VerifySignUpOTPApiSuccessResponse = ApiSuccessResponse<VerifySignUpOTPApiDataResponse>;
-
-export interface GetSessionDataApiDataResponse {
-  email: string;
-  otp_resend_after: string;
-}
-
-export type GetSessionDataApiSuccessResponse = ApiSuccessResponse<GetSessionDataApiDataResponse>
-
-export interface ResendOTPApiDataResponse {
-  otp_resend_after: string;
-}
-
-export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataResponse>
 
 
 export type CustomErrorApiResponse =

@@ -1,17 +1,24 @@
 import { CustomErrorApiResponse } from "@/interfaces/api";
 
+export function parseErrorMessage(message: string) {
+  const [field, ...errorParts] = message.split(":");
+
+  return {
+    field: field.trim().toLowerCase(),
+    error: errorParts.join(":").trim() || field.trim(),
+  };
+}
+
 export function getUserFriendlyMessage(res: CustomErrorApiResponse) {
   if ("error" in res) {
-    switch (res.statusCode) {
-      case 500:
-        return "Something went wrong on our side. Please try again.";
+    const message = res.error.message as string[] | string;
 
-      case 503:
-        return "Service is temporarily unavailable. Try again later.";
-
-      default:
-        return res.error.message.split(":")[1] || "Unexpected error occurred.";
+    if (Array.isArray(message)) {
+      return message[0] || "Service unavailable";
     }
+
+    return message || "Service unavailable";
   }
-  return res.result.message;
+
+  return res.result.data?.message;
 }
