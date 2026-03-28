@@ -45,11 +45,15 @@ function getCookieMaxAge(duration?: string): number | undefined {
   return value * multipliers[unit];
 }
 
-function buildAuthCookieOptions(maxAge?: number): express.CookieOptions {
+function isProductionEnv(): boolean {
+  return process.env.ENV === 'prod';
+}
+
+function buildCookieOptions(maxAge?: number): express.CookieOptions {
   return {
     httpOnly: true,
-    secure: process.env.ENV !== 'dev',
-    sameSite: 'lax',
+    secure: isProductionEnv(),
+    sameSite: isProductionEnv() ? 'none' : 'lax',
     path: '/',
     ...(typeof maxAge === 'number' ? { maxAge } : {}),
   };
@@ -59,12 +63,7 @@ function clearSessionCookie(
   res: express.Response,
   key: 'signup_session' | 'forgot_password_session',
 ): void {
-  res.clearCookie(key, {
-    httpOnly: true,
-    secure: process.env.ENV !== 'dev',
-    sameSite: 'lax',
-    path: '/',
-  });
+  res.clearCookie(key, buildCookieOptions());
 }
 
 @Controller('v1/auth')
@@ -78,13 +77,11 @@ export class AuthController {
   ) {
     const result = await this.authService.signup(dto);
 
-    res.cookie('signup_session', result.sessionId, {
-      httpOnly: true,
-      secure: process.env.ENV !== 'dev',
-      sameSite: process.env.ENV === 'dev' ? 'lax' : 'none',
-      maxAge: result.signupSessionExpiresInMinutes * 60 * 1000,
-      path: '/',
-    });
+    res.cookie(
+      'signup_session',
+      result.sessionId,
+      buildCookieOptions(result.signupSessionExpiresInMinutes * 60 * 1000),
+    );
 
     return {
       message: result.message,
@@ -113,22 +110,17 @@ export class AuthController {
 
     const result = await this.authService.verifySignupOtp(dto, sessionId);
 
-    res.clearCookie('signup_session', {
-      httpOnly: true,
-      secure: process.env.ENV !== 'dev',
-      sameSite: 'lax',
-      path: '/',
-    });
+    res.clearCookie('signup_session', buildCookieOptions());
     res.cookie(
       'access_token',
       result.accessToken,
-      buildAuthCookieOptions(accessTokenMaxAge),
+      buildCookieOptions(accessTokenMaxAge),
     );
 
     res.cookie(
       'refresh_token',
       result.refreshToken,
-      buildAuthCookieOptions(refreshTokenMaxAge),
+      buildCookieOptions(refreshTokenMaxAge),
     );
 
     return result;
@@ -190,13 +182,13 @@ export class AuthController {
   ) {
     const result = await this.authService.forgotPassword(dto);
 
-    res.cookie('forgot_password_session', result.sessionId, {
-      httpOnly: true,
-      secure: false,
-      sameSite: 'lax',
-      maxAge: result.forgotPasswordSessionExpiresInMinutes * 60 * 1000,
-      path: '/',
-    });
+    res.cookie(
+      'forgot_password_session',
+      result.sessionId,
+      buildCookieOptions(
+        result.forgotPasswordSessionExpiresInMinutes * 60 * 1000,
+      ),
+    );
 
     return {
       message: result.message,
@@ -276,12 +268,7 @@ export class AuthController {
       locationInfo: req.ip ?? 'Unknown location',
     });
 
-    res.clearCookie('forgot_password_session', {
-      httpOnly: true,
-      secure: process.env.ENV !== 'dev',
-      sameSite: 'lax',
-      path: '/',
-    });
+    res.clearCookie('forgot_password_session', buildCookieOptions());
 
     return result;
   }
@@ -302,13 +289,13 @@ export class AuthController {
     res.cookie(
       'access_token',
       result.accessToken,
-      buildAuthCookieOptions(accessTokenMaxAge),
+      buildCookieOptions(accessTokenMaxAge),
     );
 
     res.cookie(
       'refresh_token',
       result.refreshToken,
-      buildAuthCookieOptions(refreshTokenMaxAge),
+      buildCookieOptions(refreshTokenMaxAge),
     );
 
     return {
@@ -319,35 +306,10 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: express.Response) {
-    const secure = process.env.ENV !== 'dev';
-
-    res.clearCookie('access_token', {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    res.clearCookie('refresh_token', {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    res.clearCookie('signup_session', {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-    });
-
-    res.clearCookie('forgot_password_session', {
-      httpOnly: true,
-      secure,
-      sameSite: 'lax',
-      path: '/',
-    });
+    res.clearCookie('access_token', buildCookieOptions());
+    res.clearCookie('refresh_token', buildCookieOptions());
+    res.clearCookie('signup_session', buildCookieOptions());
+    res.clearCookie('forgot_password_session', buildCookieOptions());
 
     return this.authService.logout();
   }
@@ -379,7 +341,7 @@ export class AuthController {
     res.cookie(
       'access_token',
       result.accessToken,
-      buildAuthCookieOptions(accessTokenMaxAge),
+      buildCookieOptions(accessTokenMaxAge),
     );
 
     return result;
