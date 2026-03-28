@@ -81,7 +81,7 @@ export class AuthController {
     res.cookie('signup_session', result.sessionId, {
       httpOnly: true,
       secure: process.env.ENV !== 'dev',
-      sameSite: 'lax',
+      sameSite: process.env.ENV === 'dev' ? 'lax' : 'none',
       maxAge: result.signupSessionExpiresInMinutes * 60 * 1000,
       path: '/',
     });
