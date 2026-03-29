@@ -5,10 +5,9 @@ import {
     InputOTPGroup,
     InputOTPSlot,
 } from "@/components/ui/InputOTP";
-import { ForgetPasswordResendOTP, VerifyForgetPasswordOTP, VerifySignUpOTP } from "@/service/auth";
+import { ForgetPasswordResendOTP, VerifyForgetPasswordOTP } from "@/service/auth";
 import {
     getUserFriendlyMessage,
-    parseErrorMessage,
 } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/toast";
 import { Loader2, RefreshCw } from "lucide-react";
@@ -31,6 +30,7 @@ export default function ForgetPasswordOTPForm({
   );
   const canResend = countdown === -1;
   const notify = useToastNotification();
+  const shouldRestartFlow = (statusCode?: number) => statusCode === 410;
 
   const handleResend = async () => {
     if (!canResend || resendLoading) return;
@@ -46,13 +46,7 @@ export default function ForgetPasswordOTPForm({
       return;
     }
     notify(getUserFriendlyMessage(resendOTP), "error");
-    if (
-      resendOTP.error?.message.some(
-        (message) =>
-          parseErrorMessage(message).error ===
-          "Session expired, Please start again",
-      )
-    ) {
+    if (shouldRestartFlow(resendOTP.statusCode)) {
       router.replace("/forgetpassword");
     }
   };
@@ -75,13 +69,7 @@ export default function ForgetPasswordOTPForm({
       return;
     }
     notify(getUserFriendlyMessage(verifyOTP), "error");
-    if (
-      verifyOTP.error?.message.some(
-        (message) =>
-          parseErrorMessage(message).error ===
-          "Session expired, Please start again",
-      )
-    ) {
+    if (shouldRestartFlow(verifyOTP.statusCode)) {
       router.replace("/forgetpassword");
     }
   };

@@ -55,9 +55,15 @@ export interface LoginApiDataResponse {
   message: string;
   user: AuthUser;
 }
+
 export interface VerifyForgetPasswordOTPApiDataResponse {
   resetTokenExpiresInMintues: number;
   message: string;
+}
+
+export interface ResetPasswordApiDataResponse {
+  message: string;
+  email: string;
 }
 
 export type SignUpApiSuccessResponse = ApiSuccessResponse<SignUpApiDataResponse>;
@@ -70,6 +76,8 @@ export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataRes
 export type LoginApiSuccessResponse = ApiSuccessResponse<LoginApiDataResponse>;
 export type VerifySignUpOTPApiSuccessResponse = ApiSuccessResponse<VerifySignUpOTPApiDataResponse>;
 export type VerifyForgetPasswordOTPApiSuccessResponse = ApiSuccessResponse<VerifyForgetPasswordOTPApiDataResponse>;
+export type ResetPasswordApiSuccessResponse =
+  ApiSuccessResponse<ResetPasswordApiDataResponse>;
 
 
 export type CustomErrorApiResponse =
@@ -78,4 +86,5 @@ export type CustomErrorApiResponse =
   | { statusCode: number; result: ResendOTPApiSuccessResponse }
   | { statusCode: number; result: VerifySignUpOTPApiSuccessResponse }
   | { statusCode: number; result: VerifyForgetPasswordOTPApiSuccessResponse }
+  | { statusCode: number; result: ResetPasswordApiSuccessResponse }
   | { statusCode: number; error: ApiErrorResponse };

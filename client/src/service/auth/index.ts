@@ -5,6 +5,7 @@ import {
   GetCurrentUserApiSuccessResponse,
   GetSessionDataApiSuccessResponse,
   LoginApiSuccessResponse,
+  ResetPasswordApiSuccessResponse,
   RefreshAccessTokenApiSuccessResponse,
   ResendOTPApiSuccessResponse,
   SignUpApiSuccessResponse,
@@ -336,7 +337,7 @@ export const GetForgetPasswordSessionData = async (cookieData: string) => {
 
 export const ForgetPasswordResendOTP = async () => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/forgot-password/resend-otp`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/forgot-password/resend-otp`, {
       method: "POST",
       credentials: "include",
       cache: "no-store",
@@ -363,7 +364,7 @@ export const ForgetPasswordResendOTP = async () => {
 
 export const VerifyForgetPasswordOTP = async (otp: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/forgot-password/verify-otp`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/forgot-password/verify-otp`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -390,6 +391,46 @@ export const VerifyForgetPasswordOTP = async (otp: string) => {
     return {
       statusCode: 503,
       error: createServiceUnavailableError("/v1/auth/forgot-password/verify-otp"),
+    };
+  }
+};
+
+export const ResetPassword = async (token: string, password: string) => {
+  try {
+    const response = await fetch(
+      `${FRONTEND_AUTH_API_URL}/forgot-password/reset-password`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          token,
+          password,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+
+    const data: ResetPasswordApiSuccessResponse = await response.json();
+
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/forgot-password/reset-password"),
     };
   }
 };

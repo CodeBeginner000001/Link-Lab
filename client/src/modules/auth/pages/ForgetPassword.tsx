@@ -8,16 +8,16 @@ import ForgetPasswordForm from "../components/ForgetPasswordForm";
 import AuthNavBar from "../components/common/AuthNavBar";
 
 export default async function ForgetPassword() {
-    const cookieStore = await cookies();
-    const forgetPasswordSession = cookieStore.get("forgot_password_session");
-    console.log(forgetPasswordSession)
-    if (forgetPasswordSession) {
-      const sessionData = await GetForgetPasswordSessionData(cookieStore.toString());
-  
-      if (sessionData.result) {
-        redirect("/forgetpassword/verify");
-      }
+  const cookieStore = await cookies();
+  const forgetPasswordSession = cookieStore.get("forgot_password_session");
+
+  if (forgetPasswordSession) {
+    const sessionData = await GetForgetPasswordSessionData(cookieStore.toString());
+
+    if (sessionData.result) {
+      redirect("/forgetpassword/verify");
     }
+  }
   return (
     <>
       <AuthNavBar link="/login" />

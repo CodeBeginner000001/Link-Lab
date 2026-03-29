@@ -4,7 +4,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import MotionWrapper from "../../../components/common/MotionWrapper";
 import Header from "../components/common/Header";
-import OTPForm from "../components/OTPForm";
 import ForgetPasswordOTPForm from "../components/ForgetPasswordOTPForm";
 
 export default async function ForgetPasswordOTP() {

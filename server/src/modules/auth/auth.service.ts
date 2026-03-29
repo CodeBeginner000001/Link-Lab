@@ -476,7 +476,9 @@ export class AuthService {
     const sessionId = generateSessionId();
     const lockKey = getForgotPasswordLockKey(email);
     const sessionKey = getForgotPasswordSessionKey(sessionId);
-    const sessionTtlSeconds = getMinutesToSeconds(this.signupSessionTtlMinutes);
+    const sessionTtlSeconds = getMinutesToSeconds(
+      this.forgotPasswordTtlMinutes,
+    );
 
     const lockResult = await this.redisStringService.createIfNotExists(
       lockKey,
