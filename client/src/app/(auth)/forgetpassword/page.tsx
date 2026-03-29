@@ -1,7 +1,5 @@
-import ForgetPasswordForm from "@/modules/auth/pages/ForgetPassword";
+import ForgetPassword from "@/modules/auth/pages/ForgetPassword";
 
 export default function Page() {
-    return (
-        <ForgetPasswordForm/>
-    )
+  return <ForgetPassword />;
 }

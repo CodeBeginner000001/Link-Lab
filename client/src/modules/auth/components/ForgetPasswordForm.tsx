@@ -1,32 +1,31 @@
 "use client";
-import { Login } from "@/service/auth";
+
 import {
   handleFormFieldErrors,
   getUserFriendlyMessage,
 } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/toast";
 import { AnimatePresence, motion } from "framer-motion";
-import { Lock, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ForgetPassword } from "@/service/auth";
 import FormField from "./common/FormField";
 import SubmitButton from "./common/SubmitButton";
 
-type LoginFormErrors = {
+type ForgetPasswordFormErrors = {
   email?: string;
-  password?: string;
 };
 
-const LOGIN_ERROR_FIELDS = ["email", "password"] as const;
+const FORGET_PASSWORD_ERROR_FIELDS = ["email"] as const;
 
-export default function LoginForm() {
+export default function ForgetPasswordForm() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
-    password: "",
   });
-  const [errors, setErrors] = useState<LoginFormErrors>({});
+  const [errors, setErrors] = useState<ForgetPasswordFormErrors>({});
   const notify = useToastNotification();
   const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -35,32 +34,35 @@ export default function LoginForm() {
       [name]: value,
     }));
   };
-
   const handleFormSubmit = async (e: React.ChangeEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
     setLoading(true);
-    const loginResult = await Login(formData.email, formData.password);
+    const forgetPasswordResult = await ForgetPassword(formData.email);
     setLoading(false);
 
-    if (loginResult.result?.success) {
-      notify(loginResult.result.data.message, "success");
-      router.replace("/dashboard");
-      router.refresh();
+    if (forgetPasswordResult.result?.success) {
+      notify(forgetPasswordResult.result.data.message, "success");
+      router.replace("/forgetpassword/verify");
       return;
     }
 
     if (
-      handleFormFieldErrors(loginResult, LOGIN_ERROR_FIELDS, {
-        setErrors,
-        notify,
-      })
+      handleFormFieldErrors(
+        forgetPasswordResult,
+        FORGET_PASSWORD_ERROR_FIELDS,
+        {
+          setErrors,
+          notify,
+        },
+      )
     ) {
       return;
     }
 
-    notify(getUserFriendlyMessage(loginResult), "error");
+    notify(getUserFriendlyMessage(forgetPasswordResult), "error");
   };
+
   return (
     <form className="space-y-4" onSubmit={handleFormSubmit} noValidate>
       <AnimatePresence mode="wait">
@@ -69,7 +71,7 @@ export default function LoginForm() {
           animate={{ opacity: 1, height: "auto" }}
           exit={{ opacity: 0, height: 0 }}
           transition={{ duration: 0.2 }}
-          className="flex gap-4"
+          className="flex"
         >
           <FormField
             label="Email"
@@ -83,17 +85,7 @@ export default function LoginForm() {
           />
         </motion.div>
       </AnimatePresence>
-      <FormField
-        label="Password"
-        name="password"
-        placeholder="••••••••"
-        icon={Lock}
-        value={formData.password}
-        error={errors.password}
-        onChange={handleFormChange}
-        isPassword
-      />
-      <SubmitButton loading={loading} buttonLabel="Sign In" />
+      <SubmitButton loading={loading} buttonLabel="Send Reset Link" />
     </form>
   );
 }

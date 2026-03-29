@@ -1,16 +1,16 @@
 "use client";
-import { signup } from "@/service/auth";
-import { AnimatePresence, motion } from "framer-motion";
-import { Lock, Mail, User } from "lucide-react";
-import { useState } from "react";
-import FormField from "./common/FormField";
-import SubmitButton from "./common/SubmitButton";
 import {
-  parseErrorMessage,
+  handleFormFieldErrors,
   getUserFriendlyMessage,
 } from "@/utils/custom-error-message";
 import { useToastNotification } from "@/utils/toast";
+import { AnimatePresence, motion } from "framer-motion";
+import { Lock, Mail, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
+import FormField from "./common/FormField";
+import SubmitButton from "./common/SubmitButton";
+import { Signup } from "@/service/auth";
 
 type SignUpFormErrors = {
   name?: string;
@@ -18,6 +18,8 @@ type SignUpFormErrors = {
   password?: string;
   confirmPassword?: string;
 };
+
+const SIGN_UP_ERROR_FIELDS = ["name", "email", "password"] as const;
 
 export default function SignUpForm() {
   const router = useRouter();
@@ -47,7 +49,7 @@ export default function SignUpForm() {
       return;
     }
     setLoading(true);
-    const signupResult = await signup(
+    const signupResult = await Signup(
       formData.name,
       formData.email,
       formData.password,
@@ -58,28 +60,14 @@ export default function SignUpForm() {
       router.push("/signup/verify/OTP");
       return;
     }
-    if (signupResult.statusCode === 400 && signupResult.error) {
-      const fieldErrors: SignUpFormErrors = {};
-
-      signupResult.error.message.forEach((message) => {
-        const parsedMessage = parseErrorMessage(message);
-
-        if (parsedMessage.field === "name") {
-          fieldErrors.name = parsedMessage.error;
-        }
-        if (parsedMessage.field === "email") {
-          fieldErrors.email = parsedMessage.error;
-        }
-        if (parsedMessage.field === "password") {
-          fieldErrors.password = parsedMessage.error;
-        }
-      });
-
-      if (fieldErrors.name || fieldErrors.email || fieldErrors.password) {
-        setErrors(fieldErrors);
-        notify("Please fill form correctly", "error");
-        return;
-      }
+    if (
+      handleFormFieldErrors(signupResult, SIGN_UP_ERROR_FIELDS, {
+        setErrors,
+        notify,
+        statusCodes: [400],
+      })
+    ) {
+      return;
     }
     notify(getUserFriendlyMessage(signupResult), "error");
   };

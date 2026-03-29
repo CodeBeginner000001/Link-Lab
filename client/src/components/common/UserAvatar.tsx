@@ -1,7 +1,6 @@
 "use client";
 
 import { useAuth } from "@/Provider/AuthUserProvider";
-import { logout } from "@/service/auth";
 import { useToastNotification } from "@/utils/toast";
 import {
   DropdownMenu,
@@ -15,6 +14,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
+import { Logout } from "@/service/auth";
 
 const UserAvatar = () => {
   const user = useAuth();
@@ -28,7 +28,7 @@ const UserAvatar = () => {
     }
 
     setIsLoggingOut(true);
-    const logOutResult = await logout();
+    const logOutResult = await Logout();
     setIsLoggingOut(false);
 
     if ("result" in logOutResult && logOutResult.result?.success) {

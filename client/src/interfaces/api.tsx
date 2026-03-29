@@ -24,49 +24,7 @@ export interface AuthUser {
 
 export interface SignUpApiDataResponse {
   message: string;
-  email: string;
-  expiresInMinutes: number;
-  resendCooldownSeconds: number;
-  signupSessionExpiresInMinutes: number;
 }
-
-export type SignUpApiSuccessResponse = ApiSuccessResponse<SignUpApiDataResponse>;
-
-export interface GetSessionDataApiDataResponse {
-  email: string;
-  otpExpiresAt: number;
-}
-
-export type GetSessionDataApiSuccessResponse = ApiSuccessResponse<GetSessionDataApiDataResponse>
-
-export interface GetCurrentUserApiDataResponse {
-  user: AuthUser;
-}
-
-export type GetCurrentUserApiSuccessResponse =
-  ApiSuccessResponse<GetCurrentUserApiDataResponse>;
-
-export interface RefreshAccessTokenApiDataResponse {
-  accessToken: string;
-  user: AuthUser;
-}
-
-export type RefreshAccessTokenApiSuccessResponse =
-  ApiSuccessResponse<RefreshAccessTokenApiDataResponse>;
-
-export interface ResendOTPApiDataResponse {
-  message: string;
-  otpExpiresAt: number;
-}
-
-export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataResponse>
-///////////////////////////////////////////////////////
-export interface LoginApiDataResponse {
-  message: string;
-  user: AuthUser;
-}
-
-export type LoginApiSuccessResponse = ApiSuccessResponse<LoginApiDataResponse>;
 
 export interface VerifySignUpOTPApiDataResponse {
   accessToken: string;
@@ -74,6 +32,38 @@ export interface VerifySignUpOTPApiDataResponse {
   message: string;
 }
 
+export interface ResendOTPApiDataResponse {
+  message: string;
+  otpExpiresAt: number;
+}
+
+export interface GetSessionDataApiDataResponse {
+  email: string;
+  otpExpiresAt: number;
+}
+
+export interface GetCurrentUserApiDataResponse {
+  user: AuthUser;
+}
+
+export interface RefreshAccessTokenApiDataResponse {
+  accessToken: string;
+  message: string;
+}
+
+export interface LoginApiDataResponse {
+  message: string;
+  user: AuthUser;
+}
+
+export type SignUpApiSuccessResponse = ApiSuccessResponse<SignUpApiDataResponse>;
+export type GetSessionDataApiSuccessResponse = ApiSuccessResponse<GetSessionDataApiDataResponse>
+export type GetCurrentUserApiSuccessResponse =
+  ApiSuccessResponse<GetCurrentUserApiDataResponse>;
+export type RefreshAccessTokenApiSuccessResponse =
+  ApiSuccessResponse<RefreshAccessTokenApiDataResponse>;
+export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataResponse>
+export type LoginApiSuccessResponse = ApiSuccessResponse<LoginApiDataResponse>;
 export type VerifySignUpOTPApiSuccessResponse = ApiSuccessResponse<VerifySignUpOTPApiDataResponse>;
 
 

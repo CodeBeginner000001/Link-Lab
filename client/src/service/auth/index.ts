@@ -23,7 +23,7 @@ const createServiceUnavailableError = (path: string): ApiErrorResponse => ({
   path,
 });
 
-export const signup = async (name: string, email: string, password: string) => {
+export const Signup = async (name: string, email: string, password: string) => {
   try {
     const response = await fetch(`${FRONTEND_AUTH_API_URL}/signup`, {
       method: "POST",
@@ -205,7 +205,7 @@ export const RefreshAccessToken = async (refreshToken: string) => {
   }
 };
 
-export const login = async (email: string, password: string) => {
+export const Login = async (email: string, password: string) => {
   try {
     const response = await fetch(`${FRONTEND_AUTH_API_URL}/login`, {
       method: "POST",
@@ -239,7 +239,7 @@ export const login = async (email: string, password: string) => {
     };
   }
 };
-export const logout = async () => {
+export const Logout = async () => {
   try {
     const response = await fetch(`${FRONTEND_AUTH_API_URL}/logout`, {
       method: "POST",
@@ -267,6 +267,38 @@ export const logout = async () => {
     return {
       statusCode: 503,
       error: createServiceUnavailableError("/v1/auth/logout"),
+    };
+  }
+};
+
+export const ForgetPassword = async (email: string) => {
+  try {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/forgot-password`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        email,
+      }),
+    });
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+    const data: SignUpApiSuccessResponse = await response.json();
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/forgot-password"),
     };
   }
 };
