@@ -714,7 +714,6 @@ export class AuthService {
         error instanceof Error ? error.stack : String(error),
         this.context,
       );
-
       throw new ForgotPasswordEmailDeliveryException();
     }
   }
