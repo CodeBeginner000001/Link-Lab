@@ -72,6 +72,7 @@ export default function SignUpOTPForm({
     if (verifyOTP.result) {
       notify(verifyOTP.result.data.message, "success");
       router.replace("/dashboard");
+      router.refresh();
       return;
     }
     notify(getUserFriendlyMessage(verifyOTP), "error");
