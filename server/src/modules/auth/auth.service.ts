@@ -354,6 +354,7 @@ export class AuthService {
       throw new SignupSessionNotFoundException();
     }
     if (new Date(value.expiresAt).getTime() <= Date.now()) {
+      await this.clearSignupState(getSignupLockKey(value.email), sessionKey);
       throw new SignupSessionNotFoundException();
     }
 
@@ -363,7 +364,9 @@ export class AuthService {
     }
     if (value.lastResendAttemptAt) {
       const lastAttemptAt = new Date(value.lastResendAttemptAt).getTime();
-      const nextAllowedAt = lastAttemptAt + this.resendCooldownSeconds * 1000;
+      const nextAllowedAt =
+        lastAttemptAt +
+        (value.resendCooldownSeconds ?? this.resendCooldownSeconds) * 1000;
 
       if (Date.now() < nextAllowedAt) {
         const retryAfterSeconds = Math.ceil(
@@ -374,15 +377,14 @@ export class AuthService {
     }
     const otp = generateOtp(this.otpLength);
     const resendAttemptsLeft = Math.max((value.resendAttemptsLeft ?? 0) - 1, 0);
+    const otpExpiresAt = Date.now() + this.otpExpirationMinutes * 60 * 1000;
 
     await this.redisHashService.updateFields<SignupSession>(
       sessionKey,
       {
         otp,
         resendAttemptsLeft,
-        otpExpiresAt: new Date(
-          Date.now() + this.otpExpirationMinutes * 60 * 1000,
-        ).toISOString(),
+        otpExpiresAt: new Date(otpExpiresAt).toISOString(),
         lastResendAttemptAt: new Date().toISOString(),
       },
       undefined,
@@ -414,10 +416,8 @@ export class AuthService {
       );
 
       return {
-        message: 'A new verification OTP has been queued successfully.',
-        otpExpiresAt: Math.floor(
-          (Date.now() + this.otpExpirationMinutes * 60 * 1000) / 1000,
-        ),
+        message: 'A new verification OTP has been send',
+        otpExpiresAt: Math.floor(otpExpiresAt) / 1000,
       };
     } catch (error) {
       this.logger.error(
@@ -544,10 +544,7 @@ export class AuthService {
 
       return {
         sessionId,
-        message: 'Password reset verification email has been queued.',
-        email,
-        resendCooldownSeconds: this.resendCooldownSeconds,
-        expiresInMinutes: this.otpExpirationMinutes,
+        message: 'Password reset verification email has been sent.',
         forgotPasswordSessionExpiresInMinutes: this.forgotPasswordTtlMinutes,
       };
     } catch (error) {
@@ -559,8 +556,12 @@ export class AuthService {
         this.context,
       );
 
-      if (error instanceof InternalServerErrorException) {
-        throw new ForgotPasswordEmailDeliveryException();
+      if (
+        error instanceof ForgotPasswordAlreadyInProgressException ||
+        error instanceof UserNotFoundException ||
+        error instanceof ForgotPasswordEmailDeliveryException
+      ) {
+        throw error;
       }
 
       throw new InternalServerErrorException({
@@ -568,6 +569,31 @@ export class AuthService {
         error: 'Internal Server Error',
       });
     }
+  }
+  async getForgetPasswordSessionDetail(sessionId: string) {
+    if (!sessionId) {
+      throw new ForgetPasswordSessionNotFoundException();
+    }
+
+    const sessionKey = getForgotPasswordSessionKey(sessionId);
+    const { value } =
+      await this.redisHashService.get<SignupSession>(sessionKey);
+    if (!value) {
+      throw new ForgetPasswordSessionNotFoundException();
+    }
+    if (new Date(value.expiresAt).getTime() <= Date.now()) {
+      throw new ForgetPasswordSessionNotFoundException();
+    }
+
+    const otpExpiresAt = Math.max(
+      0,
+      Math.ceil((new Date(value.otpExpiresAt).getTime() - Date.now()) / 1000),
+    );
+
+    return {
+      email: value.email,
+      otpExpiresAt,
+    };
   }
   async verifyForgotPasswordOtp(dto: VerifyOtpDto, sessionId: string) {
     if (!sessionId) {
@@ -680,8 +706,7 @@ export class AuthService {
       return {
         message:
           'OTP verified successfully. Reset link has been sent to your email.',
-        email: value.email,
-        resetTokenExpiresAt,
+        resetTokenExpiresInMintues: this.resetLinkExpirationMinutes,
       };
     } catch (error) {
       this.logger.error(
@@ -749,16 +774,14 @@ export class AuthService {
 
     const otp = generateOtp(this.otpLength);
     const resendAttemptsLeft = Math.max((value.resendAttemptsLeft ?? 0) - 1, 0);
-    const otpExpiresAt = new Date(
-      Date.now() + this.otpExpirationMinutes * 60 * 1000,
-    ).toISOString();
+    const otpExpiresAt = Date.now() + this.otpExpirationMinutes * 60 * 1000;
 
     await this.redisHashService.updateFields<ForgotPasswordSession>(
       sessionKey,
       {
         otp,
-        otpExpiresAt,
         resendAttemptsLeft,
+        otpExpiresAt: new Date(otpExpiresAt).toISOString(),
         lastResendAttemptAt: new Date().toISOString(),
         isVerified: false,
         resetToken: null,
@@ -801,9 +824,7 @@ export class AuthService {
 
       return {
         message: 'A new OTP has been queued successfully.',
-        email: value.email,
-        expiresInMinutes: this.otpExpirationMinutes,
-        resendAttemptsLeft,
+        otpExpiresAt: Math.floor(otpExpiresAt) / 1000,
       };
     } catch (error) {
       this.logger.error(
@@ -1011,7 +1032,7 @@ export class AuthService {
     this.logger.log('User logged out successfully', this.context);
 
     return {
-      message: 'Logout successful.',
+      message: 'Logout successful...',
     };
   }
 

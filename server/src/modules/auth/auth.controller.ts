@@ -178,9 +178,98 @@ export class AuthController {
     }
   }
 
+  @Post('getUser')
+  async getUser(@Req() req: express.Request & { user?: JwtPayload }) {
+    // done integration
+    if (!req.user) {
+      throw new AccessTokenExpired();
+    }
+
+    return this.authService.getUser(req.user);
+  }
+
+  @Post('refresh-token')
+  @Public()
+  async refreshToken(
+    // done integration
+    @Body() dto: RefreshTokenDto,
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const accessTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_ACCESS_EXPIRES_IN,
+    );
+    const cookies = req.cookies as Record<string, unknown> | undefined;
+    const cookieRefreshToken =
+      typeof cookies?.refresh_token === 'string'
+        ? cookies.refresh_token
+        : undefined;
+
+    const refreshToken = cookieRefreshToken ?? dto.refreshToken;
+
+    if (!refreshToken) {
+      throw new RefreshTokenMissingException();
+    }
+
+    const result = await this.authService.refreshAccessToken(refreshToken);
+
+    res.cookie(
+      'access_token',
+      result.accessToken,
+      buildCookieOptions(accessTokenMaxAge),
+    );
+
+    return result;
+  }
+
+  @Public()
+  @Post('login')
+  async login(
+    // done integration
+    @Body() dto: LoginDto,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const accessTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_ACCESS_EXPIRES_IN,
+    );
+    const refreshTokenMaxAge = getCookieMaxAge(
+      process.env.JWT_REFRESH_EXPIRES_IN,
+    );
+    const result = await this.authService.login(dto);
+
+    res.cookie(
+      'access_token',
+      result.accessToken,
+      buildCookieOptions(accessTokenMaxAge),
+    );
+
+    res.cookie(
+      'refresh_token',
+      result.refreshToken,
+      buildCookieOptions(refreshTokenMaxAge),
+    );
+
+    return {
+      message: result.message,
+      user: result.user,
+    };
+  }
+
+  @Post('logout')
+  logout(@Res({ passthrough: true }) res: express.Response) {
+    // done integration
+    res.clearCookie('access_token', buildCookieOptions());
+    res.clearCookie('refresh_token', buildCookieOptions());
+    res.clearCookie('signup_session', buildCookieOptions());
+    res.clearCookie('forgot_password_session', buildCookieOptions());
+
+    return this.authService.logout();
+  }
+
   @Public()
   @Post('forgot-password')
   async forgotPassword(
+    // gone integration
     @Body() dto: ForgotPasswordDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -196,12 +285,28 @@ export class AuthController {
 
     return {
       message: result.message,
-      email: result.email,
-      expiresInMinutes: result.expiresInMinutes,
-      resendCooldownSeconds: result.resendCooldownSeconds,
-      forgotPasswordSessionExpiresInMinutes:
-        result.forgotPasswordSessionExpiresInMinutes,
     };
+  }
+
+  @Public()
+  @Get('forget-password/session')
+  async getForgetPasswordSessionDetail(
+    @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
+  ) {
+    const sessionId = getCookieValue(req, 'forgot_password_session');
+
+    if (!sessionId) {
+      throw new ForgetPasswordSessionNotFoundException();
+    }
+    try {
+      return await this.authService.getForgetPasswordSessionDetail(sessionId);
+    } catch (error) {
+      if (error instanceof ForgetPasswordSessionNotFoundException) {
+        clearSessionCookie(res, 'forgot_password_session');
+      }
+      throw error;
+    }
   }
 
   @Post('forgot-password/verify-otp')
@@ -209,14 +314,12 @@ export class AuthController {
   async verifyForgotPasswordOtp(
     @Body() dto: VerifyOtpDto,
     @Req() req: express.Request,
+    @Res({ passthrough: true }) res: express.Response,
   ) {
-    const cookies = req.cookies as Record<string, unknown> | undefined;
-    const sessionId =
-      typeof cookies?.forgot_password_session === 'string'
-        ? cookies.forgot_password_session
-        : undefined;
+    const sessionId = getCookieValue(req, 'forgot_password_session');
 
     if (!sessionId) {
+      clearSessionCookie(res, 'forgot_password_session');
       throw new ForgetPasswordSessionNotFoundException();
     }
 
@@ -229,11 +332,7 @@ export class AuthController {
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const cookies = req.cookies as Record<string, unknown> | undefined;
-    const sessionId =
-      typeof cookies?.forgot_password_session === 'string'
-        ? cookies.forgot_password_session
-        : undefined;
+    const sessionId = getCookieValue(req, 'forgot_password_session');
 
     if (!sessionId) {
       throw new ForgetPasswordSessionNotFoundException();
@@ -275,91 +374,5 @@ export class AuthController {
     res.clearCookie('forgot_password_session', buildCookieOptions());
 
     return result;
-  }
-  @Public()
-  @Post('login')
-  async login(
-    // done integration
-    @Body() dto: LoginDto,
-    @Res({ passthrough: true }) res: express.Response,
-  ) {
-    const accessTokenMaxAge = getCookieMaxAge(
-      process.env.JWT_ACCESS_EXPIRES_IN,
-    );
-    const refreshTokenMaxAge = getCookieMaxAge(
-      process.env.JWT_REFRESH_EXPIRES_IN,
-    );
-    const result = await this.authService.login(dto);
-
-    res.cookie(
-      'access_token',
-      result.accessToken,
-      buildCookieOptions(accessTokenMaxAge),
-    );
-
-    res.cookie(
-      'refresh_token',
-      result.refreshToken,
-      buildCookieOptions(refreshTokenMaxAge),
-    );
-
-    return {
-      message: result.message,
-      user: result.user,
-    };
-  }
-
-  @Post('logout')
-  logout(@Res({ passthrough: true }) res: express.Response) {
-    res.clearCookie('access_token', buildCookieOptions());
-    res.clearCookie('refresh_token', buildCookieOptions());
-    res.clearCookie('signup_session', buildCookieOptions());
-    res.clearCookie('forgot_password_session', buildCookieOptions());
-
-    return this.authService.logout();
-  }
-
-  @Post('refresh-token')
-  @Public()
-  async refreshToken(
-    // done integration
-    @Body() dto: RefreshTokenDto,
-    @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
-  ) {
-    const accessTokenMaxAge = getCookieMaxAge(
-      process.env.JWT_ACCESS_EXPIRES_IN,
-    );
-    const cookies = req.cookies as Record<string, unknown> | undefined;
-    const cookieRefreshToken =
-      typeof cookies?.refresh_token === 'string'
-        ? cookies.refresh_token
-        : undefined;
-
-    const refreshToken = cookieRefreshToken ?? dto.refreshToken;
-
-    if (!refreshToken) {
-      throw new RefreshTokenMissingException();
-    }
-
-    const result = await this.authService.refreshAccessToken(refreshToken);
-
-    res.cookie(
-      'access_token',
-      result.accessToken,
-      buildCookieOptions(accessTokenMaxAge),
-    );
-
-    return result;
-  }
-
-  @Post('getUser')
-  async getUser(@Req() req: express.Request & { user?: JwtPayload }) {
-    // done integration
-    if (!req.user) {
-      throw new AccessTokenExpired();
-    }
-
-    return this.authService.getUser(req.user);
   }
 }
