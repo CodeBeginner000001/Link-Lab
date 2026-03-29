@@ -7,6 +7,7 @@ const BACKEND_API_URL =
 
 const ALLOWED_AUTH_PATHS = new Set([
   "login",
+  "logout",
   "signup",
   "verify-otp",
   "resend-otp",

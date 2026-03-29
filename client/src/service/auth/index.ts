@@ -1,6 +1,7 @@
 import { BACKEND_API_URL_ENV } from "@/config/api";
 import {
   ApiErrorResponse,
+  ApiSuccessResponse,
   GetCurrentUserApiSuccessResponse,
   GetSessionDataApiSuccessResponse,
   LoginApiSuccessResponse,
@@ -235,6 +236,37 @@ export const login = async (email: string, password: string) => {
     return {
       statusCode: 503,
       error: createServiceUnavailableError("/v1/auth/login"),
+    };
+  }
+};
+export const logout = async () => {
+  try {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/logout`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+
+    const data: ApiSuccessResponse<{ message: string }> =
+      await response.json();
+
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/logout"),
     };
   }
 };

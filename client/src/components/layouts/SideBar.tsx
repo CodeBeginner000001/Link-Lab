@@ -6,16 +6,30 @@ import Link from "next/link";
 import { dashBoardTools } from "@/utils/content";
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/tailwindcss-merger";
+import { useState } from "react";
 
 export default function SideBar() {
   const pathname = usePathname();
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
-    <aside className="peer/sidebar group/sidebar fixed left-0 top-0 z-50 h-screen w-20 hover:w-64 transition-[width] duration-300 ease-in-out flex flex-col overflow-hidden bg-[hsl(var(--background))] border-r border-[hsl(var(--sidebar-border))] no-scrollbar">
+    <aside
+      onMouseEnter={() => setIsExpanded(true)}
+      onMouseLeave={() => setIsExpanded(false)}
+      className={cn(
+        "fixed left-0 top-0 z-50 h-screen transition-[width] duration-300 ease-in-out flex flex-col overflow-hidden bg-[hsl(var(--background))] border-r border-[hsl(var(--sidebar-border))] no-scrollbar",
+        isExpanded ? "w-64" : "w-20",
+      )}
+    >
       <div className="flex items-center h-16 border-b px-4 border-[hsl(var(--sidebar-border))]">
         <Link href="/" className="flex items-center gap-2 min-w-0">
           <Logo size="md" showText={false} />
-          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden text-xl font-bold tracking-tight transition-all duration-200">
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden text-xl font-bold tracking-tight transition-all duration-200",
+              isExpanded ? "max-w-40 opacity-100" : "max-w-0 opacity-0",
+            )}
+          >
             <span className="gradient-text">Link</span>
             <span className="text-foreground">Lab</span>
           </span>
@@ -26,18 +40,31 @@ export default function SideBar() {
         <Link
           href="/dashboard"
           className={cn(
-            "flex items-center justify-center group-hover/sidebar:justify-start gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+            "flex items-center gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+            isExpanded ? "justify-start px-3" : "justify-center px-2",
             pathname === "/dashboard" &&
               "text-[hsl(var(--sidebar-primary))] bg-gray-400/15",
           )}
         >
           <LayoutDashboard className="w-5 h-5 shrink-0" />
-          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden text-sm transition-all duration-200">
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden text-sm transition-all duration-200",
+              isExpanded ? "max-w-40 visible" : "max-w-0 hidden",
+            )}
+          >
             Dashboard
           </span>
         </Link>
 
-        <div className="max-h-0 opacity-0 overflow-hidden px-0 group-hover/sidebar:max-h-10 group-hover/sidebar:opacity-100 group-hover/sidebar:px-3 group-hover/sidebar:pt-4 text-xs uppercase text-muted-foreground transition-all duration-200">
+        <div
+          className={cn(
+            "overflow-hidden text-xs uppercase text-muted-foreground transition-all duration-200",
+            isExpanded
+              ? "max-h-10 opacity-100 px-3 pt-4"
+              : "max-h-0 opacity-0 px-0 pt-0",
+          )}
+        >
           Tools
         </div>
 
@@ -46,12 +73,18 @@ export default function SideBar() {
             key={name}
             href={href}
             className={cn(
-              "flex items-center justify-center group-hover/sidebar:justify-start text-sm gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+              "flex items-center text-sm gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+              isExpanded ? "justify-start px-3" : "justify-center px-2",
               pathname === href && "text-[hsl(var(--primary))] bg-gray-400/15",
             )}
           >
             <Icon className="w-5 h-5 shrink-0" />
-            <span className="w-fit opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden transition-all duration-200">
+            <span
+              className={cn(
+                "whitespace-nowrap overflow-hidden transition-all duration-200",
+                isExpanded ? "max-w-40 visible" : "max-w-0 hidden",
+              )}
+            >
               {name}
             </span>
           </Link>
@@ -62,13 +95,19 @@ export default function SideBar() {
         <Link
           href="/dashboard/settings"
           className={cn(
-            "flex items-center justify-center group-hover/sidebar:justify-start gap-2 px-2 group-hover/sidebar:px-3 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+            "flex items-center gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
+            isExpanded ? "justify-start px-3" : "justify-center px-2",
             pathname === "/dashboard/settings" &&
               "text-[hsl(var(--primary))] bg-gray-400/15",
           )}
         >
           <Settings className="h-5 w-5 shrink-0" />
-          <span className="max-w-0 opacity-0 group-hover/sidebar:max-w-40 group-hover/sidebar:opacity-100 whitespace-nowrap overflow-hidden transition-all duration-200">
+          <span
+            className={cn(
+              "whitespace-nowrap overflow-hidden transition-all duration-200",
+              isExpanded ? "max-w-40 opacity-100" : "max-w-0 opacity-0",
+            )}
+          >
             Settings
           </span>
         </Link>

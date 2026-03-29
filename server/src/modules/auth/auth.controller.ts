@@ -72,6 +72,7 @@ export class AuthController {
   @Public()
   @Post('signup')
   async signup(
+    // done integration
     @Body() dto: SignupDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -91,6 +92,7 @@ export class AuthController {
   @Public()
   @Post('verify-otp')
   async verifyOtp(
+    // done integration
     @Body() dto: VerifyOtpDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
@@ -129,6 +131,7 @@ export class AuthController {
   @Public()
   @Post('resend-otp')
   async resendOtp(
+    // done integration
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -152,6 +155,7 @@ export class AuthController {
   @Public()
   @Get('signup/session')
   async getSessionDetail(
+    // done integration
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -275,6 +279,7 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(
+    // done integration
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -317,6 +322,7 @@ export class AuthController {
   @Post('refresh-token')
   @Public()
   async refreshToken(
+    // done integration
     @Body() dto: RefreshTokenDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
@@ -349,6 +355,7 @@ export class AuthController {
 
   @Post('getUser')
   async getUser(@Req() req: express.Request & { user?: JwtPayload }) {
+    // done integration
     if (!req.user) {
       throw new AccessTokenExpired();
     }

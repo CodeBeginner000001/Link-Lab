@@ -1,6 +1,8 @@
 "use client";
 
 import { useAuth } from "@/Provider/AuthUserProvider";
+import { logout } from "@/service/auth";
+import { useToastNotification } from "@/utils/toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,15 +11,43 @@ import {
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
 import { LogOut, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { Avatar, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 
-const handleLogOut = () => {
-  
-};
-
 const UserAvatar = () => {
   const user = useAuth();
+  const router = useRouter();
+  const notify = useToastNotification();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogOut = async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    const logOutResult = await logout();
+    setIsLoggingOut(false);
+
+    if ("result" in logOutResult && logOutResult.result?.success) {
+      notify(logOutResult.result.data.message, "success");
+      router.replace("/login");
+      router.refresh();
+      return;
+    }
+
+    const message =
+      "error" in logOutResult
+        ? Array.isArray(logOutResult.error?.message)
+          ? logOutResult.error.message[0]
+          : logOutResult.error?.message
+        : "Unable to logout";
+
+    notify(message || "Unable to logout", "error");
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -53,9 +83,13 @@ const UserAvatar = () => {
           </a>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="text-[hsl(var(--destructive))] flex items-center focus:text-[hsl(var(--destructive))] cursor-pointer px-4 py-2 focus-visible:outline-none hover:bg-[hsl(var(--secondary))]">
-          <LogOut className="h-4 w-4 mr-2" onClick={handleLogOut} />
-          Sign Out
+        <DropdownMenuItem
+          onSelect={handleLogOut}
+          disabled={isLoggingOut}
+          className="text-[hsl(var(--destructive))] flex items-center focus:text-[hsl(var(--destructive))] cursor-pointer px-4 py-2 focus-visible:outline-none hover:bg-[hsl(var(--secondary))] disabled:pointer-events-none disabled:opacity-60"
+        >
+          <LogOut className="h-4 w-4 mr-2" />
+          {isLoggingOut ? "Signing Out..." : "Sign Out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
