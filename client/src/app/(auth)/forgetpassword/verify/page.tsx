@@ -1,5 +1,5 @@
-import SuccessfullyResetLink from "@/modules/auth/pages/SuccessfullyResetLink";
+import ForgetPasswordOTP from "@/modules/auth/pages/ForgetPasswordOTP";
 
 export default function Page() {
-  return <SuccessfullyResetLink />;
+  return <ForgetPasswordOTP />;
 }

@@ -16,7 +16,7 @@ export default async function SignUp() {
     const sessionData = await GetSessionData(cookieStore.toString());
 
     if (sessionData.result) {
-      redirect("/signup/verify/OTP");
+      redirect("/signup/verify");
     }
   }
   return (

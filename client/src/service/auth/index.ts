@@ -8,6 +8,7 @@ import {
   RefreshAccessTokenApiSuccessResponse,
   ResendOTPApiSuccessResponse,
   SignUpApiSuccessResponse,
+  VerifyForgetPasswordOTPApiSuccessResponse,
   VerifySignUpOTPApiSuccessResponse,
 } from "@/interfaces/api";
 
@@ -299,6 +300,96 @@ export const ForgetPassword = async (email: string) => {
     return {
       statusCode: 503,
       error: createServiceUnavailableError("/v1/auth/forgot-password"),
+    };
+  }
+};
+
+export const GetForgetPasswordSessionData = async (cookieData: string) => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/auth/forget-password/session`, {
+      method: "GET",
+      headers: {
+        Cookie: cookieData,
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+    const data: GetSessionDataApiSuccessResponse = await response.json();
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/otp/session"),
+    };
+  }
+};
+
+export const ForgetPasswordResendOTP = async () => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/auth/forgot-password/resend-otp`, {
+      method: "POST",
+      credentials: "include",
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+    const data : ResendOTPApiSuccessResponse = await response.json();
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/otp/resend"),
+    };
+  }
+};
+
+export const VerifyForgetPasswordOTP = async (otp: string) => {
+  try {
+    const response = await fetch(`${BACKEND_API_URL}/auth/forgot-password/verify-otp`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        otp,
+      }),
+      cache: "no-store",
+    });
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+    const data: VerifyForgetPasswordOTPApiSuccessResponse = await response.json();
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError("/v1/auth/forgot-password/verify-otp"),
     };
   }
 };
