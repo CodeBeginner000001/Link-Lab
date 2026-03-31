@@ -1,6 +1,7 @@
 "use client";
 import MotionWrapper from "@/components/common/MotionWrapper";
 import { ResetPassword } from "@/service/auth";
+import { collectClientRequestMetadata } from "@/utils/client-request-metadata";
 import {
   getUserFriendlyMessage,
   handleFormFieldErrors,
@@ -12,6 +13,7 @@ import { useState } from "react";
 import AuthFooter from "../components/AuthFooter";
 import AuthNavBar from "../components/common/AuthNavBar";
 import FormField from "../components/common/FormField";
+import ResetTokenExpired from "./ResetTokenExpired";
 import SubmitButton from "../components/common/SubmitButton";
 
 type PasswordResetErrors = {
@@ -23,6 +25,7 @@ const RESET_PASSWORD_ERROR_FIELDS = ["password"] as const;
 
 export default function PasswordReset({ token }: { token: string }) {
   const router = useRouter();
+  const [isTokenExpired, setIsTokenExpired] = useState(false);
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     password: "",
@@ -84,7 +87,7 @@ export default function PasswordReset({ token }: { token: string }) {
     );
   };
 
-  const handleFormSubmit = async (e: React.ChangeEvent<HTMLFormElement>) => {
+  const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrors({});
 
@@ -93,7 +96,12 @@ export default function PasswordReset({ token }: { token: string }) {
     }
 
     setLoading(true);
-    const resetPasswordResult = await ResetPassword(token, formData.password);
+    const requestMetadata = await collectClientRequestMetadata();
+    const resetPasswordResult = await ResetPassword(
+      token,
+      formData.password,
+      requestMetadata,
+    );
     setLoading(false);
 
     if (resetPasswordResult.result?.success) {
@@ -120,9 +128,13 @@ export default function PasswordReset({ token }: { token: string }) {
         resetPasswordResult.error?.message,
       )
     ) {
-      router.replace("/forgetpassword");
+      setIsTokenExpired(true);
     }
   };
+
+  if (isTokenExpired) {
+    return <ResetTokenExpired />;
+  }
 
   return (
     <>

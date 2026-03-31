@@ -19,9 +19,10 @@ import {
   UpdateRedisHashFieldsDto,
 } from './dto/hash.dto';
 import { RedisHashService } from './redis-hash.service';
+import { Public } from 'src/decorators/public.decorator';
 
 @Controller('v1/redis/hash')
-// @Public()
+@Public()
 @Internal()
 export class RedisHashController {
   constructor(private readonly redisHashService: RedisHashService) {}

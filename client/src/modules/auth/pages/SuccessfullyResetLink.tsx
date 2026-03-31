@@ -1,17 +1,40 @@
 "use client";
-import { motion } from "framer-motion";
+
+import { useEffect, useState } from "react";
+import MotionWrapper from "@/components/common/MotionWrapper";
 import { CheckCircle } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 export default function SuccessfullyResetLink() {
+  const router = useRouter();
+  const [countdown, setCountdown] = useState(5);
+
+  useEffect(() => {
+    const redirectTimer = window.setTimeout(() => {
+      router.replace("/login");
+    }, 5000);
+
+    const countdownTimer = window.setInterval(() => {
+      setCountdown((current) => {
+        if (current <= 1) {
+          window.clearInterval(countdownTimer);
+          return 0;
+        }
+
+        return current - 1;
+      });
+    }, 1000);
+
+    return () => {
+      window.clearTimeout(redirectTimer);
+      window.clearInterval(countdownTimer);
+    };
+  }, [router]);
+
   return (
     <div className="flex flex-1 items-center justify-center">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
-      >
+      <MotionWrapper className="max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-16 h-16 rounded-full bg-[hsl(var(--primary)/0.1)] flex items-center justify-center mx-auto mb-6">
@@ -25,6 +48,10 @@ export default function SuccessfullyResetLink() {
         <p className="text-[hsl(var(--muted-foreground)/0.9)] text-center">
           Please check your inbox and spam folder. The link will expire in a few minutes.
         </p>
+        <p className="text-center text-sm text-[hsl(var(--muted-foreground)/0.9)] mt-4">
+          You&apos;ll be redirected to the login page in {countdown} second
+          {countdown === 1 ? "" : "s"}.
+        </p>
         <p className="text-center text-sm text-[hsl(var(--muted-foreground)/0.9)] mt-6">
           Remember your Password?{" "}
           <Link href="/login">
@@ -33,7 +60,7 @@ export default function SuccessfullyResetLink() {
             </button>
           </Link>
         </p>
-      </motion.div>
+      </MotionWrapper>
     </div>
   );
 }

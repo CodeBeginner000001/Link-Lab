@@ -89,7 +89,7 @@ export class InvalidOtpException extends UnauthorizedException {
 export class OtpAttemptsExceededException extends BadRequestException {
   constructor() {
     super({
-      message: 'OTP verification attempts exceeded. Please sign up again.',
+      message: 'OTP verification attempts exceeded. Please try again.',
       error: 'Too Many Requests',
     });
   }
@@ -107,7 +107,7 @@ export class ResendOtpCooldownException extends BadRequestException {
 export class ResendAttemptsExceededException extends BadRequestException {
   constructor() {
     super({
-      message: 'Maximum OTP resend attempts exceeded. Please sign up again',
+      message: 'Maximum OTP resend attempts exceeded. Please try again',
       error: 'Too Many Requests',
     });
   }

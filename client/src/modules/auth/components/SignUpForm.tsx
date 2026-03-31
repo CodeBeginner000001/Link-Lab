@@ -57,7 +57,7 @@ export default function SignUpForm() {
     setLoading(false);
     if (signupResult.result?.success) {
       notify(signupResult.result.data?.message, "success");
-      router.push("/signup/verify/OTP");
+      router.push("/signup/verify");
       return;
     }
     if (

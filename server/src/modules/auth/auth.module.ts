@@ -1,13 +1,18 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from 'src/models/user.schema';
 import { SqsModule } from 'src/services/aws/sqs/sqs.module';
 import { RedisHashService } from '../redis/redis-hash.service';
 import { RedisStringService } from '../redis/redis-string.service';
+import { AuthFlowConfigService } from './auth-config.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtModule } from '@nestjs/jwt';
+import { ForgotPasswordFlowService } from './forget-password-flow.service';
+import { NotificationService } from './notification.service';
+import { SignupFlowService } from './signup-flow.service';
+import { TokenService } from './token.service';
 
 @Module({
   imports: [
@@ -17,6 +22,15 @@ import { JwtModule } from '@nestjs/jwt';
     SqsModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, RedisStringService, RedisHashService],
+  providers: [
+    AuthFlowConfigService,
+    AuthService,
+    TokenService,
+    NotificationService,
+    SignupFlowService,
+    ForgotPasswordFlowService,
+    RedisStringService,
+    RedisHashService,
+  ],
 })
 export class AuthModule {}

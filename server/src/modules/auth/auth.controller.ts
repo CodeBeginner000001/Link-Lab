@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import express from 'express';
 import { Public } from 'src/decorators/public.decorator';
 import {
@@ -10,9 +10,19 @@ import {
 } from 'src/exceptions/auth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
 import { AuthService } from './auth.service';
-import { ForgotPasswordDto, ResetPasswordDto } from './dto/forget-password.dto';
-import { RefreshTokenDto } from './dto/refresh-token.dto';
+import {
+  AuthFlowDto,
+  AuthFlowName,
+  RefreshTokenDto,
+} from './dto/auth-flow.dto';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ResetPasswordTokenDto,
+} from './dto/forget-password.dto';
 import { LoginDto, SignupDto, VerifyOtpDto } from './dto/signup.dto';
+import { SignupFlowService } from './signup-flow.service';
+import { ForgotPasswordFlowService } from './forget-password-flow.service';
 
 function getCookieValue(req: express.Request, key: string): string | undefined {
   const cookies = req.cookies as Record<string, unknown> | undefined;
@@ -68,15 +78,19 @@ function clearSessionCookie(
 
 @Controller('v1/auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly signupFlowService: SignupFlowService,
+    private readonly forgotPasswordFlowService: ForgotPasswordFlowService,
+  ) {}
+
   @Public()
   @Post('signup')
   async signup(
-    // done integration
     @Body() dto: SignupDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const result = await this.authService.signup(dto);
+    const result = await this.signupFlowService.signup(dto);
 
     res.cookie(
       'signup_session',
@@ -92,7 +106,6 @@ export class AuthController {
   @Public()
   @Post('verify-otp')
   async verifyOtp(
-    // done integration
     @Body() dto: VerifyOtpDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
@@ -110,7 +123,7 @@ export class AuthController {
       throw new SignupSessionNotFoundException();
     }
 
-    const result = await this.authService.verifySignupOtp(dto, sessionId);
+    const result = await this.signupFlowService.verifySignupOtp(dto, sessionId);
 
     res.clearCookie('signup_session', buildCookieOptions());
     res.cookie(
@@ -131,21 +144,41 @@ export class AuthController {
   @Public()
   @Post('resend-otp')
   async resendOtp(
-    // done integration
+    @Body() dto: AuthFlowDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const sessionId = getCookieValue(req, 'signup_session');
+    const cookieKey =
+      dto.flowName === AuthFlowName.FORGOT_PASSWORD
+        ? 'forgot_password_session'
+        : 'signup_session';
+    const sessionId = getCookieValue(req, cookieKey);
 
     if (!sessionId) {
+      clearSessionCookie(res, cookieKey);
+
+      if (dto.flowName === AuthFlowName.FORGOT_PASSWORD) {
+        throw new ForgetPasswordSessionNotFoundException();
+      }
+
       throw new SignupSessionNotFoundException();
     }
 
     try {
-      return await this.authService.resendSignupOtp(sessionId);
+      if (dto.flowName === AuthFlowName.FORGOT_PASSWORD) {
+        return await this.forgotPasswordFlowService.resendForgotPasswordOtp(
+          sessionId,
+        );
+      }
+
+      return await this.signupFlowService.resendSignupOtp(sessionId);
     } catch (error) {
-      if (error instanceof ResendAttemptsExceededException) {
-        clearSessionCookie(res, 'signup_session');
+      if (
+        error instanceof ResendAttemptsExceededException ||
+        error instanceof SignupSessionNotFoundException ||
+        error instanceof ForgetPasswordSessionNotFoundException
+      ) {
+        clearSessionCookie(res, cookieKey);
       }
 
       throw error;
@@ -153,25 +186,42 @@ export class AuthController {
   }
 
   @Public()
-  @Get('signup/session')
+  @Post('session')
   async getSessionDetail(
-    // done integration
+    @Body() dto: AuthFlowDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const sessionId = getCookieValue(req, 'signup_session');
+    const cookieKey =
+      dto.flowName === AuthFlowName.FORGOT_PASSWORD
+        ? 'forgot_password_session'
+        : 'signup_session';
+    const sessionId = getCookieValue(req, cookieKey);
 
     if (!sessionId) {
+      clearSessionCookie(res, cookieKey);
+
+      if (dto.flowName === AuthFlowName.FORGOT_PASSWORD) {
+        throw new ForgetPasswordSessionNotFoundException();
+      }
+
       throw new SignupSessionNotFoundException();
     }
+
     try {
-      return await this.authService.getSessionDetail(sessionId);
-    } catch (error) {
-      if (error instanceof SignupSessionNotFoundException) {
-        clearSessionCookie(res, 'signup_session');
+      if (dto.flowName === AuthFlowName.FORGOT_PASSWORD) {
+        return await this.forgotPasswordFlowService.getForgotPasswordSessionDetail(
+          sessionId,
+        );
       }
-      if (error instanceof ResendAttemptsExceededException) {
-        clearSessionCookie(res, 'signup_session');
+
+      return await this.signupFlowService.getSignupSessionDetail(sessionId);
+    } catch (error) {
+      if (
+        error instanceof SignupSessionNotFoundException ||
+        error instanceof ForgetPasswordSessionNotFoundException
+      ) {
+        clearSessionCookie(res, cookieKey);
       }
 
       throw error;
@@ -180,7 +230,6 @@ export class AuthController {
 
   @Post('getUser')
   async getUser(@Req() req: express.Request & { user?: JwtPayload }) {
-    // done integration
     if (!req.user) {
       throw new AccessTokenExpired();
     }
@@ -188,10 +237,9 @@ export class AuthController {
     return this.authService.getUser(req.user);
   }
 
-  @Post('refresh-token')
   @Public()
+  @Post('refresh-token')
   async refreshToken(
-    // done integration
     @Body() dto: RefreshTokenDto,
     @Req() req: express.Request,
     @Res({ passthrough: true }) res: express.Response,
@@ -225,7 +273,6 @@ export class AuthController {
   @Public()
   @Post('login')
   async login(
-    // done integration
     @Body() dto: LoginDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
@@ -257,7 +304,6 @@ export class AuthController {
 
   @Post('logout')
   logout(@Res({ passthrough: true }) res: express.Response) {
-    // done integration
     res.clearCookie('access_token', buildCookieOptions());
     res.clearCookie('refresh_token', buildCookieOptions());
     res.clearCookie('signup_session', buildCookieOptions());
@@ -269,11 +315,10 @@ export class AuthController {
   @Public()
   @Post('forgot-password')
   async forgotPassword(
-    // gone integration
     @Body() dto: ForgotPasswordDto,
     @Res({ passthrough: true }) res: express.Response,
   ) {
-    const result = await this.authService.forgotPassword(dto);
+    const result = await this.forgotPasswordFlowService.forgotPassword(dto);
 
     res.cookie(
       'forgot_password_session',
@@ -289,28 +334,7 @@ export class AuthController {
   }
 
   @Public()
-  @Get('forget-password/session')
-  async getForgetPasswordSessionDetail(
-    @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
-  ) {
-    const sessionId = getCookieValue(req, 'forgot_password_session');
-
-    if (!sessionId) {
-      throw new ForgetPasswordSessionNotFoundException();
-    }
-    try {
-      return await this.authService.getForgetPasswordSessionDetail(sessionId);
-    } catch (error) {
-      if (error instanceof ForgetPasswordSessionNotFoundException) {
-        clearSessionCookie(res, 'forgot_password_session');
-      }
-      throw error;
-    }
-  }
-
   @Post('forgot-password/verify-otp')
-  @Public()
   async verifyForgotPasswordOtp(
     @Body() dto: VerifyOtpDto,
     @Req() req: express.Request,
@@ -323,56 +347,31 @@ export class AuthController {
       throw new ForgetPasswordSessionNotFoundException();
     }
 
-    return this.authService.verifyForgotPasswordOtp(dto, sessionId);
+    const result = await this.forgotPasswordFlowService.verifyForgotPasswordOtp(
+      dto,
+      sessionId,
+    );
+
+    clearSessionCookie(res, 'forgot_password_session');
+
+    return result;
   }
 
-  @Post('forgot-password/resend-otp')
   @Public()
-  async resendForgotPasswordOtp(
-    @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
-  ) {
-    const sessionId = getCookieValue(req, 'forgot_password_session');
-
-    if (!sessionId) {
-      throw new ForgetPasswordSessionNotFoundException();
-    }
-
-    try {
-      return await this.authService.resendForgotPasswordOtp(sessionId);
-    } catch (error) {
-      if (error instanceof ResendAttemptsExceededException) {
-        clearSessionCookie(res, 'forgot_password_session');
-      }
-
-      throw error;
-    }
+  @Post('forgot-password/validate-reset-token')
+  validateResetPasswordToken(@Body() dto: ResetPasswordTokenDto) {
+    return this.forgotPasswordFlowService.validateResetPasswordToken(dto);
   }
 
+  @Public()
   @Post('forgot-password/reset-password')
-  @Public()
   async resetPassword(
     @Body() dto: ResetPasswordDto,
     @Req() req: express.Request,
-    @Res({ passthrough: true }) res: express.Response,
   ) {
-    const cookies = req.cookies as Record<string, unknown> | undefined;
-    const sessionId =
-      typeof cookies?.forgot_password_session === 'string'
-        ? cookies.forgot_password_session
-        : undefined;
-
-    if (!sessionId) {
-      throw new ForgetPasswordSessionNotFoundException();
-    }
-
-    const result = await this.authService.resetPassword(dto, sessionId, {
+    return this.forgotPasswordFlowService.resetPassword(dto, {
       deviceInfo: req.get('user-agent') ?? 'Unknown device',
       locationInfo: req.ip ?? 'Unknown location',
     });
-
-    res.clearCookie('forgot_password_session', buildCookieOptions());
-
-    return result;
   }
 }

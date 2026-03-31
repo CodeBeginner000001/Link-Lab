@@ -61,6 +61,12 @@ export interface VerifyForgetPasswordOTPApiDataResponse {
   message: string;
 }
 
+export interface ValidateResetPasswordTokenApiDataResponse {
+  message: string;
+  email: string;
+  expiresAt: string;
+}
+
 export interface ResetPasswordApiDataResponse {
   message: string;
   email: string;
@@ -76,6 +82,8 @@ export type ResendOTPApiSuccessResponse = ApiSuccessResponse<ResendOTPApiDataRes
 export type LoginApiSuccessResponse = ApiSuccessResponse<LoginApiDataResponse>;
 export type VerifySignUpOTPApiSuccessResponse = ApiSuccessResponse<VerifySignUpOTPApiDataResponse>;
 export type VerifyForgetPasswordOTPApiSuccessResponse = ApiSuccessResponse<VerifyForgetPasswordOTPApiDataResponse>;
+export type ValidateResetPasswordTokenApiSuccessResponse =
+  ApiSuccessResponse<ValidateResetPasswordTokenApiDataResponse>;
 export type ResetPasswordApiSuccessResponse =
   ApiSuccessResponse<ResetPasswordApiDataResponse>;
 

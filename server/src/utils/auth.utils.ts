@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { randomInt, randomUUID } from 'crypto';
 import {
   ForgotPasswordSession,
@@ -74,6 +75,47 @@ export function comparePassword(
   hashedPassword: string,
 ): Promise<boolean> {
   return bcrypt.compare(plainPassword, hashedPassword);
+}
+
+const algorithm = 'aes-256-cbc';
+
+function buildEncryptionKey(secret: string): Buffer {
+  return crypto.createHash('sha256').update(secret).digest();
+}
+
+export function encrypt(text: string, secret: string): string {
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv(
+    algorithm,
+    buildEncryptionKey(secret),
+    iv,
+  );
+  const encrypted = Buffer.concat([
+    cipher.update(text, 'utf8'),
+    cipher.final(),
+  ]);
+
+  return `${iv.toString('hex')}:${encrypted.toString('hex')}`;
+}
+
+export function decrypt(encryptedText: string, secret: string): string {
+  const [ivHex, payloadHex] = encryptedText.split(':');
+
+  if (!ivHex || !payloadHex) {
+    throw new Error('Invalid encrypted payload format');
+  }
+
+  const decipher = crypto.createDecipheriv(
+    algorithm,
+    buildEncryptionKey(secret),
+    Buffer.from(ivHex, 'hex'),
+  );
+  const decrypted = Buffer.concat([
+    decipher.update(Buffer.from(payloadHex, 'hex')),
+    decipher.final(),
+  ]);
+
+  return decrypted.toString('utf8');
 }
 
 export function buildSignupSession(params: {

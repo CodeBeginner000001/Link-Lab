@@ -9,12 +9,12 @@ const ALLOWED_AUTH_PATHS = new Set([
   "login",
   "logout",
   "signup",
+  "session",
   "verify-otp",
   "resend-otp",
+  "refresh-token",
   "forgot-password",
   "forgot-password/verify-otp",
-  "forgot-password/resend-otp",
-  "forgot-password/reset-password",
 ]);
 
 function getSetCookieHeaders(headers: Headers): string[] {

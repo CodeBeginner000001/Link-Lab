@@ -9,9 +9,11 @@ import {
   RefreshAccessTokenApiSuccessResponse,
   ResendOTPApiSuccessResponse,
   SignUpApiSuccessResponse,
+  ValidateResetPasswordTokenApiSuccessResponse,
   VerifyForgetPasswordOTPApiSuccessResponse,
   VerifySignUpOTPApiSuccessResponse,
 } from "@/interfaces/api";
+import type { ClientRequestMetadata } from "@/utils/client-request-metadata";
 
 const BACKEND_API_URL = BACKEND_API_URL_ENV;
 const FRONTEND_AUTH_API_URL = "/api/auth";
@@ -61,13 +63,17 @@ export const Signup = async (name: string, email: string, password: string) => {
 
 export const GetSessionData = async (cookieData: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/signup/session`, {
-      method: "GET",
+    const response = await fetch(`${BACKEND_API_URL}/auth/session`, {
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Cookie: cookieData,
       },
       credentials: "include",
       cache: "no-store",
+      body: JSON.stringify({
+        flowName: "signup",
+      }),
     });
     if (!response.ok) {
       const error: ApiErrorResponse = await response.json();
@@ -84,7 +90,7 @@ export const GetSessionData = async (cookieData: string) => {
   } catch {
     return {
       statusCode: 503,
-      error: createServiceUnavailableError("/v1/auth/otp/session"),
+      error: createServiceUnavailableError("/v1/auth/session"),
     };
   }
 };
@@ -93,8 +99,14 @@ export const ResendOTP = async () => {
   try {
     const response = await fetch(`${FRONTEND_AUTH_API_URL}/resend-otp`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
       cache: "no-store",
+      body: JSON.stringify({
+        flowName: "signup",
+      }),
     });
     if (!response.ok) {
       const error: ApiErrorResponse = await response.json();
@@ -111,7 +123,7 @@ export const ResendOTP = async () => {
   } catch {
     return {
       statusCode: 503,
-      error: createServiceUnavailableError("/v1/auth/otp/resend"),
+      error: createServiceUnavailableError("/v1/auth/resend-otp"),
     };
   }
 };
@@ -173,7 +185,7 @@ export const GetCurrentUser = async (accessToken: string) => {
 
 export const RefreshAccessToken = async (refreshToken: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/refresh-token`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/refresh-token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -307,13 +319,17 @@ export const ForgetPassword = async (email: string) => {
 
 export const GetForgetPasswordSessionData = async (cookieData: string) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/auth/forget-password/session`, {
-      method: "GET",
+    const response = await fetch(`${BACKEND_API_URL}/auth/session`, {
+      method: "POST",
       headers: {
+        "Content-Type": "application/json",
         Cookie: cookieData,
       },
       credentials: "include",
       cache: "no-store",
+      body: JSON.stringify({
+        flowName: "forgot-password",
+      }),
     });
     if (!response.ok) {
       const error: ApiErrorResponse = await response.json();
@@ -330,17 +346,23 @@ export const GetForgetPasswordSessionData = async (cookieData: string) => {
   } catch {
     return {
       statusCode: 503,
-      error: createServiceUnavailableError("/v1/auth/otp/session"),
+      error: createServiceUnavailableError("/v1/auth/session"),
     };
   }
 };
 
 export const ForgetPasswordResendOTP = async () => {
   try {
-    const response = await fetch(`${FRONTEND_AUTH_API_URL}/forgot-password/resend-otp`, {
+    const response = await fetch(`${FRONTEND_AUTH_API_URL}/resend-otp`, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       credentials: "include",
       cache: "no-store",
+      body: JSON.stringify({
+        flowName: "forgot-password",
+      }),
     });
     if (!response.ok) {
       const error: ApiErrorResponse = await response.json();
@@ -357,7 +379,7 @@ export const ForgetPasswordResendOTP = async () => {
   } catch {
     return {
       statusCode: 503,
-      error: createServiceUnavailableError("/v1/auth/otp/resend"),
+      error: createServiceUnavailableError("/v1/auth/resend-otp"),
     };
   }
 };
@@ -395,20 +417,65 @@ export const VerifyForgetPasswordOTP = async (otp: string) => {
   }
 };
 
-export const ResetPassword = async (token: string, password: string) => {
+export const ValidateResetPasswordToken = async (token: string) => {
   try {
     const response = await fetch(
-      `${FRONTEND_AUTH_API_URL}/forgot-password/reset-password`,
+      `${BACKEND_API_URL}/auth/forgot-password/validate-reset-token`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
+        cache: "no-store",
+        body: JSON.stringify({
+          token,
+        }),
+      },
+    );
+
+    if (!response.ok) {
+      const error: ApiErrorResponse = await response.json();
+      return {
+        statusCode: response.status,
+        error,
+      };
+    }
+
+    const data: ValidateResetPasswordTokenApiSuccessResponse =
+      await response.json();
+
+    return {
+      statusCode: response.status,
+      result: data,
+    };
+  } catch {
+    return {
+      statusCode: 503,
+      error: createServiceUnavailableError(
+        "/v1/auth/forgot-password/validate-reset-token",
+      ),
+    };
+  }
+};
+
+export const ResetPassword = async (
+  token: string,
+  password: string,
+  metadata?: ClientRequestMetadata,
+) => {
+  try {
+    const response = await fetch(
+      `${BACKEND_API_URL}/auth/forgot-password/reset-password`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
         cache: "no-store",
         body: JSON.stringify({
           token,
           password,
+          ...(metadata ? metadata : {}),
         }),
       },
     );

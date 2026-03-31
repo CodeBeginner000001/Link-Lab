@@ -13,11 +13,14 @@ export class ForgotPasswordDto {
   @MaxLength(255, { message: 'Email: Email must not exceed 255 characters' })
   email!: string;
 }
-export class ResetPasswordDto {
+
+export class ResetPasswordTokenDto {
   @IsString({ message: 'Token: Reset token must be a string' })
   @IsNotEmpty({ message: 'Token: Reset token is required' })
   token!: string;
+}
 
+export class ResetPasswordDto extends ResetPasswordTokenDto {
   @IsString({ message: 'Password: Password must be a string' })
   @IsNotEmpty({ message: 'Password: Password is required' })
   @MinLength(8, {
