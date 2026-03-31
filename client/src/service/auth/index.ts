@@ -13,7 +13,6 @@ import {
   VerifyForgetPasswordOTPApiSuccessResponse,
   VerifySignUpOTPApiSuccessResponse,
 } from "@/interfaces/api";
-import type { ClientRequestMetadata } from "@/utils/client-request-metadata";
 
 const BACKEND_API_URL = BACKEND_API_URL_ENV;
 const FRONTEND_AUTH_API_URL = "/api/auth";
@@ -458,24 +457,20 @@ export const ValidateResetPasswordToken = async (token: string) => {
   }
 };
 
-export const ResetPassword = async (
-  token: string,
-  password: string,
-  metadata?: ClientRequestMetadata,
-) => {
+export const ResetPassword = async (token: string, password: string) => {
   try {
     const response = await fetch(
-      `${BACKEND_API_URL}/auth/forgot-password/reset-password`,
+      `${FRONTEND_AUTH_API_URL}/forgot-password/reset-password`,
       {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
+        credentials: "include",
         cache: "no-store",
         body: JSON.stringify({
           token,
           password,
-          ...(metadata ? metadata : {}),
         }),
       },
     );

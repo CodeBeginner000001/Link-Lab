@@ -370,8 +370,9 @@ export class AuthController {
     @Req() req: express.Request,
   ) {
     return this.forgotPasswordFlowService.resetPassword(dto, {
-      deviceInfo: req.get('user-agent') ?? 'Unknown device',
-      locationInfo: req.ip ?? 'Unknown location',
+      deviceInfo:
+        req.get('x-device-info') || req.get('user-agent') || 'Unknown device',
+      locationInfo: req.get('x-location-info') || req.ip || 'Unknown location',
     });
   }
 }

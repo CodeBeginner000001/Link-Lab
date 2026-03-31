@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, userAgent } from "next/server";
 
 const BACKEND_API_URL =
   process.env.BACKEND_API_URL ||
@@ -15,6 +15,7 @@ const ALLOWED_AUTH_PATHS = new Set([
   "refresh-token",
   "forgot-password",
   "forgot-password/verify-otp",
+  "forgot-password/reset-password",
 ]);
 
 function getSetCookieHeaders(headers: Headers): string[] {
@@ -29,6 +30,28 @@ function getSetCookieHeaders(headers: Headers): string[] {
   const setCookieHeader = headers.get("set-cookie");
 
   return setCookieHeader ? [setCookieHeader] : [];
+}
+
+function getLocationInfo(request: NextRequest) {
+  const city = request.headers.get("x-vercel-ip-city");
+  const country = request.headers.get("x-vercel-ip-country");
+
+  if (city && country) {
+    return `${city}, ${country}`;
+  }
+
+  return city ?? country ?? "Location not found";
+}
+
+function getDeviceInfo(request: NextRequest) {
+  const parsedUserAgent = userAgent(request);
+
+  return (
+    parsedUserAgent.device.model ??
+    parsedUserAgent.device.type ??
+    request.headers.get("user-agent") ??
+    "Device not found"
+  );
 }
 
 async function handler(
@@ -59,6 +82,11 @@ async function handler(
     const headers = new Headers();
     const contentType = request.headers.get("content-type");
     const cookieHeader = request.headers.get("cookie");
+    const userAgent = request.headers.get("user-agent");
+    const forwardedFor = request.headers.get("x-forwarded-for");
+    const realIp = request.headers.get("x-real-ip");
+    const deviceInfo = getDeviceInfo(request);
+    const locationInfo = getLocationInfo(request);
 
     if (contentType) {
       headers.set("content-type", contentType);
@@ -67,6 +95,21 @@ async function handler(
     if (cookieHeader) {
       headers.set("cookie", cookieHeader);
     }
+
+    if (userAgent) {
+      headers.set("user-agent", userAgent);
+    }
+
+    if (forwardedFor) {
+      headers.set("x-forwarded-for", forwardedFor);
+    }
+
+    if (realIp) {
+      headers.set("x-real-ip", realIp);
+    }
+
+    headers.set("x-device-info", deviceInfo);
+    headers.set("x-location-info", locationInfo);
 
     const backendResponse = await fetch(targetUrl.toString(), {
       method: request.method,

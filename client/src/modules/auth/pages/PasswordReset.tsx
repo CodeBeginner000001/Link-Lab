@@ -1,7 +1,6 @@
 "use client";
 import MotionWrapper from "@/components/common/MotionWrapper";
 import { ResetPassword } from "@/service/auth";
-import { collectClientRequestMetadata } from "@/utils/client-request-metadata";
 import {
   getUserFriendlyMessage,
   handleFormFieldErrors,
@@ -96,12 +95,7 @@ export default function PasswordReset({ token }: { token: string }) {
     }
 
     setLoading(true);
-    const requestMetadata = await collectClientRequestMetadata();
-    const resetPasswordResult = await ResetPassword(
-      token,
-      formData.password,
-      requestMetadata,
-    );
+    const resetPasswordResult = await ResetPassword(token, formData.password);
     setLoading(false);
 
     if (resetPasswordResult.result?.success) {
