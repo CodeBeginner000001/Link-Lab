@@ -1,5 +1,7 @@
+type BrowserPermissionState = "granted" | "denied" | "prompt";
+
 type GeolocationPermissionStatus =
-  | PermissionState
+  | BrowserPermissionState
   | "unsupported"
   | "unavailable";
 
@@ -44,6 +46,20 @@ export type ClientRequestMetadata = {
 
 const GEOLOCATION_TIMEOUT_MS = 3000;
 
+type NavigatorWithClientMetadata = Navigator & {
+  deviceMemory?: number;
+  geolocation?: Geolocation;
+  languages?: readonly string[];
+  permissions?: {
+    query: (descriptor: { name: string }) => Promise<{
+      state: BrowserPermissionState;
+    }>;
+  };
+  userAgentData?: {
+    platform?: string;
+  };
+};
+
 const getBrowserTimezone = () => {
   try {
     return Intl.DateTimeFormat().resolvedOptions().timeZone ?? null;
@@ -52,42 +68,40 @@ const getBrowserTimezone = () => {
   }
 };
 
-const getPlatform = (navigatorObject: Navigator) => {
-  const enhancedNavigator = navigatorObject as Navigator & {
-    userAgentData?: {
-      platform?: string;
-    };
-  };
-
+const getPlatform = (navigatorObject: NavigatorWithClientMetadata) => {
   return (
-    enhancedNavigator.userAgentData?.platform ??
+    navigatorObject.userAgentData?.platform ??
     navigatorObject.platform ??
     null
   );
 };
 
-const getDeviceMemory = (navigatorObject: Navigator) => {
-  const enhancedNavigator = navigatorObject as Navigator & {
-    deviceMemory?: number;
-  };
-
-  return typeof enhancedNavigator.deviceMemory === "number"
-    ? enhancedNavigator.deviceMemory
+const getDeviceMemory = (navigatorObject: NavigatorWithClientMetadata) => {
+  return typeof navigatorObject.deviceMemory === "number"
+    ? navigatorObject.deviceMemory
     : null;
 };
 
 const getGeolocationPermission =
   async (): Promise<GeolocationPermissionStatus> => {
-    if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+    if (typeof navigator === "undefined") {
       return "unsupported";
     }
 
-    if (!("permissions" in navigator)) {
+    const currentNavigator = navigator as NavigatorWithClientMetadata;
+
+    if (!currentNavigator.geolocation) {
+      return "unsupported";
+    }
+
+    if (!currentNavigator.permissions) {
       return "unavailable";
     }
 
     try {
-      const status = await navigator.permissions.query({ name: "geolocation" });
+      const status = await currentNavigator.permissions.query({
+        name: "geolocation",
+      });
       return status.state;
     } catch {
       return "unavailable";
@@ -98,7 +112,16 @@ const getCoordinates = async (): Promise<{
   coordinates: LocationCoordinates | null;
   error: string | null;
 }> => {
-  if (typeof navigator === "undefined" || !("geolocation" in navigator)) {
+  if (typeof navigator === "undefined") {
+    return {
+      coordinates: null,
+      error: "Geolocation is not supported in this browser",
+    };
+  }
+
+  const currentNavigator = navigator as NavigatorWithClientMetadata;
+
+  if (!currentNavigator.geolocation) {
     return {
       coordinates: null,
       error: "Geolocation is not supported in this browser",
@@ -106,7 +129,7 @@ const getCoordinates = async (): Promise<{
   }
 
   return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
+    currentNavigator.geolocation.getCurrentPosition(
       (position) => {
         resolve({
           coordinates: {
@@ -141,8 +164,12 @@ export const collectClientRequestMetadata =
   async (): Promise<ClientRequestMetadata> => {
     const timezone = getBrowserTimezone();
     const permission = await getGeolocationPermission();
+    const currentNavigator =
+      typeof navigator === "undefined"
+        ? null
+        : (navigator as NavigatorWithClientMetadata);
     const deviceInfo =
-      typeof window === "undefined" || typeof navigator === "undefined"
+      typeof window === "undefined" || !currentNavigator
         ? {
             userAgent: null,
             platform: null,
@@ -155,13 +182,13 @@ export const collectClientRequestMetadata =
             viewport: null,
           }
         : {
-            userAgent: navigator.userAgent ?? null,
-            platform: getPlatform(navigator),
-            language: navigator.language ?? null,
-            languages: navigator.languages ?? [],
+            userAgent: currentNavigator.userAgent ?? null,
+            platform: getPlatform(currentNavigator),
+            language: currentNavigator.language ?? null,
+            languages: [...(currentNavigator.languages ?? [])],
             timezone,
-            hardwareConcurrency: navigator.hardwareConcurrency ?? null,
-            deviceMemory: getDeviceMemory(navigator),
+            hardwareConcurrency: currentNavigator.hardwareConcurrency ?? null,
+            deviceMemory: getDeviceMemory(currentNavigator),
             screen: window.screen
               ? {
                   width: window.screen.width,
