@@ -172,7 +172,9 @@ export class NotificationService {
     }
   }
 
-  async queueWelcomeEmail(params: WelcomeEmailNotificationParams): Promise<void> {
+  async queueWelcomeEmail(
+    params: WelcomeEmailNotificationParams,
+  ): Promise<void> {
     const context = buildWelcomeEmailContext({
       name: params.name,
       frontend: params.frontendUrl,

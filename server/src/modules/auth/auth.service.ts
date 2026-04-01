@@ -20,7 +20,9 @@ import {
   normalizeEmail,
   normalizeName,
 } from 'src/utils/auth.utils';
+import { AuthFlowConfigService } from './auth-config.service';
 import { LoginDto } from './dto/signup.dto';
+import { NotificationService } from './notification.service';
 import { TokenService } from './token.service';
 import { GithubExchangeDto } from './dto/OAuth.dto';
 
@@ -32,6 +34,8 @@ export class AuthService {
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
     private readonly tokenService: TokenService,
+    private readonly notificationService: NotificationService,
+    private readonly flowConfig: AuthFlowConfigService,
     private readonly logger: AppLogger,
   ) {}
 
@@ -214,6 +218,13 @@ export class AuthService {
         providerUserId,
         isEmailVerified: true,
         lastLoginAt: currentLoginAt,
+      });
+
+      await this.notificationService.queueWelcomeEmail({
+        email: user.email,
+        name: user.name,
+        requestId: providerUserId,
+        frontendUrl: this.flowConfig.frontendURL,
       });
     } else {
       if (
