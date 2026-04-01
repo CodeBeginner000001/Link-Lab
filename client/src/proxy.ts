@@ -21,5 +21,6 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  // Skip static assets so browsers can request favicon and Apple touch icons directly.
+  matcher: ["/((?!api|_next/static|_next/image|.*\\..*$).*)"],
 };

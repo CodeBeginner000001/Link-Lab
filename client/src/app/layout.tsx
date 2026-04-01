@@ -4,6 +4,7 @@ import { AuthUserProvider } from "@/Provider/AuthUserProvider";
 import { GetCurrentUser } from "@/service/auth";
 import "@/styles/globals.css";
 import { cookies, headers } from "next/headers";
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DM_Sans } from "next/font/google";
 import "sonner/dist/styles.css";
@@ -13,6 +14,23 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   variable: "--font-sans",
 });
+
+export const metadata: Metadata = {
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/logo.png", type: "image/png" },
+    ],
+    shortcut: ["/favicon.ico"],
+    apple: [
+      {
+        url: "/apple-touch-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+      },
+    ],
+  },
+};
 
 export default async function RootLayout({
   children,
