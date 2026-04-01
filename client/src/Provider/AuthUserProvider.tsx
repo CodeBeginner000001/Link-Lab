@@ -1,6 +1,6 @@
 "use client";
 
-import type { AuthUser } from "@/interfaces/api";
+import type { AuthUser } from "@/service/auth/types";
 import { createContext, useContext } from "react";
 
 type AuthContextType = AuthUser | null;

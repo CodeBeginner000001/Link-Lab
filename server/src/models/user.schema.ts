@@ -2,6 +2,7 @@ import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument } from 'mongoose';
 
 export type UserDocument = HydratedDocument<User>;
+export type AuthProvider = 'local' | 'github';
 
 function buildAvatarUrl(name: string, email: string): string {
   return `${process.env.BACKEND_URL}/v1/avatar?name=${encodeURIComponent(name || email)}`;
@@ -14,10 +15,11 @@ function buildAvatarUrl(name: string, email: string): string {
 })
 export class User {
   @Prop({
-    required: true,
     trim: true,
+    required: true,
     minlength: 2,
     maxlength: 100,
+    index: false,
   })
   name!: string;
 
@@ -31,19 +33,49 @@ export class User {
   email!: string;
 
   @Prop({
+    trim: true,
     type: String,
     required: false,
-    trim: true,
     default: null,
+    index: false,
   })
-  avatar!: string | null;
+  avatar?: string | null;
 
   @Prop({
-    required: true,
-    minlength: 6,
+    trim: true,
+    enum: ['local', 'github'],
+    default: 'local',
+  })
+  provider?: AuthProvider;
+
+  @Prop({
+    trim: true,
+    type: String,
+    default: null,
+    unique: true,
+    sparse: true,
+    index: true,
+  })
+  providerUserId?: string | null;
+
+  @Prop({
+    type: Boolean,
+    default: false,
+  })
+  isEmailVerified?: boolean;
+
+  @Prop({
+    type: Date,
+    default: null,
+  })
+  lastLoginAt?: Date | null;
+
+  @Prop({
+    required: false,
+    minlength: 8,
     select: false,
   })
-  password!: string;
+  password?: string;
 
   createdAt?: Date;
   updatedAt?: Date;

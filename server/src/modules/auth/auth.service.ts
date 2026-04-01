@@ -6,12 +6,23 @@ import {
   AuthenticatedUserNotFoundException,
   InvalidCredentialsException,
   RefreshTokenInvalidException,
+  UserAlreadyExistsException,
 } from 'src/exceptions/auth.exception';
+import {
+  GithubAccountConflictException,
+  GithubPasswordLoginUnavailableException,
+  InvalidGithubAccountException,
+} from 'src/exceptions/oauth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
 import { User, UserDocument } from 'src/models/user.schema';
-import { comparePassword, normalizeEmail } from 'src/utils/auth.utils';
+import {
+  comparePassword,
+  normalizeEmail,
+  normalizeName,
+} from 'src/utils/auth.utils';
 import { LoginDto } from './dto/signup.dto';
 import { TokenService } from './token.service';
+import { GithubExchangeDto } from './dto/OAuth.dto';
 
 @Injectable()
 export class AuthService {
@@ -42,6 +53,14 @@ export class AuthService {
       throw new InvalidCredentialsException();
     }
 
+    if (!user.password) {
+      this.logger.warn(
+        `Login failed: password login unavailable for ${email}`,
+        this.context,
+      );
+      throw new GithubPasswordLoginUnavailableException();
+    }
+
     const isPasswordValid = await comparePassword(dto.password, user.password);
     if (!isPasswordValid) {
       this.logger.warn(
@@ -62,6 +81,9 @@ export class AuthService {
       }),
     ]);
 
+    user.lastLoginAt = new Date();
+    await user.save();
+
     this.logger.log(`Login successful for ${email}`, this.context);
 
     return {
@@ -71,6 +93,9 @@ export class AuthService {
         name: user.name,
         email: user.email,
         avatar: user.avatar ?? null,
+        provider: user.provider ?? 'local',
+        providerUserId: user.providerUserId ?? null,
+        isEmailVerified: user.isEmailVerified ?? false,
       },
       accessToken,
       refreshToken,
@@ -133,6 +158,106 @@ export class AuthService {
         name: user.name,
         email: user.email,
         avatar: user.avatar ?? null,
+        provider: user.provider ?? 'local',
+        providerUserId: user.providerUserId ?? null,
+        isEmailVerified: user.isEmailVerified ?? false,
+      },
+    };
+  }
+  async githubExchange(dto: GithubExchangeDto) {
+    const email = dto.email.trim().toLowerCase();
+    const providerUserId = dto.providerUserId?.trim();
+    const name = dto.name?.trim()
+      ? normalizeName(dto.name)
+      : email.split('@')[0];
+    const avatar = dto.avatar?.trim() || undefined;
+    const currentLoginAt = new Date();
+
+    if (!email || !providerUserId) {
+      throw new InvalidGithubAccountException();
+    }
+
+    const [existingGithubUser, existingEmailUser] = await Promise.all([
+      this.userModel
+        .findOne({
+          provider: 'github',
+          providerUserId,
+        })
+        .exec(),
+      this.userModel.findOne({ email }).exec(),
+    ]);
+
+    if (
+      existingGithubUser &&
+      existingEmailUser &&
+      String(existingGithubUser._id) !== String(existingEmailUser._id)
+    ) {
+      if (existingEmailUser.provider !== 'github') {
+        throw new UserAlreadyExistsException();
+      }
+
+      throw new GithubAccountConflictException();
+    }
+
+    let user = existingGithubUser ?? existingEmailUser;
+
+    if (user && user.provider !== 'github') {
+      throw new UserAlreadyExistsException();
+    }
+
+    if (!user) {
+      user = await this.userModel.create({
+        email,
+        name,
+        avatar,
+        provider: 'github',
+        providerUserId,
+        isEmailVerified: true,
+        lastLoginAt: currentLoginAt,
+      });
+    } else {
+      if (
+        user.provider === 'github' &&
+        user.providerUserId &&
+        user.providerUserId !== providerUserId
+      ) {
+        throw new GithubAccountConflictException();
+      }
+
+      user.email = email;
+      user.name = name || user.name;
+      user.avatar = avatar || user.avatar;
+      user.provider = 'github';
+      user.providerUserId = providerUserId;
+      user.isEmailVerified = true;
+      user.lastLoginAt = currentLoginAt;
+      await user.save();
+    }
+
+    const [accessToken, refreshToken] = await Promise.all([
+      this.tokenService.createAccessToken({
+        id: String(user._id),
+        email: user.email,
+      }),
+      this.tokenService.createRefreshToken({
+        id: String(user._id),
+        email: user.email,
+      }),
+    ]);
+
+    return {
+      success: true,
+      message: 'GitHub authentication successful.',
+      accessToken,
+      refreshToken,
+      user: {
+        id: String(user._id),
+        email: user.email,
+        name: user.name,
+        avatar: user.avatar ?? null,
+        provider: user.provider ?? 'github',
+        providerUserId: user.providerUserId ?? null,
+        isEmailVerified: user.isEmailVerified ?? false,
       },
     };
   }

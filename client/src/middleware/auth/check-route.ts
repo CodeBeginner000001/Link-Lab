@@ -6,7 +6,8 @@ const PUBLIC_ROUTES = [
     "/signup/verify/OTP",
     "/forgetpassword",
     "/reset-password",
-    "/refresh"
+    "/refresh",
+    "/OAuth"
 ]
 export function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(

@@ -6,7 +6,7 @@ import AuthDivider from "../components/AuthDivider";
 import AuthFooter from "../components/AuthFooter";
 import AuthHero from "../components/AuthHero";
 import AuthNavBar from "../components/common/AuthNavBar";
-import GoogleButton from "../components/common/GoogleButton";
+import GithubButton from "../components/common/GithubButton";
 import SignUpForm from "../components/SignUpForm";
 
 export default async function SignUp() {
@@ -29,7 +29,7 @@ export default async function SignUp() {
             heading="Create your account"
             headline="Start your journey with LinkLab"
           />
-          <GoogleButton />
+          <GithubButton />
           <AuthDivider dividerLine="Or continue with email" />
           <SignUpForm />
           <AuthFooter

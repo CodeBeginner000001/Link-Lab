@@ -7,6 +7,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { DM_Sans } from "next/font/google";
 import "sonner/dist/styles.css";
+import OAuthWrapper from "@/context/OAuthWrapper";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -32,12 +33,14 @@ export default async function RootLayout({
   return (
     <html lang="en" className={dmSans.variable}>
       <body>
-        <ThemeProvider>
-          <AuthUserProvider user={user}>
-            {children}
-            <SonnerToaster />
-          </AuthUserProvider>
-        </ThemeProvider>
+        <OAuthWrapper>
+          <ThemeProvider>
+            <AuthUserProvider user={user}>
+              {children}
+              <SonnerToaster />
+            </AuthUserProvider>
+          </ThemeProvider>
+        </OAuthWrapper>
       </body>
     </html>
   );

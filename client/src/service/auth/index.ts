@@ -5,17 +5,17 @@ import {
   GetCurrentUserApiSuccessResponse,
   GetSessionDataApiSuccessResponse,
   LoginApiSuccessResponse,
-  ResetPasswordApiSuccessResponse,
   RefreshAccessTokenApiSuccessResponse,
   ResendOTPApiSuccessResponse,
+  ResetPasswordApiSuccessResponse,
   SignUpApiSuccessResponse,
   ValidateResetPasswordTokenApiSuccessResponse,
   VerifyForgetPasswordOTPApiSuccessResponse,
   VerifySignUpOTPApiSuccessResponse,
-} from "@/interfaces/api";
+} from "@/service/auth/types";
 
 const BACKEND_API_URL = BACKEND_API_URL_ENV;
-const FRONTEND_AUTH_API_URL = "/api/auth";
+const FRONTEND_AUTH_API_URL = "/api/auth/backend";
 
 const createServiceUnavailableError = (path: string): ApiErrorResponse => ({
   success: false,

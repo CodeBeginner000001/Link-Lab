@@ -18,6 +18,10 @@ export function generateSessionId(): string {
   return randomUUID();
 }
 
+export function generateLlId(): string {
+  return `LL${randomUUID().slice(0, 10)}`;
+}
+
 export function generateOtp(length: number): string {
   if (!Number.isInteger(length) || length <= 0)
     throw new Error('OTP length must be a positive integer');

@@ -4,8 +4,8 @@ import AuthDivider from "../components/AuthDivider";
 import AuthFooter from "../components/AuthFooter";
 import AuthHero from "../components/AuthHero";
 import AuthNavBar from "../components/common/AuthNavBar";
-import GoogleButton from "../components/common/GoogleButton";
 import LoginForm from "../components/LoginForm";
+import GithubButton from "../components/common/GithubButton";
 
 export default function Login() {
   return (
@@ -18,7 +18,7 @@ export default function Login() {
             heading="Welcome back"
             headline="Sign in to access your dashboard"
           />
-          <GoogleButton />
+          <GithubButton />
           <AuthDivider dividerLine="Or continue with email" />
           <LoginForm />
           <div className="text-center mt-4">

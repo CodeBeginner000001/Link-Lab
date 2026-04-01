@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import express from 'express';
 import { Public } from 'src/decorators/public.decorator';
+import { SkipResponseInterceptor } from 'src/decorators/skip-success-interceptor.decorator';
 import {
   AccessTokenExpired,
   ForgetPasswordSessionNotFoundException,
@@ -20,9 +21,10 @@ import {
   ResetPasswordDto,
   ResetPasswordTokenDto,
 } from './dto/forget-password.dto';
+import { GithubExchangeDto } from './dto/OAuth.dto';
 import { LoginDto, SignupDto, VerifyOtpDto } from './dto/signup.dto';
-import { SignupFlowService } from './signup-flow.service';
 import { ForgotPasswordFlowService } from './forget-password-flow.service';
+import { SignupFlowService } from './signup-flow.service';
 
 function getCookieValue(req: express.Request, key: string): string | undefined {
   const cookies = req.cookies as Record<string, unknown> | undefined;
@@ -374,5 +376,12 @@ export class AuthController {
         req.get('x-device-info') || req.get('user-agent') || 'Unknown device',
       locationInfo: req.get('x-location-info') || req.ip || 'Unknown location',
     });
+  }
+
+  @Public()
+  @SkipResponseInterceptor()
+  @Post('oauth/github/exchange')
+  async githubExchange(@Body() dto: GithubExchangeDto) {
+    return this.authService.githubExchange(dto);
   }
 }

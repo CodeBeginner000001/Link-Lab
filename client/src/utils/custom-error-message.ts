@@ -1,4 +1,4 @@
-import { CustomErrorApiResponse } from "@/interfaces/api";
+import { CustomErrorApiResponse } from "@/service/auth/types";
 
 type FormFieldErrors<TField extends string> = Partial<Record<TField, string>>;
 

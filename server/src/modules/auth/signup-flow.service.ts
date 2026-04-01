@@ -19,6 +19,7 @@ import { SignupSession } from 'src/interfaces/auth.interface';
 import { User, UserDocument } from 'src/models/user.schema';
 import {
   buildSignupSession,
+  generateLlId,
   generateOtp,
   generateSessionId,
   getMinutesToSeconds,
@@ -41,6 +42,7 @@ import { TokenService } from './token.service';
 export class SignupFlowService {
   private readonly otpLength = 6;
   private readonly passwordSaltRounds = 12;
+  private readonly llIdGenerationMaxAttempts = 5;
 
   constructor(
     @InjectModel(User.name)
@@ -158,9 +160,15 @@ export class SignupFlowService {
       throw new UserAlreadyExistsException();
     }
 
+    const providerUserId = await this.generateUniqueLocalProviderUserId();
+
     const createdUser = await this.userModel.create({
       name: session.name,
       email: session.email,
+      provider: 'local',
+      providerUserId,
+      isEmailVerified: true,
+      lastLoginAt: new Date(),
       password: session.passwordHash,
     });
 
@@ -299,6 +307,22 @@ export class SignupFlowService {
 
     throw new InternalServerErrorException({
       message,
+      error: 'Internal Server Error',
+    });
+  }
+
+  private async generateUniqueLocalProviderUserId(): Promise<string> {
+    for (let attempt = 0; attempt < this.llIdGenerationMaxAttempts; attempt++) {
+      const providerUserId = generateLlId();
+      const existingUser = await this.userModel.exists({ providerUserId });
+
+      if (!existingUser) {
+        return providerUserId;
+      }
+    }
+
+    throw new InternalServerErrorException({
+      message: 'Unable to generate LL ID',
       error: 'Internal Server Error',
     });
   }
