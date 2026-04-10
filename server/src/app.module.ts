@@ -12,6 +12,7 @@ import { SuccessResponseInterceptor } from './interceptors/success-response.inte
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
+import { UrlShortenerModule } from './modules/features/urlShortener/urlShortener.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { JwtModule } from '@nestjs/jwt';
 @Module({
@@ -26,6 +27,7 @@ import { JwtModule } from '@nestjs/jwt';
     JwtModule.register({}),
     AuthModule,
     AvatarModule,
+    UrlShortenerModule,
     RedisModule,
   ],
   controllers: [AppController],

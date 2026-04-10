@@ -101,7 +101,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message =
             validationMessages.length > 0
               ? validationMessages
-              : exceptionObj.message ?? message;
+              : (exceptionObj.message ?? message);
         } else {
           message = exceptionObj.message ?? message;
         }
