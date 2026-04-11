@@ -1,29 +1,43 @@
 "use client";
 
 import Logo from "../Logo";
-import { LayoutDashboard, Settings } from "lucide-react";
+import { ChevronLeft, LayoutDashboard, Settings } from "lucide-react";
 import Link from "next/link";
 import { dashBoardTools } from "@/utils/content";
 import { usePathname } from "next/navigation";
 import { cn } from "@/utils/tailwindcss-merger";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useEffect, useState } from "react";
 
-export default function SideBar() {
+interface SideBarProps {
+  isMobileOpen: boolean;
+  setIsMobileOpen: Dispatch<SetStateAction<boolean>>;
+}
+
+export default function SideBar({
+  isMobileOpen,
+  setIsMobileOpen,
+}: SideBarProps) {
   const pathname = usePathname();
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isDesktopExpanded, setIsDesktopExpanded] = useState(false);
+  const isExpanded = isMobileOpen || isDesktopExpanded;
+
+  useEffect(() => {
+    setIsMobileOpen(false);
+  }, [pathname, setIsMobileOpen]);
 
   return (
     <aside
-      onMouseEnter={() => setIsExpanded(true)}
-      onMouseLeave={() => setIsExpanded(false)}
+      onMouseEnter={() => setIsDesktopExpanded(true)}
+      onMouseLeave={() => setIsDesktopExpanded(false)}
       className={cn(
-        "fixed left-0 top-0 z-50 h-screen transition-[width] duration-300 ease-in-out flex flex-col overflow-hidden bg-[hsl(var(--background))] border-r border-[hsl(var(--sidebar-border))] no-scrollbar",
-        isExpanded ? "w-64" : "w-20",
+        "peer/sidebar fixed left-0 top-0 z-50 flex h-screen w-64 flex-col overflow-hidden border-r border-[hsl(var(--sidebar-border))] bg-[hsl(var(--background))] no-scrollbar transition-transform duration-300 ease-in-out sm:translate-x-0 sm:transition-[width]",
+        isMobileOpen ? "translate-x-0" : "-translate-x-full",
+        isDesktopExpanded ? "sm:w-64" : "sm:w-20",
       )}
     >
-      <div className="flex items-center h-16 border-b px-4 border-[hsl(var(--sidebar-border))]">
+      <div className="flex h-16 items-center justify-between border-b border-[hsl(var(--sidebar-border))] px-4">
         <Link href="/" className="flex items-center gap-2 min-w-0">
-          <Logo size="md" showText={false} />
+          <Logo size="sm" showText={false} />
           <span
             className={cn(
               "whitespace-nowrap overflow-hidden text-xl font-bold tracking-tight transition-all duration-200",
@@ -34,11 +48,21 @@ export default function SideBar() {
             <span className="text-foreground">Lab</span>
           </span>
         </Link>
+
+        <button
+          type="button"
+          onClick={() => setIsMobileOpen(false)}
+          className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-gray-400/15 hover:text-foreground sm:hidden"
+          aria-label="Close sidebar"
+        >
+          <ChevronLeft className="h-5 w-5" />
+        </button>
       </div>
 
       <nav className="flex flex-col gap-2 flex-1 overflow-y-auto p-4">
         <Link
           href="/dashboard"
+          onClick={() => setIsMobileOpen(false)}
           className={cn(
             "flex items-center gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
             isExpanded ? "justify-start px-3" : "justify-center px-2",
@@ -72,6 +96,7 @@ export default function SideBar() {
           <Link
             key={name}
             href={href}
+            onClick={() => setIsMobileOpen(false)}
             className={cn(
               "flex items-center text-sm gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
               isExpanded ? "justify-start px-3" : "justify-center px-2",
@@ -94,6 +119,7 @@ export default function SideBar() {
       <div className="p-4">
         <Link
           href="/dashboard/settings"
+          onClick={() => setIsMobileOpen(false)}
           className={cn(
             "flex items-center gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
             isExpanded ? "justify-start px-3" : "justify-center px-2",

@@ -29,14 +29,14 @@ const Heading = ({
       <h1
         className={cn(
           "text-2xl font-bold flex items-center gap-2",
-          headingClassName
+          headingClassName,
         )}
       >
         {Icon && (
           <Icon
             className={cn(
               "w-8 h-8 text-primary",
-              iconClassName
+              iconClassName,
             )}
           />
         )}
@@ -46,7 +46,7 @@ const Heading = ({
       <p
         className={cn(
           "text-[hsl(var(--muted-foreground)/0.8)]",
-          paraClassName
+          paraClassName,
         )}
       >
         {para}
@@ -56,7 +56,7 @@ const Heading = ({
         <Icon1
           className={cn(
             "h-8 w-8 text-primary",
-            secondIconClassName
+            secondIconClassName,
           )}
         />
       )}

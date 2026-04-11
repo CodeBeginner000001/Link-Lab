@@ -17,7 +17,7 @@ export default function UrlInput({
 }: UrlInputProps) {
   return (
     <div className={cn("grid gap-2", containerClassName)}>
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} className="max-sm:text-xs">{label}</Label>
       <Input
         id={id}
         type="url"
