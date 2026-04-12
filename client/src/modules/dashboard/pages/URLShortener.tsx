@@ -38,7 +38,7 @@ const URLShortener = async () => {
           <URLShortenerForm />
         </ToolPanel>
 
-        <URLShortenerUrlsPanel items={items} />
+        <URLShortenerUrlsPanel items={items}/>
       </div>
 
       <URLShortenerAnalyticsPanel items={items} />

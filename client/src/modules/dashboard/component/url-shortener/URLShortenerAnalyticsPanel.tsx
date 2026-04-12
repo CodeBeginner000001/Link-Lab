@@ -6,6 +6,8 @@ import {
   ShortUrlItem,
   ShortUrlStatus,
 } from "@/service/dashboard/url-shortener/type";
+import { ANALYTICS_REFRESH_DELAY_SECONDS } from "@/utils/content";
+import { formatDate, formatDelay } from "@/utils/date-time-helper";
 import { BarChart3, CalendarDays, ExternalLink, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
@@ -13,10 +15,8 @@ import ToolEmptyState from "../common/ToolEmptyState";
 import ToolExpandableRows from "../common/ToolExpandableRows";
 import ToolFeaturePill from "../common/ToolFeaturePill";
 import ToolPanel from "../common/ToolPanel";
-import URLShortenerDeleteModal from "./URLShortenerDeleteModal";
 import ToolPillGroup from "../common/ToolPillGroup";
-import { ANALYTICS_REFRESH_DELAY_SECONDS } from "@/utils/content";
-import { formatDate, formatDelay } from "@/utils/date-time-helper";
+import URLShortenerDeleteModal from "./URLShortenerDeleteModal";
 
 const ShortUrlStatusChip = ({ status }: { status: ShortUrlStatus }) => (
   <span
@@ -35,7 +35,7 @@ type URLShortenerAnalyticsPanelProps = {
   items: ShortUrlItem[];
 };
 
-export default function URLShortenerAnalyticsPanel({
+export default  function URLShortenerAnalyticsPanel({
   items: initialItems,
 }: URLShortenerAnalyticsPanelProps) {
   const [items, setItems] = useState<ShortUrlItem[]>(initialItems);

@@ -14,6 +14,7 @@ export const CreateShortUrl = async (longUrl: string, customAlias?: string) => {
     init: {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: 'include',
       body: JSON.stringify(body),
     },
   });
@@ -25,6 +26,7 @@ export const GetUserShortUrls = async (headers?: HeadersInit) => {
     init: {
       method: "GET",
       headers,
+      credentials: 'include',
       cache: "no-store",
     },
   });
@@ -33,6 +35,6 @@ export const GetUserShortUrls = async (headers?: HeadersInit) => {
 export const DeleteShortUrl = async (id: string) => {
   return requestWithRefresh<DeleteShortUrlResponse>({
     path: `/short-urls/${id}`,
-    init: { method: "DELETE" },
+    init: { method: "DELETE", credentials: 'include' },
   });
 };
