@@ -2,7 +2,7 @@
 
 import { cn } from "@/utils/tailwindcss-merger";
 import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
-import { ReactNode, useState } from "react";
+import { KeyboardEvent, MouseEvent, ReactNode, useState } from "react";
 
 const expandTransition = {
   duration: 0.24,
@@ -25,8 +25,6 @@ type ToolExpandableRowsProps = {
   openTriggerClassName?: string;
   closedTriggerClassName?: string;
   contentClassName?: string;
-  chevronClassName?: string;
-  hideChevron?: boolean;
 };
 
 export default function ToolExpandableRows({
@@ -39,12 +37,45 @@ export default function ToolExpandableRows({
   openTriggerClassName,
   closedTriggerClassName,
   contentClassName,
-  chevronClassName,
-  hideChevron = false,
 }: ToolExpandableRowsProps) {
   const [expandedId, setExpandedId] = useState<string | null>(
     initialOpenId ?? items[0]?.id ?? null,
   );
+
+  const toggleRow = (itemId: string) => {
+    setExpandedId((currentId) => (currentId === itemId ? null : itemId));
+  };
+
+  const isActionTarget = (target: EventTarget | null) =>
+    target instanceof Element &&
+    Boolean(
+      target.closest(
+        'a, button, input, textarea, select, [data-row-action="true"]',
+      ),
+    );
+
+  const handleRowClick = (
+    event: MouseEvent<HTMLDivElement>,
+    itemId: string,
+  ) => {
+    if (isActionTarget(event.target)) {
+      return;
+    }
+
+    toggleRow(itemId);
+  };
+
+  const handleRowKeyDown = (
+    event: KeyboardEvent<HTMLDivElement>,
+    itemId: string,
+  ) => {
+    if (event.key !== "Enter" && event.key !== " ") {
+      return;
+    }
+
+    event.preventDefault();
+    toggleRow(itemId);
+  };
 
   return (
     <section className={className}>
@@ -67,21 +98,29 @@ export default function ToolExpandableRows({
                 transition={expandTransition}
                 className={rowClassName}
               >
-                <motion.button
+                <motion.div
                   layout="position"
-                  type="button"
-                  onClick={() => setExpandedId(isOpen ? null : item.id)}
                   className={cn(
-                    "w-full text-left",
+                    "w-full",
                     triggerClassName,
                     isOpen ? openTriggerClassName : closedTriggerClassName,
                   )}
-                  aria-expanded={isOpen}
                 >
-                  <div className="flex items-start gap-4">
-                    <div className="min-w-0 flex-1 cursor-pointer">{item.trigger}</div>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={(event) => handleRowClick(event, item.id)}
+                    onKeyDown={(event) => handleRowKeyDown(event, item.id)}
+                    className="w-full min-w-0 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-0"
+                    aria-expanded={isOpen}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="min-w-0 flex-1 cursor-pointer">
+                        {item.trigger}
+                      </div>
+                    </div>
                   </div>
-                </motion.button>
+                </motion.div>
 
                 <AnimatePresence initial={false}>
                   {isOpen ? (
