@@ -3,7 +3,7 @@ import { BACKEND_API_URL_ENV } from "@/config/api";
 import { ApiErrorResponse } from "./auth/types";
 
 const BACKEND_API_URL = BACKEND_API_URL_ENV;
-
+const FRONTEND_AUTH_API_URL = "/api/auth/backend";
 export type ApiResult<T> =
   | { statusCode: number; result: T }
   | { statusCode: number; error: ApiErrorResponse };
@@ -62,7 +62,7 @@ const shouldRefreshToken = (
 
 const refreshAccessToken = async (): Promise<boolean> => {
   if (!refreshPromise) {
-    refreshPromise = fetch(`${BACKEND_API_URL}/auth/refresh-token`, {
+    refreshPromise = fetch(`${FRONTEND_AUTH_API_URL}/refresh-token`, {
       method: "POST",
       credentials: "include",
     })
