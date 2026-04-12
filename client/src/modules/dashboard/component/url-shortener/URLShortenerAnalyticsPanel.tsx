@@ -73,14 +73,16 @@ export default function URLShortenerAnalyticsPanel({
       });
     };
 
-    const intervalId = window.setInterval(
+    void fetchLatest();
+
+    const intervalId = setInterval(
       fetchLatest,
-      ANALYTICS_REFRESH_DELAY_SECONDS,
+      ANALYTICS_REFRESH_DELAY_SECONDS * 1000,
     );
 
     return () => {
       isMounted = false;
-      window.clearInterval(intervalId);
+      clearInterval(intervalId);
     };
   }, []);
 
