@@ -4,27 +4,24 @@ import UrlInput from "@/components/common/UrlInput";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Label } from "@/components/ui/Label";
+import { CreateShortUrl } from "@/service/dashboard/url-shortener";
+import { ShortUrlItem } from "@/service/dashboard/url-shortener/type";
 import { useToastNotification } from "@/utils/toast";
 import { FormEvent, useState } from "react";
 import { Loader2, Link2 } from "lucide-react";
-
-const generateShortCode = () =>
-  Math.random().toString(36).slice(2, 8).toLowerCase();
+import { useRouter } from "next/navigation";
 
 const normalizeUrl = (value: string) =>
   value.startsWith("http://") || value.startsWith("https://")
     ? value
     : `https://${value}`;
 
-const normalizeAlias = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]/g, "-")
-    .replace(/-+/g, "-")
-    .replace(/^-|-$/g, "");
+type URLShortenerFormProps = {
+  onCreated?: (item: ShortUrlItem) => void;
+};
 
-const URLShortenerForm = () => {
+const URLShortenerForm = ({ onCreated }: URLShortenerFormProps) => {
+  const router = useRouter();
   const notify = useToastNotification();
   const [url, setUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
@@ -40,19 +37,29 @@ const URLShortenerForm = () => {
 
     try {
       setIsLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 700));
 
-      const destinationUrl = normalizeUrl(url.trim());
-      const alias = normalizeAlias(customAlias) || generateShortCode();
-      const shortUrl = `https://linklab.app/${alias}`;
+      const longUrl = normalizeUrl(url.trim());
+      const alias = customAlias.trim() || undefined;
 
-      new URL(destinationUrl);
+      const res = await CreateShortUrl(longUrl, alias);
+      if ("error" in res) {
+        const rawMessage = res.error?.message;
+        const message = Array.isArray(rawMessage)
+          ? (rawMessage[0] ?? "Failed to create short URL.")
+          : (rawMessage ?? "Failed to create short URL.");
 
+        notify(message, "error");
+        return;
+      }
+
+      const created = res.result.data.shortUrl;
       setUrl("");
       setCustomAlias("");
-      notify(`Short URL created: ${shortUrl}`, "success");
+      notify(`Short URL created: ${created.shortUrl}`, "success");
+      onCreated?.(created);
+      router.refresh();
     } catch {
-      notify("Enter a valid URL to shorten.", "error");
+      notify("Something went wrong. Please try again.", "error");
     } finally {
       setIsLoading(false);
     }

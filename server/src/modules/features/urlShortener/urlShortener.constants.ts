@@ -27,6 +27,6 @@ export function getShortUrlLookupKey(alias: string): string {
   return `short-url:lookup:${alias}`;
 }
 
-export function getShortUrlPendingClicksKey(alias: string): string {
-  return `short-url:pending-clicks:${alias}`;
+export function getShortUrlAnalyticsKey(alias: string): string {
+  return `short-url:analytics:${alias}`;
 }

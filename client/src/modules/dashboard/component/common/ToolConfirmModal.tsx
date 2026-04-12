@@ -54,7 +54,7 @@ export default function ToolConfirmModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby="tool-confirm-modal-title"
-        className="relative z-10 w-full max-w-[20rem] rounded-[1.5rem] border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-2xl sm:max-w-sm sm:p-5"
+        className="relative z-10 w-full max-w-[20rem] rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-2xl sm:max-w-sm sm:p-5"
       >
         <div className="flex items-start justify-between gap-3">
           <div>

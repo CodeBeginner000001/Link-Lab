@@ -266,3 +266,5 @@ export const dashBoardTools = [
   { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
   { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
 ];
+
+export const ANALYTICS_REFRESH_DELAY_SECONDS = 6000;

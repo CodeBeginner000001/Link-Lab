@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -8,24 +7,42 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { randomBytes } from 'crypto';
-import { Model, Types } from 'mongoose';
+import { Model } from 'mongoose';
 import { RedisService } from 'src/common/db/redis.service';
 import { JwtPayload } from 'src/interfaces/auth.interface';
-import { CreateShortUrlDto } from './dto/create-short-url.dto';
 import {
   ShortUrl,
   ShortUrlDocument,
   ShortUrlStatus,
 } from 'src/models/short-url.schema';
+import { CreateShortUrlDto } from './dto/create-short-url.dto';
 import {
   AUTO_ALIAS_GENERATION_ATTEMPTS,
   AUTO_ALIAS_LENGTH,
+  getShortUrlAnalyticsKey,
   getShortUrlLookupKey,
-  getShortUrlPendingClicksKey,
   RESERVED_SHORT_URL_ALIASES,
   SHORT_URL_ALIAS_REGEX,
 } from './urlShortener.constants';
+import {
+  normalizeAlias,
+  validateAlias,
+  generateRandomAlias,
+} from '../utils/alias-helper.utils';
+import {
+  toObjectId,
+  normalizeHttpUrl,
+  isDuplicateKeyError,
+  parseNonNegativeInt,
+} from '../utils/common.utils';
+import {
+  warmJsonCache,
+  deleteCacheKeys,
+  getJsonCache,
+  setHashFields,
+  getHashFields,
+  incrementHashField,
+} from '../utils/redis-helper.utils';
 
 type ShortUrlCacheEntry = {
   id: string;
@@ -33,6 +50,25 @@ type ShortUrlCacheEntry = {
   alias: string;
   longUrl: string;
   status: ShortUrlStatus;
+};
+
+type ShortUrlAnalytics = {
+  count?: number | string;
+  lastClickedAt?: string | null;
+};
+
+type SerializedShortUrl = {
+  id: string;
+  alias: string;
+  longUrl: string;
+  shortUrl: string;
+  status: ShortUrlStatus;
+  clicksPersisted: number;
+  pendingClicks: number;
+  totalClicks: number;
+  lastClickedAt: string | Date | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
 };
 
 @Injectable()
@@ -45,15 +81,24 @@ export class UrlShortenerService {
   ) {}
 
   async createShortUrl(user: JwtPayload, dto: CreateShortUrlDto) {
-    const userId = this.toObjectId(
-      user.sub,
-      'Authenticated user id is invalid',
-    );
-    const longUrl = this.normalizeLongUrl(dto.longUrl);
+    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
+    const longUrl = normalizeHttpUrl({
+      value: dto.longUrl,
+      fieldName: 'Long URL',
+    });
 
     if (dto.customAlias?.trim()) {
-      const alias = this.normalizeAlias(dto.customAlias);
-      this.validateAlias(alias);
+      const alias = normalizeAlias(dto.customAlias);
+
+      validateAlias({
+        alias,
+        regex: SHORT_URL_ALIAS_REGEX,
+        reservedAliases: RESERVED_SHORT_URL_ALIASES,
+        minLength: 3,
+        maxLength: 32,
+        message:
+          'Alias must be 3 to 32 characters and use lowercase letters, numbers, underscores, or hyphens only',
+      });
 
       try {
         const shortUrl = await this.shortUrlModel.create({
@@ -64,13 +109,14 @@ export class UrlShortenerService {
         });
 
         await this.warmCache(shortUrl);
+        await this.initializeAnalytics(shortUrl.alias);
 
         return {
           message: 'Short URL created successfully',
-          shortUrl: this.serializeShortUrl(shortUrl, 0),
+          shortUrl: this.serializeShortUrl(shortUrl, 0, null),
         };
       } catch (error) {
-        if (this.isDuplicateKeyError(error)) {
+        if (isDuplicateKeyError(error)) {
           throw new ConflictException({
             message: 'Custom alias is already in use',
             error: 'Conflict',
@@ -82,7 +128,7 @@ export class UrlShortenerService {
     }
 
     for (let i = 0; i < AUTO_ALIAS_GENERATION_ATTEMPTS; i += 1) {
-      const alias = this.generateAlias();
+      const alias = generateRandomAlias(AUTO_ALIAS_LENGTH);
 
       try {
         const shortUrl = await this.shortUrlModel.create({
@@ -93,13 +139,14 @@ export class UrlShortenerService {
         });
 
         await this.warmCache(shortUrl);
+        await this.initializeAnalytics(shortUrl.alias);
 
         return {
           message: 'Short URL created successfully',
-          shortUrl: this.serializeShortUrl(shortUrl, 0),
+          shortUrl: this.serializeShortUrl(shortUrl, 0, null),
         };
       } catch (error) {
-        if (this.isDuplicateKeyError(error)) {
+        if (isDuplicateKeyError(error)) {
           continue;
         }
 
@@ -114,31 +161,26 @@ export class UrlShortenerService {
   }
 
   async getUserShortUrls(user: JwtPayload) {
-    const userId = this.toObjectId(
-      user.sub,
-      'Authenticated user id is invalid',
-    );
+    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
 
     const shortUrls = await this.shortUrlModel
       .find({ userId, status: ShortUrlStatus.ACTIVE })
       .sort({ createdAt: -1 })
       .exec();
 
-    const pendingClickKeys = shortUrls.map((item) =>
-      getShortUrlPendingClicksKey(item.alias),
-    );
+    const items: SerializedShortUrl[] = [];
 
-    const pendingClickValues =
-      pendingClickKeys.length > 0
-        ? await this.redisService.client.mget(...pendingClickKeys)
-        : [];
+    for (const shortUrl of shortUrls) {
+      const analytics = await this.getAnalytics(shortUrl.alias);
 
-    const items = shortUrls.map((item, index) =>
-      this.serializeShortUrl(
-        item,
-        this.parsePendingClicks(pendingClickValues[index]),
-      ),
-    );
+      items.push(
+        this.serializeShortUrl(
+          shortUrl,
+          analytics.count,
+          analytics.lastClickedAt,
+        ),
+      );
+    }
 
     return {
       total: items.length,
@@ -147,11 +189,8 @@ export class UrlShortenerService {
   }
 
   async deleteShortUrl(user: JwtPayload, shortUrlId: string) {
-    const userId = this.toObjectId(
-      user.sub,
-      'Authenticated user id is invalid',
-    );
-    const urlId = this.toObjectId(shortUrlId, 'Short URL id is invalid');
+    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
+    const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
 
     const shortUrl = await this.shortUrlModel.findById(urlId).exec();
 
@@ -169,16 +208,13 @@ export class UrlShortenerService {
       });
     }
 
-    const rawPendingClicks = await this.redisService.client.get(
-      getShortUrlPendingClicksKey(shortUrl.alias),
-    );
-    const flushedPendingClicks = this.parsePendingClicks(rawPendingClicks);
+    const analytics = await this.getAnalytics(shortUrl.alias);
 
     shortUrl.status = ShortUrlStatus.DISABLED;
-    shortUrl.clicksPersisted += flushedPendingClicks;
+    shortUrl.clicksPersisted += analytics.count;
 
-    if (flushedPendingClicks > 0) {
-      shortUrl.lastClickedAt = new Date();
+    if (analytics.lastClickedAt) {
+      shortUrl.lastClickedAt = new Date(analytics.lastClickedAt);
     }
 
     await shortUrl.save();
@@ -187,13 +223,13 @@ export class UrlShortenerService {
     return {
       message: 'Short URL deleted successfully',
       deleted: true,
-      flushedPendingClicks,
-      shortUrl: this.serializeShortUrl(shortUrl, 0),
+      flushedPendingClicks: analytics.count,
+      shortUrl: this.serializeShortUrl(shortUrl, 0, null),
     };
   }
 
   async resolveShortUrl(aliasParam: string): Promise<string> {
-    const alias = this.normalizeAlias(aliasParam);
+    const alias = normalizeAlias(aliasParam);
 
     if (!SHORT_URL_ALIAS_REGEX.test(alias)) {
       throw new NotFoundException({
@@ -203,9 +239,24 @@ export class UrlShortenerService {
     }
 
     const cached = await this.getCachedShortUrl(alias);
+    const clickedAt = new Date().toISOString();
 
     if (cached?.status === ShortUrlStatus.ACTIVE) {
-      await this.redisService.client.incr(getShortUrlPendingClicksKey(alias));
+      await incrementHashField({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        field: 'count',
+        by: 1,
+      });
+
+      await setHashFields({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        value: {
+          lastClickedAt: clickedAt,
+        },
+      });
+
       return cached.longUrl;
     }
 
@@ -220,61 +271,24 @@ export class UrlShortenerService {
       });
     }
 
-    await Promise.all([
-      this.warmCache(shortUrl),
-      this.redisService.client.incr(getShortUrlPendingClicksKey(alias)),
-    ]);
+    await this.warmCache(shortUrl);
+
+    await incrementHashField({
+      client: this.redisService.client,
+      key: getShortUrlAnalyticsKey(alias),
+      field: 'count',
+      by: 1,
+    });
+
+    await setHashFields({
+      client: this.redisService.client,
+      key: getShortUrlAnalyticsKey(alias),
+      value: {
+        lastClickedAt: clickedAt,
+      },
+    });
 
     return shortUrl.longUrl;
-  }
-
-  private normalizeLongUrl(longUrl: string): string {
-    const value = longUrl.trim();
-
-    let parsed: URL;
-
-    try {
-      parsed = new URL(value);
-    } catch {
-      throw new BadRequestException({
-        message: 'Long URL is invalid',
-        error: 'Bad Request',
-      });
-    }
-
-    if (!['http:', 'https:'].includes(parsed.protocol)) {
-      throw new BadRequestException({
-        message: 'Long URL must use http or https',
-        error: 'Bad Request',
-      });
-    }
-
-    return parsed.toString();
-  }
-
-  private normalizeAlias(alias: string): string {
-    return alias.trim().toLowerCase();
-  }
-
-  private validateAlias(alias: string) {
-    if (RESERVED_SHORT_URL_ALIASES.has(alias)) {
-      throw new BadRequestException({
-        message: 'Custom alias is reserved and cannot be used',
-        error: 'Bad Request',
-      });
-    }
-
-    if (!SHORT_URL_ALIAS_REGEX.test(alias) || alias.length < 3) {
-      throw new BadRequestException({
-        message:
-          'Alias must be 3 to 32 characters and use lowercase letters, numbers, underscores, or hyphens only',
-        error: 'Bad Request',
-      });
-    }
-  }
-
-  private generateAlias(): string {
-    return randomBytes(16).toString('hex').slice(0, AUTO_ALIAS_LENGTH);
   }
 
   private buildShortUrl(alias: string): string {
@@ -287,7 +301,11 @@ export class UrlShortenerService {
     return `${publicBaseUrl}/r/${alias}`;
   }
 
-  private serializeShortUrl(shortUrl: ShortUrlDocument, pendingClicks: number) {
+  private serializeShortUrl(
+    shortUrl: ShortUrlDocument,
+    pendingClicks: number,
+    redisLastClickedAt?: string | null,
+  ): SerializedShortUrl {
     return {
       id: String(shortUrl._id),
       alias: shortUrl.alias,
@@ -297,7 +315,7 @@ export class UrlShortenerService {
       clicksPersisted: shortUrl.clicksPersisted,
       pendingClicks,
       totalClicks: shortUrl.clicksPersisted + pendingClicks,
-      lastClickedAt: shortUrl.lastClickedAt ?? null,
+      lastClickedAt: redisLastClickedAt ?? shortUrl.lastClickedAt ?? null,
       createdAt: shortUrl.createdAt ?? null,
       updatedAt: shortUrl.updatedAt ?? null,
     };
@@ -312,76 +330,88 @@ export class UrlShortenerService {
       status: shortUrl.status,
     };
 
-    await this.redisService.client.set(
-      getShortUrlLookupKey(shortUrl.alias),
-      JSON.stringify(payload),
+    await warmJsonCache({
+      client: this.redisService.client,
+      key: getShortUrlLookupKey(shortUrl.alias),
+      value: payload,
+    });
+  }
+
+  private async initializeAnalytics(alias: string): Promise<void> {
+    await setHashFields({
+      client: this.redisService.client,
+      key: getShortUrlAnalyticsKey(alias),
+      value: {
+        count: 0,
+        lastClickedAt: null,
+      },
+    });
+  }
+
+  private async getAnalytics(alias: string): Promise<{
+    count: number;
+    lastClickedAt: string | null;
+  }> {
+    const analytics = await getHashFields<ShortUrlAnalytics>(
+      this.redisService.client,
+      getShortUrlAnalyticsKey(alias),
     );
+
+    const count = parseNonNegativeInt(
+      analytics?.count !== undefined && analytics?.count !== null
+        ? String(analytics.count)
+        : null,
+    );
+
+    const lastClickedAt =
+      typeof analytics?.lastClickedAt === 'string'
+        ? analytics.lastClickedAt
+        : null;
+
+    return {
+      count,
+      lastClickedAt,
+    };
   }
 
   private async clearCache(alias: string) {
-    await this.redisService.client.del(
+    await deleteCacheKeys(
+      this.redisService.client,
       getShortUrlLookupKey(alias),
-      getShortUrlPendingClicksKey(alias),
+      getShortUrlAnalyticsKey(alias),
     );
   }
 
   private async getCachedShortUrl(
     alias: string,
   ): Promise<ShortUrlCacheEntry | null> {
-    const raw = await this.redisService.client.get(getShortUrlLookupKey(alias));
+    const parsed = await getJsonCache<Partial<ShortUrlCacheEntry>>(
+      this.redisService.client,
+      getShortUrlLookupKey(alias),
+    );
 
-    if (!raw) {
+    if (!parsed) {
       return null;
     }
 
-    try {
-      const parsed = JSON.parse(raw) as Partial<ShortUrlCacheEntry>;
-
-      if (
-        typeof parsed.id !== 'string' ||
-        typeof parsed.userId !== 'string' ||
-        typeof parsed.alias !== 'string' ||
-        typeof parsed.longUrl !== 'string'
-      ) {
-        return null;
-      }
-
-      return {
-        id: parsed.id,
-        userId: parsed.userId,
-        alias: parsed.alias,
-        longUrl: parsed.longUrl,
-        status:
-          parsed.status === ShortUrlStatus.DISABLED
-            ? ShortUrlStatus.DISABLED
-            : ShortUrlStatus.ACTIVE,
-      };
-    } catch {
+    if (
+      typeof parsed.id !== 'string' ||
+      typeof parsed.userId !== 'string' ||
+      typeof parsed.alias !== 'string' ||
+      typeof parsed.longUrl !== 'string'
+    ) {
       return null;
     }
-  }
 
-  private parsePendingClicks(value: string | null): number {
-    if (!value) {
-      return 0;
-    }
-
-    const parsed = Number.parseInt(value, 10);
-    return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
-  }
-
-  private toObjectId(id: string, message: string): Types.ObjectId {
-    if (!Types.ObjectId.isValid(id)) {
-      throw new BadRequestException({
-        message,
-        error: 'Bad Request',
-      });
-    }
-
-    return new Types.ObjectId(id);
-  }
-
-  private isDuplicateKeyError(error: unknown): boolean {
-    return (error as { code?: number } | null)?.code === 11000;
+    return {
+      id: parsed.id,
+      userId: parsed.userId,
+      alias: parsed.alias,
+      longUrl: parsed.longUrl,
+      status:
+        parsed.status === ShortUrlStatus.DISABLED
+          ? ShortUrlStatus.DISABLED
+          : ShortUrlStatus.ACTIVE,
+    };
   }
 }
