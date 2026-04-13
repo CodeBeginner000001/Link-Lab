@@ -16,5 +16,6 @@ import { UrlShortenerRedirectController } from './urlShortenerRedirect.controlle
   ],
   controllers: [UrlShortenerController, UrlShortenerRedirectController],
   providers: [UrlShortenerService],
+  exports: [MongooseModule],
 })
 export class UrlShortenerModule {}
