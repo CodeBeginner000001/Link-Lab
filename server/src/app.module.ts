@@ -1,6 +1,7 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DbModule } from './common/db/db.module';
@@ -14,7 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { UrlShortenerModule } from './modules/features/urlShortener/urlShortener.module';
 import { RedisModule } from './modules/redis/redis.module';
-import { JwtModule } from '@nestjs/jwt';
+import { CronJobModule } from './modules/cron-job/cron-job.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +30,7 @@ import { JwtModule } from '@nestjs/jwt';
     AvatarModule,
     UrlShortenerModule,
     RedisModule,
+    CronJobModule,
   ],
   controllers: [AppController],
   providers: [
