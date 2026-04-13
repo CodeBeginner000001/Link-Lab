@@ -10,6 +10,7 @@ export type ApiResult<T> =
 
 type RequestWithRefreshOptions = {
   path: string;
+  baseUrl?: string;
   init?: RequestInit;
   retry?: boolean;
 };
@@ -78,12 +79,12 @@ const refreshAccessToken = async (): Promise<boolean> => {
 
 export const requestWithRefresh = async <T>({
   path,
+  baseUrl = BACKEND_API_URL,
   init,
   retry = true,
 }: RequestWithRefreshOptions): Promise<ApiResult<T>> => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}${path}`, {
-      credentials: "include",
+    const response = await fetch(`${baseUrl}${path}`, {
       ...init,
     });
 
@@ -111,6 +112,7 @@ export const requestWithRefresh = async <T>({
       if (refreshed) {
         return requestWithRefresh<T>({
           path,
+          baseUrl,
           init,
           retry: false,
         });
