@@ -262,7 +262,7 @@ export const dashBoardTools = [
   { name: "Link Expander", href: "/dashboard/link-expander", icon: ExternalLink },
   { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
   { name: "Barcode Generator", href: "/dashboard/barcode-generator", icon: Barcode },
-  { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanLine },
+  { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanBarcode },
   { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
   { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
 ];

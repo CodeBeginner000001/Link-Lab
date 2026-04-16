@@ -4,6 +4,7 @@ import { ShortUrl, ShortUrlSchema } from 'src/models/short-url.schema';
 import { UrlShortenerController } from './urlShortener.controller';
 import { UrlShortenerService } from './urlShortener.service';
 import { UrlShortenerRedirectController } from './urlShortenerRedirect.controller';
+import { User, UserSchema } from 'src/models/user.schema';
 
 @Module({
   imports: [
@@ -11,6 +12,10 @@ import { UrlShortenerRedirectController } from './urlShortenerRedirect.controlle
       {
         name: ShortUrl.name,
         schema: ShortUrlSchema,
+      },
+      {
+        name: User.name,
+        schema: UserSchema,
       },
     ]),
   ],

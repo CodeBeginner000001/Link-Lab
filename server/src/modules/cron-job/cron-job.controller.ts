@@ -7,12 +7,21 @@ import {
   HttpStatus,
   UnauthorizedException,
 } from '@nestjs/common';
+import { Public } from 'src/decorators/public.decorator';
 import { CronJobService } from './cron-job.service';
+import { ConfigService } from '@nestjs/config';
 
-@Controller('api/cron')
+@Controller('v1/api/cron')
 export class CronController {
-  constructor(private readonly cronService: CronJobService) {}
+  readonly cronString: string | undefined;
+  constructor(
+    private readonly cronService: CronJobService,
+    private readonly configService: ConfigService,
+  ) {
+    this.cronString = this.configService.getOrThrow<string>('CRON_SECRET');
+  }
 
+  @Public()
   @Get('url-shortener')
   @HttpCode(HttpStatus.OK)
   async dailyCleanup(@Headers('authorization') authorization?: string) {

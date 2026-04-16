@@ -10,17 +10,22 @@ import {
   DropdownMenuTrigger,
 } from "@radix-ui/react-dropdown-menu";
 import { LogOut, User } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Avatar, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Logout } from "@/service/auth";
 
+const USER_MENU_TRIGGER_ID = "dashboard-user-menu-trigger";
+const USER_MENU_CONTENT_ID = "dashboard-user-menu-content";
+
 const UserAvatar = () => {
   const user = useAuth();
   const router = useRouter();
   const notify = useToastNotification();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
 
   const handleLogOut = async () => {
     if (isLoggingOut) {
@@ -49,8 +54,12 @@ const UserAvatar = () => {
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+    <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenuTrigger
+        asChild
+        id={USER_MENU_TRIGGER_ID}
+        aria-controls={isOpen ? USER_MENU_CONTENT_ID : undefined}
+      >
         <Button
           variant="ghost"
           size="icon"
@@ -65,6 +74,8 @@ const UserAvatar = () => {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
+        id={USER_MENU_CONTENT_ID}
+        aria-labelledby={USER_MENU_TRIGGER_ID}
         align="end"
         className="w-56 rounded-lg border border-[hsl(var(--sidebar-border))] bg-[hsl(var(--background))]"
       >
@@ -74,13 +85,13 @@ const UserAvatar = () => {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
-          <a
+          <Link
             href="/dashboard/settings"
             className="flex items-center gap-2 cursor-pointer px-4 py-2 border-y border-[hsl(var(--sidebar-border))] focus-visible:outline-none hover:bg-[hsl(var(--secondary)/0.7)]"
           >
             <User className="h-4 w-4" />
             Profile Settings
-          </a>
+          </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem

@@ -2,9 +2,9 @@
 
 import { QrCode } from "lucide-react";
 import { useState } from "react";
-import { QR_CONTENT_CONFIG, QRContentType } from "../interface/qrGeneratorConfig";
+import { QR_CONTENT_CONFIG, QRContentType } from "../../interface/qrGeneratorConfig";
 import QRGeneratorClientForm from "./QRGeneratorClientForm";
-import BoxHeading from "./common/BoxHeading";
+import BoxHeading from "../common/BoxHeading";
 
 export default function QRGeneratorClientPanel({
   initialType,

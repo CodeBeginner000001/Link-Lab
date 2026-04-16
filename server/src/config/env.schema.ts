@@ -59,7 +59,6 @@ export const envSchema = z
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_SQS_EMAIL_QUEUE_URL: z.string().optional(),
     AWS_SQS_EMAIL_QUEUE_ARN: z.string().optional(),
-
     INTERNAL_API_KEY: z
       .string()
       .min(8, 'INTERNAL_API_KEY must be at least 8 characters')
@@ -72,6 +71,7 @@ export const envSchema = z
     RESET_LINK_EXPIRATION_MINUTES: z.coerce.number().positive().default(10),
     SIGNUP_SESSION_TTL_MINUTES: z.coerce.number().positive().default(60),
     FORGOT_PASSWORD_TTL_MINUTES: z.coerce.number().positive().default(10),
+    CRON_SECRET: z.coerce.string(),
   })
   .superRefine((env, ctx) => {
     if (!env.REDIS_HOST && !env.UPSTASH_REDIS_URL) {

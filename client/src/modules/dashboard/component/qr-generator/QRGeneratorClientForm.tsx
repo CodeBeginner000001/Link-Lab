@@ -8,7 +8,7 @@ import { cn } from "@/utils/tailwindcss-merger";
 import { Loader2, QrCode } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useState, useTransition } from "react";
-import { QR_CONTENT_CONFIG, QRContentType, WiFiFormState, WifiSecurityType } from "../interface/qrGeneratorConfig";
+import { QR_CONTENT_CONFIG, QRContentType, WiFiFormState, WifiSecurityType } from "../../interface/qrGeneratorConfig";
 
 type BasicContentType = Exclude<QRContentType, "wifi">;
 

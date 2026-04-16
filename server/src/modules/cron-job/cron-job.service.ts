@@ -63,7 +63,7 @@ export class CronJobService {
           ? analytics.lastClickedAt
           : null;
 
-      if (count <= 0 && !lastClickedAt) {
+      if (count <= 0) {
         continue;
       }
 
@@ -80,11 +80,9 @@ export class CronJobService {
         mongoUpdate.$set = { lastClickedAt: new Date(lastClickedAt) };
       }
 
-      if (mongoUpdate.$inc || mongoUpdate.$set) {
-        await this.shortUrlModel.updateOne({ _id: shortUrl._id }, mongoUpdate);
+      await this.shortUrlModel.updateOne({ _id: shortUrl._id }, mongoUpdate);
 
-        updated += 1;
-      }
+      updated += 1;
 
       await setHashFields({
         client: this.redisService.client,

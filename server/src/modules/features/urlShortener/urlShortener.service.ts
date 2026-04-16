@@ -43,6 +43,8 @@ import {
   getHashFields,
   incrementHashField,
 } from '../utils/redis-helper.utils';
+import { User, UserDocument } from 'src/models/user.schema';
+import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 
 type ShortUrlCacheEntry = {
   id: string;
@@ -76,12 +78,16 @@ export class UrlShortenerService {
   constructor(
     @InjectModel(ShortUrl.name)
     private readonly shortUrlModel: Model<ShortUrlDocument>,
+    @InjectModel(User.name)
+    private readonly userModel: Model<UserDocument>,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
   ) {}
 
   async createShortUrl(user: JwtPayload, dto: CreateShortUrlDto) {
     const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
+    const userExists = await this.userModel.findById(userId);
+    if (!userExists) throw new AccessTokenExpired();
     const longUrl = normalizeHttpUrl({
       value: dto.longUrl,
       fieldName: 'Long URL',
@@ -162,6 +168,8 @@ export class UrlShortenerService {
 
   async getUserShortUrls(user: JwtPayload) {
     const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
+    const userExists = await this.userModel.findById(userId);
+    if (!userExists) throw new AccessTokenExpired();
 
     const shortUrls = await this.shortUrlModel
       .find({ userId, status: ShortUrlStatus.ACTIVE })
@@ -191,10 +199,10 @@ export class UrlShortenerService {
   async deleteShortUrl(user: JwtPayload, shortUrlId: string) {
     const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
     const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
-
+    const userExists = await this.userModel.findById(userId);
+    if (!userExists) throw new AccessTokenExpired();
     const shortUrl = await this.shortUrlModel.findById(urlId).exec();
-
-    if (!shortUrl) {
+    if (!shortUrl || shortUrl.status === ShortUrlStatus.DISABLED) {
       throw new NotFoundException({
         message: 'Short URL not found',
         error: 'Not Found',
