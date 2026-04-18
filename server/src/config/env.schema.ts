@@ -49,6 +49,10 @@ export const envSchema = z
       .string()
       .min(16, 'RESET_TOKEN_SECRET must be at least 16 characters')
       .optional(),
+    QR_CONTENT_ENCRYPTION_SECRET: z
+      .string()
+      .min(16, 'QR_CONTENT_ENCRYPTION_SECRET must be at least 16 characters')
+      .optional(),
 
     JWT_ACCESS_EXPIRES_IN: z.string().default('15m'),
     JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),

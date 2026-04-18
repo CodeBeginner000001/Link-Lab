@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { randomBytes } from 'crypto';
 import { Types } from 'mongoose';
+import { QR_PUBLIC_ID_LENGTH } from '../qrCode/qrCode.constants';
 
 type NormalizeHttpUrlOptions = {
   value: string;
@@ -59,4 +61,8 @@ export function parseNonNegativeInt(value: string | null | undefined): number {
 
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) || parsed < 0 ? 0 : parsed;
+}
+
+export function generatePublicId(): string {
+  return randomBytes(16).toString('hex').slice(0, QR_PUBLIC_ID_LENGTH);
 }

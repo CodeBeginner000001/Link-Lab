@@ -1,50 +1,57 @@
-import {
-  ConflictException,
-  ForbiddenException,
-  Injectable,
-  InternalServerErrorException,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { createHash } from 'crypto';
+import { Model, Types } from 'mongoose';
 import { RedisService } from 'src/common/db/redis.service';
+import { AccessTokenExpired } from 'src/exceptions/auth.exception';
+import {
+  ShortUrlAccessDeniedException,
+  ShortUrlAliasAlreadyInUseException,
+  ShortUrlAliasGenerationFailedException,
+  ShortUrlDuplicateRequestException,
+  ShortUrlNoChangesException,
+  ShortUrlNotFoundException,
+  ShortUrlUpdateFieldsRequiredException,
+} from 'src/exceptions/url-shortener.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
 import {
   ShortUrl,
   ShortUrlDocument,
   ShortUrlStatus,
 } from 'src/models/short-url.schema';
+import { User, UserDocument } from 'src/models/user.schema';
+import {
+  generateRandomAlias,
+  normalizeAlias,
+  validateAlias,
+} from '../utils/alias-helper.utils';
+import {
+  isDuplicateKeyError,
+  normalizeHttpUrl,
+  parseNonNegativeInt,
+  toObjectId,
+} from '../utils/common.utils';
+import {
+  deleteCacheKeys,
+  getHashFields,
+  getJsonCache,
+  incrementHashField,
+  setHashFields,
+  warmJsonCache,
+} from '../utils/redis-helper.utils';
 import { CreateShortUrlDto } from './dto/create-short-url.dto';
+import { GetUserShortUrlsDto } from './dto/get-user-short-urls.dto';
+import { UpdateShortUrlDto } from './dto/update-short-url.dto';
 import {
   AUTO_ALIAS_GENERATION_ATTEMPTS,
   AUTO_ALIAS_LENGTH,
+  DEFAULT_SHORT_URL_PAGE_LIMIT,
   getShortUrlAnalyticsKey,
   getShortUrlLookupKey,
   RESERVED_SHORT_URL_ALIASES,
   SHORT_URL_ALIAS_REGEX,
 } from './urlShortener.constants';
-import {
-  normalizeAlias,
-  validateAlias,
-  generateRandomAlias,
-} from '../utils/alias-helper.utils';
-import {
-  toObjectId,
-  normalizeHttpUrl,
-  isDuplicateKeyError,
-  parseNonNegativeInt,
-} from '../utils/common.utils';
-import {
-  warmJsonCache,
-  deleteCacheKeys,
-  getJsonCache,
-  setHashFields,
-  getHashFields,
-  incrementHashField,
-} from '../utils/redis-helper.utils';
-import { User, UserDocument } from 'src/models/user.schema';
-import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 
 type ShortUrlCacheEntry = {
   id: string;
@@ -85,9 +92,22 @@ export class UrlShortenerService {
   ) {}
 
   async createShortUrl(user: JwtPayload, dto: CreateShortUrlDto) {
-    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
-    const userExists = await this.userModel.findById(userId);
-    if (!userExists) throw new AccessTokenExpired();
+    const userId = await this.getAuthenticatedUserId(user);
+    const requestBodyHash = createHash('sha256')
+      .update(JSON.stringify(dto))
+      .digest('hex');
+    const existingShortUrl = await this.shortUrlModel
+      .exists({
+        userId,
+        requestBodyHash,
+        status: ShortUrlStatus.ACTIVE,
+      })
+      .exec();
+
+    if (existingShortUrl) {
+      throw new ShortUrlDuplicateRequestException();
+    }
+
     const longUrl = normalizeHttpUrl({
       value: dto.longUrl,
       fieldName: 'Long URL',
@@ -109,6 +129,7 @@ export class UrlShortenerService {
       try {
         const shortUrl = await this.shortUrlModel.create({
           userId,
+          requestBodyHash,
           longUrl,
           alias,
           status: ShortUrlStatus.ACTIVE,
@@ -123,10 +144,7 @@ export class UrlShortenerService {
         };
       } catch (error) {
         if (isDuplicateKeyError(error)) {
-          throw new ConflictException({
-            message: 'Custom alias is already in use',
-            error: 'Conflict',
-          });
+          throw new ShortUrlAliasAlreadyInUseException();
         }
 
         throw error;
@@ -139,6 +157,7 @@ export class UrlShortenerService {
       try {
         const shortUrl = await this.shortUrlModel.create({
           userId,
+          requestBodyHash,
           longUrl,
           alias,
           status: ShortUrlStatus.ACTIVE,
@@ -160,25 +179,32 @@ export class UrlShortenerService {
       }
     }
 
-    throw new InternalServerErrorException({
-      message: 'Could not generate a unique short URL alias',
-      error: 'Internal Server Error',
-    });
+    throw new ShortUrlAliasGenerationFailedException();
   }
 
-  async getUserShortUrls(user: JwtPayload) {
-    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
-    const userExists = await this.userModel.findById(userId);
-    if (!userExists) throw new AccessTokenExpired();
+  async getUserShortUrls(user: JwtPayload, query: GetUserShortUrlsDto) {
+    const userId = await this.getAuthenticatedUserId(user);
+
+    const limit = query.limit ?? DEFAULT_SHORT_URL_PAGE_LIMIT;
+    const cursorId = query.cursor
+      ? toObjectId(query.cursor, 'Cursor id is invalid')
+      : null;
 
     const shortUrls = await this.shortUrlModel
-      .find({ userId, status: ShortUrlStatus.ACTIVE })
-      .sort({ createdAt: -1 })
+      .find({
+        userId,
+        status: ShortUrlStatus.ACTIVE,
+        ...(cursorId ? { _id: { $lt: cursorId } } : {}),
+      })
+      .sort({ _id: -1 })
+      .limit(limit + 1)
       .exec();
 
+    const hasmore = shortUrls.length > limit;
+    const currentPageItems = hasmore ? shortUrls.slice(0, limit) : shortUrls;
     const items: SerializedShortUrl[] = [];
 
-    for (const shortUrl of shortUrls) {
+    for (const shortUrl of currentPageItems) {
       const analytics = await this.getAnalytics(shortUrl.alias);
 
       items.push(
@@ -190,31 +216,154 @@ export class UrlShortenerService {
       );
     }
 
+    const nextCursor = items.length > 0 ? items[items.length - 1].id : null;
+
     return {
-      total: items.length,
       items,
+      pagination: {
+        hasmore,
+        limit,
+        cursor: nextCursor,
+      },
+    };
+  }
+
+  async getShortUrlById(user: JwtPayload, shortUrlId: string) {
+    const userId = await this.getAuthenticatedUserId(user);
+    const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
+
+    const shortUrl = await this.shortUrlModel.findById(urlId).exec();
+
+    if (!shortUrl || shortUrl.status === ShortUrlStatus.DISABLED) {
+      throw new ShortUrlNotFoundException();
+    }
+
+    if (String(shortUrl.userId) !== String(userId)) {
+      throw new ShortUrlAccessDeniedException();
+    }
+
+    const analytics = await this.getAnalytics(shortUrl.alias);
+
+    return {
+      shortUrl: this.serializeShortUrl(
+        shortUrl,
+        analytics.count,
+        analytics.lastClickedAt,
+      ),
+    };
+  }
+
+  async updateShortUrl(
+    user: JwtPayload,
+    shortUrlId: string,
+    dto: UpdateShortUrlDto,
+  ) {
+    const userId = await this.getAuthenticatedUserId(user);
+    const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
+
+    const shortUrl = await this.shortUrlModel.findById(urlId).exec();
+
+    if (!shortUrl || shortUrl.status === ShortUrlStatus.DISABLED) {
+      throw new ShortUrlNotFoundException();
+    }
+
+    if (String(shortUrl.userId) !== String(userId)) {
+      throw new ShortUrlAccessDeniedException();
+    }
+
+    if (
+      shortUrl.longUrl === dto.longUrl &&
+      shortUrl.alias === dto.customAlias
+    ) {
+      throw new ShortUrlNoChangesException();
+    }
+
+    if (dto.longUrl === undefined && dto.customAlias === undefined) {
+      throw new ShortUrlUpdateFieldsRequiredException();
+    }
+
+    const nextLongUrl =
+      dto.longUrl !== undefined
+        ? normalizeHttpUrl({
+            value: dto.longUrl,
+            fieldName: 'Long URL',
+          })
+        : undefined;
+
+    const nextAlias =
+      dto.customAlias !== undefined
+        ? normalizeAlias(dto.customAlias)
+        : undefined;
+
+    if (nextAlias) {
+      validateAlias({
+        alias: nextAlias,
+        regex: SHORT_URL_ALIAS_REGEX,
+        reservedAliases: RESERVED_SHORT_URL_ALIASES,
+        minLength: 3,
+        maxLength: 32,
+        message:
+          'Alias must be 3 to 32 characters and use lowercase letters, numbers, underscores, or hyphens only',
+      });
+    }
+
+    const originalAlias = shortUrl.alias;
+    const aliasChanged =
+      nextAlias !== undefined && nextAlias !== shortUrl.alias;
+
+    if (aliasChanged) {
+      const analytics = await this.getAnalytics(originalAlias);
+      shortUrl.clicksPersisted += analytics.count;
+
+      if (analytics.lastClickedAt) {
+        shortUrl.lastClickedAt = new Date(analytics.lastClickedAt);
+      }
+
+      shortUrl.alias = nextAlias;
+    }
+
+    if (nextLongUrl !== undefined) {
+      shortUrl.longUrl = nextLongUrl;
+    }
+
+    try {
+      await shortUrl.save();
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new ShortUrlAliasAlreadyInUseException();
+      }
+
+      throw error;
+    }
+
+    if (aliasChanged) {
+      await this.clearCache(originalAlias);
+      await this.warmCache(shortUrl);
+      await this.initializeAnalytics(shortUrl.alias);
+
+      return {
+        message: 'Short URL updated successfully',
+        shortUrl: this.serializeShortUrl(shortUrl, 0, null),
+      };
+    }
+
+    await this.warmCache(shortUrl);
+
+    const analytics = await this.getAnalytics(shortUrl.alias);
+
+    return {
+      message: 'Short URL updated successfully',
+      shortUrl: this.serializeShortUrl(
+        shortUrl,
+        analytics.count,
+        analytics.lastClickedAt,
+      ),
     };
   }
 
   async deleteShortUrl(user: JwtPayload, shortUrlId: string) {
-    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
-    const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
-    const userExists = await this.userModel.findById(userId);
-    if (!userExists) throw new AccessTokenExpired();
-    const shortUrl = await this.shortUrlModel.findById(urlId).exec();
-    if (!shortUrl || shortUrl.status === ShortUrlStatus.DISABLED) {
-      throw new NotFoundException({
-        message: 'Short URL not found',
-        error: 'Not Found',
-      });
-    }
-
-    if (String(shortUrl.userId) !== String(userId)) {
-      throw new ForbiddenException({
-        message: 'You do not have access to this short URL',
-        error: 'Forbidden',
-      });
-    }
+    const userId = await this.getAuthenticatedUserId(user);
+    const shortUrl = await this.getOwnedShortUrl(userId, shortUrlId);
 
     const analytics = await this.getAnalytics(shortUrl.alias);
 
@@ -240,10 +389,7 @@ export class UrlShortenerService {
     const alias = normalizeAlias(aliasParam);
 
     if (!SHORT_URL_ALIAS_REGEX.test(alias)) {
-      throw new NotFoundException({
-        message: 'Short URL not found',
-        error: 'Not Found',
-      });
+      throw new ShortUrlNotFoundException();
     }
 
     const cached = await this.getCachedShortUrl(alias);
@@ -273,10 +419,7 @@ export class UrlShortenerService {
       .exec();
 
     if (!shortUrl) {
-      throw new NotFoundException({
-        message: 'Short URL not found',
-        error: 'Not Found',
-      });
+      throw new ShortUrlNotFoundException();
     }
 
     await this.warmCache(shortUrl);
@@ -327,6 +470,37 @@ export class UrlShortenerService {
       createdAt: shortUrl.createdAt ?? null,
       updatedAt: shortUrl.updatedAt ?? null,
     };
+  }
+
+  private async getAuthenticatedUserId(
+    user: JwtPayload,
+  ): Promise<Types.ObjectId> {
+    const userId = toObjectId(user.sub, 'Authenticated user id is invalid');
+    const userExists = await this.userModel.exists({ _id: userId });
+
+    if (!userExists) {
+      throw new AccessTokenExpired();
+    }
+
+    return userId;
+  }
+
+  private async getOwnedShortUrl(
+    userId: Types.ObjectId,
+    shortUrlId: string,
+  ): Promise<ShortUrlDocument> {
+    const urlId = toObjectId(shortUrlId, 'Short URL id is invalid');
+    const shortUrl = await this.shortUrlModel.findById(urlId).exec();
+
+    if (!shortUrl || shortUrl.status === ShortUrlStatus.DISABLED) {
+      throw new ShortUrlNotFoundException();
+    }
+
+    if (String(shortUrl.userId) !== String(userId)) {
+      throw new ShortUrlAccessDeniedException();
+    }
+
+    return shortUrl;
   }
 
   private async warmCache(shortUrl: ShortUrlDocument) {

@@ -1,6 +1,8 @@
 export const SHORT_URL_ALIAS_REGEX = /^[a-z0-9_-]+$/;
 export const AUTO_ALIAS_LENGTH = 8;
 export const AUTO_ALIAS_GENERATION_ATTEMPTS = 12;
+export const DEFAULT_SHORT_URL_PAGE_LIMIT = 10;
+export const MAX_SHORT_URL_PAGE_LIMIT = 100;
 
 export const RESERVED_SHORT_URL_ALIASES = new Set<string>([
   'admin',

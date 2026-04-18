@@ -1,5 +1,9 @@
-import { BadRequestException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
+import {
+  InvalidShortUrlAliasException,
+  ReservedShortUrlAliasException,
+} from 'src/exceptions/url-shortener.exception';
+
 type ValidateAliasOptions = {
   alias: string;
   regex: RegExp;
@@ -18,10 +22,7 @@ export function validateAlias({
   message = 'Alias is invalid',
 }: ValidateAliasOptions): void {
   if (reservedAliases?.has(alias)) {
-    throw new BadRequestException({
-      message: 'Custom alias is reserved and cannot be used',
-      error: 'Bad Request',
-    });
+    throw new ReservedShortUrlAliasException();
   }
 
   if (
@@ -29,10 +30,7 @@ export function validateAlias({
     alias.length > maxLength ||
     !regex.test(alias)
   ) {
-    throw new BadRequestException({
-      message,
-      error: 'Bad Request',
-    });
+    throw new InvalidShortUrlAliasException(message);
   }
 }
 export function normalizeAlias(alias: string): string {

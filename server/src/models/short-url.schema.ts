@@ -24,6 +24,13 @@ export class ShortUrl {
   userId!: Types.ObjectId;
 
   @Prop({
+    type: String,
+    default: null,
+    index: true,
+  })
+  requestBodyHash!: string | null;
+
+  @Prop({
     required: true,
     trim: true,
   })
@@ -68,4 +75,6 @@ export class ShortUrl {
 export const ShortUrlSchema = SchemaFactory.createForClass(ShortUrl);
 
 ShortUrlSchema.index({ userId: 1, createdAt: -1 });
+ShortUrlSchema.index({ userId: 1, status: 1, _id: -1 });
 ShortUrlSchema.index({ alias: 1, status: 1 });
+ShortUrlSchema.index({ userId: 1, requestBodyHash: 1, status: 1 });
