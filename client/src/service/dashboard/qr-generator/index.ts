@@ -229,6 +229,29 @@ export const ExportQrCode = async (
   }
 };
 
+export const getQrExportDownloadUrl = (
+  publicId: string,
+  exportType: Exclude<QrExportType, "COPY">,
+  render?: ExportQrCodePayload["render"],
+) => {
+  const params = new URLSearchParams({
+    exportType,
+  });
+
+  if (render) {
+    params.set("width", String(render.width));
+    params.set("height", String(render.height));
+    params.set("previewModules", String(render.previewModules));
+    params.set("moduleSize", String(render.moduleSize));
+    params.set("qrSize", String(render.qrSize));
+    params.set("offsetX", String(render.offsetX));
+    params.set("offsetY", String(render.offsetY));
+    params.set("cornerRadius", String(render.cornerRadius));
+  }
+
+  return `${PROXY_BASE}/qr-codes/${publicId}/export?${params.toString()}`;
+};
+
 export type ExportQrCodeError = {
   error: string;
   nextCopyAvailableAt?: string;

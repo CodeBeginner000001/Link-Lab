@@ -9,6 +9,10 @@ import { Copy, Download, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { QR_EXPORT_OPTIONS } from "./qr-export-options";
+import {
+  shouldUseNativeQrFileDownload,
+  startNativeQrFileDownload,
+} from "./qr-file-download";
 import { getQrPreviewRenderConfig } from "./qr-preview-renderer";
 import QRExportTypeDropdown from "./QRExportTypeDropdown";
 
@@ -30,7 +34,9 @@ const downloadBlob = (
 
   link.href = objectUrl;
   link.download = fileName ?? fallbackFileName;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 
   setTimeout(() => {
     URL.revokeObjectURL(objectUrl);
@@ -62,13 +68,26 @@ export default function QRExportModal({
       return;
     }
 
+    const render = getQrPreviewRenderConfig(style.zoom);
+
+    if (
+      selectedExportType !== "COPY" &&
+      shouldUseNativeQrFileDownload()
+    ) {
+      startNativeQrFileDownload(publicId, selectedExportType, render);
+      notify("Download started.", "success");
+      router.refresh();
+      handleClose();
+      return;
+    }
+
     try {
       setIsExporting(true);
 
       const result = await ExportQrCode(
         publicId,
         selectedExportType,
-        getQrPreviewRenderConfig(style.zoom),
+        render,
       );
 
       if ("error" in result) {

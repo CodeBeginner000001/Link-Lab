@@ -26,6 +26,10 @@ import {
   getEmptyBasicContentState,
   QRBasicContentState,
 } from "./qr-builder.helpers";
+import {
+  shouldUseNativeQrFileDownload,
+  startNativeQrFileDownload,
+} from "./qr-file-download";
 import { getQrPreviewRenderConfig } from "./qr-preview-renderer";
 
 type QRGeneratorClientProps = {
@@ -47,7 +51,9 @@ const downloadBlob = (
 
   link.href = objectUrl;
   link.download = fileName ?? fallbackFileName;
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 
   setTimeout(() => {
     URL.revokeObjectURL(objectUrl);
@@ -236,13 +242,21 @@ export default function QRGeneratorClient({
       return;
     }
 
+    const render = getQrPreviewRenderConfig(savedPreview.style.zoom);
+
+    if (shouldUseNativeQrFileDownload()) {
+      startNativeQrFileDownload(savedPreview.publicId, format, render);
+      notify("Download started.", "success");
+      return;
+    }
+
     try {
       setIsExporting(true);
 
       const result = await ExportQrCode(
         savedPreview.publicId,
         format as QrExportType,
-        getQrPreviewRenderConfig(savedPreview.style.zoom),
+        render,
       );
 
       if ("error" in result) {
