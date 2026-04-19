@@ -58,3 +58,12 @@ export class QrCodeDuplicateRequestException extends BadRequestException {
     });
   }
 }
+
+export class QrCodeCopyCooldownException extends BadRequestException {
+  constructor() {
+    super({
+      message: 'Copy is temporarily disabled. Try again after some time...',
+      error: 'Bad Request',
+    });
+  }
+}

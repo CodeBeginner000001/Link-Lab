@@ -1,6 +1,14 @@
 import type { QrCodeDocument } from 'src/models/qr-code.schema';
 import { QrContentType, QrStatus } from './qr-code.enums';
 
+export interface QrCopyAvailability {
+  isAvailable: boolean;
+  cooldownSeconds: number;
+  remainingSeconds: number;
+  lastCopiedAt: Date | null;
+  nextAvailableAt: Date | null;
+}
+
 export interface SerializedQrCode {
   id: string;
   publicId: string;
@@ -15,6 +23,7 @@ export interface SerializedQrCode {
     qrValue: string | null;
   };
   exports: QrCodeDocument['exports'];
+  copyAvailability: QrCopyAvailability;
   tracking: QrCodeDocument['tracking'];
   status: QrStatus;
   deletedAt: Date | null;
@@ -48,7 +57,9 @@ export interface QrDashboardItem {
     svg: number;
     webp: number;
     pdf: number;
+    copy: number;
   };
+  copyAvailability: QrCopyAvailability;
   tracking: {
     isTraceable: boolean;
     totalScanCount: number;

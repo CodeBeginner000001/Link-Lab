@@ -1,5 +1,5 @@
 import { PDFDocument } from 'pdf-lib';
-import QRCode from 'qrcode';
+import * as QRCode from 'qrcode';
 import sharp from 'sharp';
 import {
   BodyShape,
@@ -10,6 +10,26 @@ import {
 import type { QrCodeDocument } from 'src/models/qr-code.schema';
 
 type QrStyle = QrCodeDocument['style'];
+
+type QrCodeModules = {
+  size: number;
+  get: (row: number, col: number) => number;
+};
+
+type QrCodeResult = {
+  modules: QrCodeModules;
+  version: number;
+};
+type QrRenderLayout = {
+  width: number;
+  height: number;
+  previewModules: number;
+  moduleSize: number;
+  qrSize: number;
+  offsetX: number;
+  offsetY: number;
+  cornerRadius: number;
+};
 
 type QrExportBinaryPayload = {
   kind: 'binary';
@@ -28,8 +48,12 @@ type QrExportTextPayload = {
 type QrExportJsonPayload = {
   kind: 'json';
   body: {
-    exportType: QrExportType.COPY;
     content: string;
+    copiedAt: string;
+    nextCopyAvailableAt: string;
+    cooldownSeconds: number;
+    remainingSeconds: number;
+    isCopyAvailable: boolean;
   };
 };
 
@@ -42,16 +66,21 @@ const QUIET_ZONE_MODULES = 4;
 const FINDER_PATTERN_SIZE = 7;
 const EYE_BALL_OFFSET = 2;
 const EYE_BALL_SIZE = 3;
-const BASE_CELL_SIZE = 12;
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 5;
+const MIN_CELL_SIZE = 6;
+const MAX_CELL_SIZE = 10;
 
 export async function buildQrExportPayload(params: {
   publicId: string;
-  exportType: QrExportType;
+  exportType: Exclude<QrExportType, QrExportType.COPY>;
   qrValue: string;
   style: QrStyle;
+  render?: QrRenderLayout;
 }): Promise<QrExportPayload> {
-  const { publicId, exportType, qrValue, style } = params;
-  const renderedSvg = renderStyledQrSvg(qrValue, style);
+  const { publicId, exportType, qrValue, style, render } = params;
+
+  const renderedSvg = renderStyledQrSvg(qrValue, style, render);
   const filenameBase = `qr-${publicId}`;
 
   switch (exportType) {
@@ -103,31 +132,31 @@ export async function buildQrExportPayload(params: {
         contentType: 'application/pdf',
         filename: `${filenameBase}.pdf`,
       };
-    case QrExportType.COPY:
-      return {
-        kind: 'json',
-        body: {
-          exportType: QrExportType.COPY,
-          content: qrValue,
-        },
-      };
   }
 }
 
-function renderStyledQrSvg(
+export function renderStyledQrSvg(
   qrValue: string,
   style: QrStyle,
+  render?: QrRenderLayout,
 ): {
   svg: string;
 } {
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access
   const qr = QRCode.create(qrValue, {
     errorCorrectionLevel: 'M',
     margin: 0,
-  });
+  }) as QrCodeResult;
   const moduleCount = qr.modules.size;
-  const cellSize = Math.max(4, Math.round(BASE_CELL_SIZE * style.zoom));
-  const canvasSize = (moduleCount + QUIET_ZONE_MODULES * 2) * cellSize;
-  const offset = QUIET_ZONE_MODULES * cellSize;
+  const cellSize = render
+    ? render.qrSize / moduleCount
+    : getModuleSize(style.zoom);
+  const canvasWidth =
+    render?.width ?? (moduleCount + QUIET_ZONE_MODULES * 2) * cellSize;
+  const canvasHeight = render?.height ?? canvasWidth;
+  const offsetX = render?.offsetX ?? QUIET_ZONE_MODULES * cellSize;
+  const offsetY = render?.offsetY ?? QUIET_ZONE_MODULES * cellSize;
+  const cornerRadius = render?.cornerRadius ?? 0;
   const bodyElements: string[] = [];
 
   for (let row = 0; row < moduleCount; row += 1) {
@@ -146,7 +175,8 @@ function renderStyledQrSvg(
           col,
           style,
           cellSize,
-          offset,
+          offsetX,
+          offsetY,
           modules: qr.modules,
         }),
       );
@@ -165,21 +195,39 @@ function renderStyledQrSvg(
       col: origin.col,
       style,
       cellSize,
-      offset,
+      offsetX,
+      offsetY,
     }),
   );
 
   return {
     svg: `
-      <svg xmlns="http://www.w3.org/2000/svg" width="${canvasSize}" height="${canvasSize}" viewBox="0 0 ${canvasSize} ${canvasSize}" role="img" aria-label="QR code" shape-rendering="geometricPrecision">
-        <rect width="${canvasSize}" height="${canvasSize}" fill="${style.background}" />
-        <g fill="${style.foreground}" stroke="${style.foreground}">
-          ${bodyElements.join('')}
+      <svg xmlns="http://www.w3.org/2000/svg" width="${canvasWidth}" height="${canvasHeight}" viewBox="0 0 ${canvasWidth} ${canvasHeight}" role="img" aria-label="QR code" shape-rendering="geometricPrecision">
+        <defs>
+          <clipPath id="qr-preview-clip">
+            <rect width="${canvasWidth}" height="${canvasHeight}" rx="${cornerRadius}" ry="${cornerRadius}" />
+          </clipPath>
+        </defs>
+        <g clip-path="url(#qr-preview-clip)">
+          <rect width="${canvasWidth}" height="${canvasHeight}" fill="${style.background}" rx="${cornerRadius}" ry="${cornerRadius}" />
+          <g fill="${style.foreground}">
+            ${bodyElements.join('')}
+          </g>
+          ${eyeElements.join('')}
         </g>
-        ${eyeElements.join('')}
       </svg>
     `.trim(),
   };
+}
+
+function clampZoom(value: number): number {
+  return Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, value));
+}
+
+function getModuleSize(zoom: number): number {
+  const normalizedZoom = (clampZoom(zoom) - MIN_ZOOM) / (MAX_ZOOM - MIN_ZOOM);
+
+  return MIN_CELL_SIZE + normalizedZoom * (MAX_CELL_SIZE - MIN_CELL_SIZE);
 }
 
 function isFinderPatternModule(
@@ -201,54 +249,49 @@ function renderBodyModule(params: {
   col: number;
   style: QrStyle;
   cellSize: number;
-  offset: number;
-  modules: {
-    size: number;
-    get: (row: number, col: number) => boolean | number;
-  };
+  offsetX: number;
+  offsetY: number;
+  modules: QrCodeModules;
 }): string {
-  const { row, col, style, cellSize, offset, modules } = params;
-  const x = offset + col * cellSize;
-  const y = offset + row * cellSize;
+  const { row, col, style, cellSize, offsetX, offsetY } = params;
+  const x = offsetX + col * cellSize;
+  const y = offsetY + row * cellSize;
 
   switch (style.bodyShape) {
     case BodyShape.SQUARE:
       return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" />`;
     case BodyShape.DOTS:
-      return `<circle cx="${x + cellSize / 2}" cy="${y + cellSize / 2}" r="${cellSize * 0.34}" />`;
+      return `<circle cx="${x + cellSize / 2}" cy="${y + cellSize / 2}" r="${cellSize * 0.36}" />`;
     case BodyShape.ROUNDED:
-      return `<rect x="${x}" y="${y}" width="${cellSize}" height="${cellSize}" rx="${cellSize * 0.32}" ry="${cellSize * 0.32}" />`;
+      return `<rect x="${x + cellSize * 0.08}" y="${y + cellSize * 0.08}" width="${cellSize * 0.84}" height="${cellSize * 0.84}" rx="${cellSize * 0.28}" ry="${cellSize * 0.28}" />`;
     case BodyShape.CLASSY:
-      return buildSelectiveRoundedRect({
-        x,
-        y,
-        size: cellSize,
-        tl:
-          !isDarkModule(modules, row, col - 1) &&
-          !isDarkModule(modules, row - 1, col),
-        tr:
-          !isDarkModule(modules, row, col + 1) &&
-          !isDarkModule(modules, row - 1, col),
-        br:
-          !isDarkModule(modules, row, col + 1) &&
-          !isDarkModule(modules, row + 1, col),
-        bl:
-          !isDarkModule(modules, row, col - 1) &&
-          !isDarkModule(modules, row + 1, col),
-        radius: cellSize * 0.46,
-      });
+      if ((row + col) % 2 === 0) {
+        return `<circle cx="${x + cellSize / 2}" cy="${y + cellSize / 2}" r="${cellSize * 0.34}" />`;
+      }
+
+      return `<rect x="${x + cellSize * 0.1}" y="${y + cellSize * 0.1}" width="${cellSize * 0.8}" height="${cellSize * 0.8}" rx="${cellSize * 0.32}" ry="${cellSize * 0.32}" />`;
     case BodyShape.DIAMOND:
-      return `<polygon points="${x + cellSize / 2},${y} ${x + cellSize},${y + cellSize / 2} ${x + cellSize / 2},${y + cellSize} ${x},${y + cellSize / 2}" />`;
+      return `<polygon points="${x + cellSize / 2},${y + cellSize * 0.05} ${x + cellSize * 0.95},${y + cellSize / 2} ${x + cellSize / 2},${y + cellSize * 0.95} ${x + cellSize * 0.05},${y + cellSize / 2}" />`;
     case BodyShape.HORIZONTAL:
       return `<rect x="${x}" y="${y + cellSize * 0.2}" width="${cellSize}" height="${cellSize * 0.6}" rx="${cellSize * 0.24}" ry="${cellSize * 0.24}" />`;
     case BodyShape.VERTICAL:
       return `<rect x="${x + cellSize * 0.2}" y="${y}" width="${cellSize * 0.6}" height="${cellSize}" rx="${cellSize * 0.24}" ry="${cellSize * 0.24}" />`;
     case BodyShape.STAR:
-      return `<polygon points="${buildStarPoints(x + cellSize / 2, y + cellSize / 2, cellSize * 0.46, cellSize * 0.2, 4)}" />`;
+      return `<polygon points="${buildStarPoints(x + cellSize / 2, y + cellSize / 2, cellSize * 0.42, cellSize * 0.18, 5)}" />`;
     case BodyShape.MOSAIC:
-      return `<rect x="${x + cellSize * 0.12}" y="${y + cellSize * 0.12}" width="${cellSize * 0.76}" height="${cellSize * 0.76}" rx="${cellSize * 0.08}" ry="${cellSize * 0.08}" />`;
+      if ((row + col) % 2 === 0) {
+        return `
+          <rect x="${x + cellSize * 0.05}" y="${y + cellSize * 0.05}" width="${cellSize * 0.42}" height="${cellSize * 0.42}" />
+          <rect x="${x + cellSize * 0.53}" y="${y + cellSize * 0.53}" width="${cellSize * 0.42}" height="${cellSize * 0.42}" />
+        `.trim();
+      }
+
+      return `
+        <rect x="${x + cellSize * 0.05}" y="${y + cellSize * 0.53}" width="${cellSize * 0.42}" height="${cellSize * 0.42}" />
+        <rect x="${x + cellSize * 0.53}" y="${y + cellSize * 0.05}" width="${cellSize * 0.42}" height="${cellSize * 0.42}" />
+      `.trim();
     case BodyShape.ARROW:
-      return `<polygon points="${x + cellSize * 0.08},${y + cellSize * 0.18} ${x + cellSize * 0.62},${y + cellSize * 0.18} ${x + cellSize * 0.62},${y + cellSize * 0.02} ${x + cellSize * 0.96},${y + cellSize * 0.5} ${x + cellSize * 0.62},${y + cellSize * 0.98} ${x + cellSize * 0.62},${y + cellSize * 0.82} ${x + cellSize * 0.08},${y + cellSize * 0.82} ${x + cellSize * 0.3},${y + cellSize * 0.5}" />`;
+      return `<polygon points="${x + cellSize * 0.5},${y + cellSize * 0.05} ${x + cellSize * 0.95},${y + cellSize * 0.5} ${x + cellSize * 0.7},${y + cellSize * 0.5} ${x + cellSize * 0.7},${y + cellSize * 0.95} ${x + cellSize * 0.3},${y + cellSize * 0.95} ${x + cellSize * 0.3},${y + cellSize * 0.5} ${x + cellSize * 0.05},${y + cellSize * 0.5}" />`;
   }
 }
 
@@ -257,11 +300,12 @@ function renderEyePattern(params: {
   col: number;
   style: QrStyle;
   cellSize: number;
-  offset: number;
+  offsetX: number;
+  offsetY: number;
 }): string {
-  const { row, col, style, cellSize, offset } = params;
-  const x = offset + col * cellSize;
-  const y = offset + row * cellSize;
+  const { row, col, style, cellSize, offsetX, offsetY } = params;
+  const x = offsetX + col * cellSize;
+  const y = offsetY + row * cellSize;
   const outerSize = FINDER_PATTERN_SIZE * cellSize;
   const innerSize = outerSize - cellSize * 2;
   const innerX = x + cellSize;
@@ -331,9 +375,17 @@ function renderEyeFrame(params: {
         foreground,
       });
     case EyeFrameShape.INSET:
-      return `<rect x="${x}" y="${y}" width="${outerSize}" height="${outerSize}" rx="${cellSize}" ry="${cellSize}" fill="${foreground}" /><rect x="${x + cellSize * 1.25}" y="${y + cellSize * 1.25}" width="${outerSize - cellSize * 2.5}" height="${outerSize - cellSize * 2.5}" rx="${cellSize * 0.7}" ry="${cellSize * 0.7}" fill="${background}" />`;
+      return `
+        <rect x="${x}" y="${y}" width="${outerSize}" height="${outerSize}" fill="${foreground}" />
+        <rect x="${x + cellSize * 0.6}" y="${y + cellSize * 0.6}" width="${outerSize - cellSize * 1.2}" height="${outerSize - cellSize * 1.2}" fill="${background}" />
+        <rect x="${x + cellSize * 1.2}" y="${y + cellSize * 1.2}" width="${outerSize - cellSize * 2.4}" height="${outerSize - cellSize * 2.4}" fill="${foreground}" />
+        <rect x="${innerX}" y="${innerY}" width="${innerSize}" height="${innerSize}" fill="${background}" />
+      `.trim();
     case EyeFrameShape.SHIELD:
-      return `${buildShieldPath(x, y, outerSize, foreground)}${buildShieldPath(innerX, innerY, innerSize, background)}`;
+      return `
+        ${buildShieldPath(x, y, outerSize, foreground)}
+        <rect x="${innerX}" y="${innerY}" width="${innerSize}" height="${innerSize}" rx="${cellSize * 0.5}" ry="${cellSize * 0.5}" fill="${background}" />
+      `.trim();
   }
 }
 
@@ -349,39 +401,20 @@ function renderEyeBall(params: {
     case EyeBallShape.SQUARE:
       return `<rect x="${x}" y="${y}" width="${size}" height="${size}" />`;
     case EyeBallShape.ROUNDED:
-      return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size * 0.28}" ry="${size * 0.28}" />`;
+      return `<rect x="${x}" y="${y}" width="${size}" height="${size}" rx="${size * (0.8 / 3)}" ry="${size * (0.8 / 3)}" />`;
     case EyeBallShape.CIRCLE:
       return `<circle cx="${x + size / 2}" cy="${y + size / 2}" r="${size / 2}" />`;
     case EyeBallShape.DIAMOND:
       return `<polygon points="${x + size / 2},${y} ${x + size},${y + size / 2} ${x + size / 2},${y + size} ${x},${y + size / 2}" />`;
     case EyeBallShape.LEAF:
-      return `<path d="M ${x + size / 2} ${y} C ${x + size} ${y + size * 0.08}, ${x + size * 0.94} ${y + size * 0.92}, ${x + size / 2} ${y + size} C ${x + size * 0.06} ${y + size * 0.92}, ${x} ${y + size * 0.08}, ${x + size / 2} ${y} Z" />`;
+      return `<path d="M ${x} ${y} Q ${x + size} ${y}, ${x + size} ${y + size} Q ${x} ${y + size}, ${x} ${y} Z" />`;
     case EyeBallShape.STRIPE:
       return `
-        <rect x="${x + size * 0.06}" y="${y}" width="${size * 0.2}" height="${size}" rx="${size * 0.08}" ry="${size * 0.08}" />
-        <rect x="${x + size * 0.4}" y="${y}" width="${size * 0.2}" height="${size}" rx="${size * 0.08}" ry="${size * 0.08}" />
-        <rect x="${x + size * 0.74}" y="${y}" width="${size * 0.2}" height="${size}" rx="${size * 0.08}" ry="${size * 0.08}" />
+        <rect x="${x + (size / 3) * 0.15}" y="${y}" width="${(size / 3) * 0.7}" height="${size}" />
+        <rect x="${x + size / 3 + (size / 3) * 0.15}" y="${y}" width="${(size / 3) * 0.7}" height="${size}" />
+        <rect x="${x + (size / 3) * 2 + (size / 3) * 0.15}" y="${y}" width="${(size / 3) * 0.7}" height="${size}" />
       `.trim();
   }
-}
-
-function buildSelectiveRoundedRect(params: {
-  x: number;
-  y: number;
-  size: number;
-  tl: boolean;
-  tr: boolean;
-  br: boolean;
-  bl: boolean;
-  radius: number;
-}): string {
-  const { x, y, size, tl, tr, br, bl, radius } = params;
-  const tlr = tl ? radius : 0;
-  const trr = tr ? radius : 0;
-  const brr = br ? radius : 0;
-  const blr = bl ? radius : 0;
-
-  return `<path d="M ${x + tlr} ${y} H ${x + size - trr} ${trr > 0 ? `Q ${x + size} ${y} ${x + size} ${y + trr}` : `L ${x + size} ${y}`} V ${y + size - brr} ${brr > 0 ? `Q ${x + size} ${y + size} ${x + size - brr} ${y + size}` : `L ${x + size} ${y + size}`} H ${x + blr} ${blr > 0 ? `Q ${x} ${y + size} ${x} ${y + size - blr}` : `L ${x} ${y + size}`} V ${y + tlr} ${tlr > 0 ? `Q ${x} ${y} ${x + tlr} ${y}` : `L ${x} ${y}`} Z" />`;
 }
 
 function buildDottedEyeFrame(params: {
@@ -391,39 +424,24 @@ function buildDottedEyeFrame(params: {
   foreground: string;
 }): string {
   const { x, y, cellSize, foreground } = params;
-  const dotCoords = [
-    [0.5, 0.5],
-    [1.5, 0.5],
-    [2.5, 0.5],
-    [3.5, 0.5],
-    [4.5, 0.5],
-    [5.5, 0.5],
-    [6.5, 0.5],
-    [0.5, 1.5],
-    [6.5, 1.5],
-    [0.5, 2.5],
-    [6.5, 2.5],
-    [0.5, 3.5],
-    [6.5, 3.5],
-    [0.5, 4.5],
-    [6.5, 4.5],
-    [0.5, 5.5],
-    [6.5, 5.5],
-    [0.5, 6.5],
-    [1.5, 6.5],
-    [2.5, 6.5],
-    [3.5, 6.5],
-    [4.5, 6.5],
-    [5.5, 6.5],
-    [6.5, 6.5],
-  ];
+  const circles: string[] = [];
+  const dotRadius = (cellSize * 0.6) / 2;
 
-  return dotCoords
-    .map(
-      ([col, row]) =>
-        `<circle cx="${x + col * cellSize}" cy="${y + row * cellSize}" r="${cellSize * 0.28}" fill="${foreground}" />`,
-    )
-    .join('');
+  for (let index = 0; index < 7; index += 1) {
+    circles.push(
+      `<circle cx="${x + index * cellSize + cellSize / 2}" cy="${y + cellSize / 2}" r="${dotRadius}" fill="${foreground}" />`,
+      `<circle cx="${x + index * cellSize + cellSize / 2}" cy="${y + 7 * cellSize - cellSize / 2}" r="${dotRadius}" fill="${foreground}" />`,
+    );
+
+    if (index > 0 && index < 6) {
+      circles.push(
+        `<circle cx="${x + cellSize / 2}" cy="${y + index * cellSize + cellSize / 2}" r="${dotRadius}" fill="${foreground}" />`,
+        `<circle cx="${x + 7 * cellSize - cellSize / 2}" cy="${y + index * cellSize + cellSize / 2}" r="${dotRadius}" fill="${foreground}" />`,
+      );
+    }
+  }
+
+  return circles.join('');
 }
 
 function buildShieldPath(
@@ -432,7 +450,7 @@ function buildShieldPath(
   size: number,
   fill: string,
 ): string {
-  return `<path d="M ${x + size * 0.5} ${y} C ${x + size * 0.82} ${y}, ${x + size} ${y + size * 0.16}, ${x + size} ${y + size * 0.42} C ${x + size} ${y + size * 0.72}, ${x + size * 0.8} ${y + size * 0.9}, ${x + size * 0.5} ${y + size} C ${x + size * 0.2} ${y + size * 0.9}, ${x} ${y + size * 0.72}, ${x} ${y + size * 0.42} C ${x} ${y + size * 0.16}, ${x + size * 0.18} ${y}, ${x + size * 0.5} ${y} Z" fill="${fill}" />`;
+  return `<path d="M ${x + size / 2} ${y} L ${x + size} ${y + size * (1.5 / 7)} L ${x + size} ${y + size * 0.7} Q ${x + size / 2} ${y + size * 1.1} ${x} ${y + size * 0.7} L ${x} ${y + size * (1.5 / 7)} Z" fill="${fill}" />`;
 }
 
 function buildStarPoints(
@@ -453,21 +471,6 @@ function buildStarPoints(
   }
 
   return result.join(' ');
-}
-
-function isDarkModule(
-  modules: {
-    size: number;
-    get: (row: number, col: number) => boolean | number;
-  },
-  row: number,
-  col: number,
-): boolean {
-  if (row < 0 || col < 0 || row >= modules.size || col >= modules.size) {
-    return false;
-  }
-
-  return Boolean(modules.get(row, col));
 }
 
 async function buildPdfBuffer(svg: string): Promise<Buffer> {

@@ -3,7 +3,11 @@
     "crons": [
         {
             "path": "/v1/api/cron/url-shortener",
-            "schedule": "20 12 * * *"
+            "schedule": "0 12 * * *"
+        },
+        {
+            "path": "/v1/api/cron/qr-codes",
+            "schedule": "0 12 * * *"
         }
     ]
 }

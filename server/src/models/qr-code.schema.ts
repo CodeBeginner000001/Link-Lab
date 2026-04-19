@@ -70,6 +70,9 @@ class QrExportStats {
 
   @Prop({ type: String, enum: QrExportType, default: null })
   lastExportType!: QrExportType | null;
+
+  @Prop({ type: Date, default: null })
+  lastCopiedAt!: Date | null;
 }
 
 @Schema({ _id: false, versionKey: false })

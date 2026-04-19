@@ -35,13 +35,16 @@ async function handler(
       cache: "no-store",
     });
 
-    const response = new NextResponse(await backendResponse.text(), {
+    const response = new NextResponse(await backendResponse.arrayBuffer(), {
       status: backendResponse.status,
     });
 
-    const responseContentType = backendResponse.headers.get("content-type");
-    if (responseContentType) {
-      response.headers.set("content-type", responseContentType);
+    for (const [headerName, headerValue] of backendResponse.headers.entries()) {
+      if (headerName.toLowerCase() === "content-length") {
+        continue;
+      }
+
+      response.headers.set(headerName, headerValue);
     }
 
     return response;
