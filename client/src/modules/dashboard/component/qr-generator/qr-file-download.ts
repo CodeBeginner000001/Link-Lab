@@ -1,5 +1,5 @@
 import { getQrExportDownloadUrl } from "@/service/dashboard/qr-generator";
-import { QrExportType } from "@/service/dashboard/qr-generator/type";
+import { QrFileExportType } from "@/service/dashboard/qr-generator/type";
 import { QrPreviewRenderConfig } from "./qr-preview-renderer";
 
 const MOBILE_BROWSER_PATTERN = /Android|iPhone|iPad|iPod/i;
@@ -50,7 +50,7 @@ export const isQrShareDismissed = (error: unknown) => {
 
 export const startNativeQrFileDownload = (
   publicId: string,
-  exportType: Exclude<QrExportType, "COPY">,
+  exportType: QrFileExportType,
   render?: QrPreviewRenderConfig,
 ) => {
   const downloadUrl = getQrExportDownloadUrl(publicId, exportType, render);

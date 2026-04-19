@@ -1,4 +1,8 @@
-import { QrExportType } from "@/service/dashboard/qr-generator/type";
+import {
+  isQrFileExportType,
+  QrFileExportType,
+  QrExportType,
+} from "@/service/dashboard/qr-generator/type";
 
 export type QRExportOption = {
   value: QrExportType;
@@ -16,6 +20,8 @@ export const QR_EXPORT_OPTIONS: QRExportOption[] = [
 ];
 
 export const QR_DOWNLOAD_EXPORT_OPTIONS: Array<{
-  value: QrExportType;
+  value: QrFileExportType;
   label: string;
-}> = QR_EXPORT_OPTIONS.filter((option) => option.value !== "COPY");
+}> = QR_EXPORT_OPTIONS.filter((option): option is QRExportOption & {
+  value: QrFileExportType;
+} => isQrFileExportType(option.value));

@@ -10,6 +10,7 @@ import {
   GetQrCodeDetailResponse,
   GetQrDashboardOverviewQuery,
   GetQrDashboardOverviewResponse,
+  QrFileExportType,
   QrExportType,
 } from "./type";
 
@@ -231,7 +232,7 @@ export const ExportQrCode = async (
 
 export const getQrExportDownloadUrl = (
   publicId: string,
-  exportType: Exclude<QrExportType, "COPY">,
+  exportType: QrFileExportType,
   render?: ExportQrCodePayload["render"],
 ) => {
   const params = new URLSearchParams({

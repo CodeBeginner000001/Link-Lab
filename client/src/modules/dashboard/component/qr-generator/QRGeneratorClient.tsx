@@ -2,8 +2,8 @@
 
 import { ExportQrCode, CreateQrCode } from "@/service/dashboard/qr-generator";
 import {
+  QrFileExportType,
   QrCodeRecord,
-  QrExportType,
 } from "@/service/dashboard/qr-generator/type";
 import { useToastNotification } from "@/utils/toast";
 import { useRouter } from "next/navigation";
@@ -238,7 +238,7 @@ export default function QRGeneratorClient({
     }
   };
 
-  const handleExport = async (format: Exclude<QrExportType, "COPY">) => {
+  const handleExport = async (format: QrFileExportType) => {
     if (previewSource !== "saved" || !savedPreview) {
       notify("Save the QR before downloading it.", "warning");
       return;
@@ -251,7 +251,7 @@ export default function QRGeneratorClient({
 
       const result = await ExportQrCode(
         savedPreview.publicId,
-        format as QrExportType,
+        format,
         render,
       );
 

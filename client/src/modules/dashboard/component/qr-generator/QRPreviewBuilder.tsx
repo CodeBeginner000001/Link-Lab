@@ -7,7 +7,7 @@ import {
   getEyeFrameLabel,
   QRStyleDraft,
 } from "@/modules/dashboard/interface/qrGeneratorStyle";
-import { QrExportType } from "@/service/dashboard/qr-generator/type";
+import { QrFileExportType } from "@/service/dashboard/qr-generator/type";
 import { cn } from "@/utils/tailwindcss-merger";
 import {
   Copy,
@@ -41,7 +41,7 @@ type QRPreviewBuilderProps = {
   onCopyContent: () => Promise<void>;
   onReset: () => void;
   onSave: () => Promise<void>;
-  onExport: (format: Exclude<QrExportType, "COPY">) => Promise<void>;
+  onExport: (format: QrFileExportType) => Promise<void>;
 };
 
 export default function QRPreviewBuilder({
@@ -58,9 +58,8 @@ export default function QRPreviewBuilder({
   const canDownload =
     preview.source === "saved" && Boolean(preview.savedPublicId);
   const canReset = preview.source === "saved";
-  const [selectedExportType, setSelectedExportType] = useState<
-    Exclude<QrExportType, "COPY">
-  >("PNG");
+  const [selectedExportType, setSelectedExportType] =
+    useState<QrFileExportType>("PNG");
   const previewClassName = cn(
     "max-w-[320px] transition-all duration-300",
     preview.source === "none"

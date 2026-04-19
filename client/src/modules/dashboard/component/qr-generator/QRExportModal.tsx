@@ -3,7 +3,10 @@
 import { Button } from "@/components/ui/Button";
 import { Label } from "@/components/ui/Label";
 import { ExportQrCode } from "@/service/dashboard/qr-generator";
-import { QrCodeStyle } from "@/service/dashboard/qr-generator/type";
+import {
+  isQrFileExportType,
+  QrCodeStyle,
+} from "@/service/dashboard/qr-generator/type";
 import { useToastNotification } from "@/utils/toast";
 import { Copy, Download, Loader2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -91,6 +94,11 @@ export default function QRExportModal({
         notify("QR content copied.", "success");
         router.refresh();
         handleClose();
+        return;
+      }
+
+      if (!isQrFileExportType(selectedExportType)) {
+        notify("Unable to export QR code.", "error");
         return;
       }
 

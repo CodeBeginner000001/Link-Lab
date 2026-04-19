@@ -7,7 +7,19 @@ import { ApiSuccessResponse } from "@/service/auth/types";
 import { QrApiContentType } from "@/modules/dashboard/interface/qrGeneratorConfig";
 import { QrPreviewRenderConfig } from "@/modules/dashboard/component/qr-generator/qr-preview-renderer";
 
-export type QrExportType = "PNG" | "JPG" | "JPEG" | "SVG" | "WEBP" | "PDF" | "COPY";
+export type QrExportType =
+  | "PNG"
+  | "JPG"
+  | "JPEG"
+  | "SVG"
+  | "WEBP"
+  | "PDF"
+  | "COPY";
+export type QrFileExportType = Exclude<QrExportType, "COPY">;
+
+export const isQrFileExportType = (
+  exportType: QrExportType,
+): exportType is QrFileExportType => exportType !== "COPY";
 export type QrStatus = "ACTIVE" | "DEACTIVATED";
 
 export interface QrCopyAvailability {
