@@ -10,6 +10,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { QR_EXPORT_OPTIONS } from "./qr-export-options";
 import {
+  isQrShareDismissed,
+  shareQrExportFile,
   shouldUseNativeQrFileDownload,
   startNativeQrFileDownload,
 } from "./qr-file-download";
@@ -70,17 +72,6 @@ export default function QRExportModal({
 
     const render = getQrPreviewRenderConfig(style.zoom);
 
-    if (
-      selectedExportType !== "COPY" &&
-      shouldUseNativeQrFileDownload()
-    ) {
-      startNativeQrFileDownload(publicId, selectedExportType, render);
-      notify("Download started.", "success");
-      router.refresh();
-      handleClose();
-      return;
-    }
-
     try {
       setIsExporting(true);
 
@@ -103,15 +94,36 @@ export default function QRExportModal({
         return;
       }
 
+      if (shouldUseNativeQrFileDownload()) {
+        const didShare = await shareQrExportFile(
+          result.blob,
+          `qr-${publicId}.${selectedExportType.toLowerCase()}`,
+          result.filename,
+        );
+
+        if (didShare) {
+          handleClose();
+          return;
+        }
+
+        startNativeQrFileDownload(publicId, selectedExportType, render);
+        notify("Opened export in a new tab.", "success");
+        handleClose();
+        return;
+      }
+
       downloadBlob(
         result.blob,
         `qr-${publicId}.${selectedExportType.toLowerCase()}`,
         result.filename,
       );
       notify(`QR downloaded as ${selectedExportType}.`, "success");
-      router.refresh();
       handleClose();
-    } catch {
+    } catch (error) {
+      if (isQrShareDismissed(error)) {
+        return;
+      }
+
       notify("Unable to export QR code.", "error");
     } finally {
       setIsExporting(false);

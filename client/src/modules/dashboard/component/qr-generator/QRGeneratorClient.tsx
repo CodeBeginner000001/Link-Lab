@@ -27,6 +27,8 @@ import {
   QRBasicContentState,
 } from "./qr-builder.helpers";
 import {
+  isQrShareDismissed,
+  shareQrExportFile,
   shouldUseNativeQrFileDownload,
   startNativeQrFileDownload,
 } from "./qr-file-download";
@@ -244,12 +246,6 @@ export default function QRGeneratorClient({
 
     const render = getQrPreviewRenderConfig(savedPreview.style.zoom);
 
-    if (shouldUseNativeQrFileDownload()) {
-      startNativeQrFileDownload(savedPreview.publicId, format, render);
-      notify("Download started.", "success");
-      return;
-    }
-
     try {
       setIsExporting(true);
 
@@ -270,6 +266,22 @@ export default function QRGeneratorClient({
         return;
       }
 
+      if (shouldUseNativeQrFileDownload()) {
+        const didShare = await shareQrExportFile(
+          result.blob,
+          `qr-${savedPreview.publicId}.${format.toLowerCase()}`,
+          result.filename,
+        );
+
+        if (didShare) {
+          return;
+        }
+
+        startNativeQrFileDownload(savedPreview.publicId, format, render);
+        notify("Opened export in a new tab.", "success");
+        return;
+      }
+
       downloadBlob(
         result.blob,
         `qr-${savedPreview.publicId}.${format.toLowerCase()}`,
@@ -279,7 +291,11 @@ export default function QRGeneratorClient({
       startTransition(() => {
         router.refresh();
       });
-    } catch {
+    } catch (error) {
+      if (isQrShareDismissed(error)) {
+        return;
+      }
+
       notify("Unable to export QR code.", "error");
     } finally {
       setIsExporting(false);
