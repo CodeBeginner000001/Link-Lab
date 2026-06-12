@@ -38,22 +38,6 @@ export class CronController {
     };
   }
 
-  @Public()
-  @Get('qr-codes')
-  @HttpCode(HttpStatus.OK)
-  async flushQrCodeAnalytics(@Headers('authorization') authorization?: string) {
-    this.assertAuthorized(authorization);
-
-    const result = await this.cronService.flushQrCodeRedisAnalyticsToMongo();
-
-    return {
-      success: true,
-      message: 'Cron executed successfully',
-      result,
-      ranAt: new Date().toISOString(),
-    };
-  }
-
   private assertAuthorized(authorization?: string) {
     const expected = `Bearer ${process.env.CRON_SECRET}`;
 

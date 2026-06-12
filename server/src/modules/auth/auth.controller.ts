@@ -304,8 +304,8 @@ export class AuthController {
     };
   }
 
-  @Post('logout')
   @Public()
+  @Post('logout')
   logout(@Res({ passthrough: true }) res: express.Response) {
     res.clearCookie('access_token', buildCookieOptions());
     res.clearCookie('refresh_token', buildCookieOptions());

@@ -4,12 +4,12 @@ import { Public } from 'src/decorators/public.decorator';
 import { SkipResponseInterceptor } from 'src/decorators/skip-success-interceptor.decorator';
 import { UrlShortenerService } from './urlShortener.service';
 
+@Public()
+@SkipResponseInterceptor()
 @Controller('r')
 export class UrlShortenerRedirectController {
   constructor(private readonly urlShortenerService: UrlShortenerService) {}
 
-  @Public()
-  @SkipResponseInterceptor()
   @Get(':alias')
   async resolveShortUrl(
     @Param('alias') alias: string,

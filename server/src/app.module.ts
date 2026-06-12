@@ -13,7 +13,6 @@ import { SuccessResponseInterceptor } from './interceptors/success-response.inte
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
-import { QrCodeModule } from './modules/features/qrCode/qrCode.module';
 import { UrlShortenerModule } from './modules/features/urlShortener/urlShortener.module';
 import { RedisModule } from './modules/redis/redis.module';
 import { CronJobModule } from './modules/cron-job/cron-job.module';
@@ -29,7 +28,6 @@ import { CronJobModule } from './modules/cron-job/cron-job.module';
     JwtModule.register({}),
     AuthModule,
     AvatarModule,
-    QrCodeModule,
     UrlShortenerModule,
     RedisModule,
     CronJobModule,
