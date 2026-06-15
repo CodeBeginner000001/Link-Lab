@@ -40,9 +40,6 @@ import {
   setHashFields,
   warmJsonCache,
 } from '../utils/redis-helper.utils';
-import { CreateShortUrlDto } from './dto/create-short-url.dto';
-import { GetUserShortUrlsDto } from './dto/get-user-short-urls.dto';
-import { UpdateShortUrlDto } from './dto/update-short-url.dto';
 import {
   AUTO_ALIAS_GENERATION_ATTEMPTS,
   AUTO_ALIAS_LENGTH,
@@ -52,6 +49,11 @@ import {
   RESERVED_SHORT_URL_ALIASES,
   SHORT_URL_ALIAS_REGEX,
 } from './urlShortener.constants';
+import {
+  CreateShortUrlDto,
+  GetUserShortUrlsDto,
+  UpdateShortUrlDto,
+} from './dto/short-url.dto';
 
 type ShortUrlCacheEntry = {
   id: string;

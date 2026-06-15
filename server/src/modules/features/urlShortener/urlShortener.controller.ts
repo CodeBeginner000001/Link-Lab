@@ -12,10 +12,12 @@ import {
 import type express from 'express';
 import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
-import { CreateShortUrlDto } from './dto/create-short-url.dto';
-import { GetUserShortUrlsDto } from './dto/get-user-short-urls.dto';
-import { UpdateShortUrlDto } from './dto/update-short-url.dto';
 import { UrlShortenerService } from './urlShortener.service';
+import {
+  CreateShortUrlDto,
+  GetUserShortUrlsDto,
+  UpdateShortUrlDto,
+} from './dto/short-url.dto';
 
 type AuthenticatedRequest = express.Request & {
   user?: JwtPayload;

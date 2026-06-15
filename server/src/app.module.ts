@@ -13,9 +13,10 @@ import { SuccessResponseInterceptor } from './interceptors/success-response.inte
 import { RequestContextMiddleware } from './middleware/request-context.middleware';
 import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
+import { CronJobModule } from './modules/cron-job/cron-job.module';
+import { BarcodeGeneratorModule } from './modules/features/barcodeGenerator/barcode-generator.module';
 import { UrlShortenerModule } from './modules/features/urlShortener/urlShortener.module';
 import { RedisModule } from './modules/redis/redis.module';
-import { CronJobModule } from './modules/cron-job/cron-job.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -29,6 +30,7 @@ import { CronJobModule } from './modules/cron-job/cron-job.module';
     AuthModule,
     AvatarModule,
     UrlShortenerModule,
+    BarcodeGeneratorModule,
     RedisModule,
     CronJobModule,
   ],

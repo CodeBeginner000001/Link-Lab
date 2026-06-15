@@ -1,0 +1,1562 @@
+{
+  "info": {
+    "_postman_id": "20a76fb2-ea3f-4098-ae3c-9c080cc1a499",
+    "name": "LinkLab",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "45799993",
+    "_collection_link": "https://go.postman.co/collection/45799993-20a76fb2-ea3f-4098-ae3c-9c080cc1a499?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "auth",
+      "item": [
+        {
+          "name": "signup",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"adarsh\",\n    \"email\": \"ashu2005ag@gmail.com\",\n    \"password\": \"jfdkbvAA@323\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/signup",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "signup"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "verify signup otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp\": \"874087\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/verify-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "forget-password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ashu2005ag@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/forgot-password",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "forgot-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "forget-password resend-otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ashu2005ag@gmail.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/forgot-password/resend-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "forgot-password",
+                "resend-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "forget-password verify otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"otp\": \"749829\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/forgot-password/verify-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "forgot-password",
+                "verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "resend-otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": ""
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/resend-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "resend-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "password change",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "cookies.txt"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"token\": \"b72b8c5d-29aa-45e0-aba8-b94b944a5c75\",\n    \"password\": \"NewPassword@123\"\n  }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/forgot-password/reset-password",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "forgot-password",
+                "reset-password"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ashu2005ag@gmail.com\",\n    \"password\": \"NewPassword@123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{localhost}}/v1/auth/login",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/logout",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "refresh",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/refresh-token",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "redis",
+      "item": [
+        {
+          "name": "string",
+          "item": [
+            {
+              "name": "create",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"key\": \"user:1001\",\n    \"value\": {\n      \"name\": \"Adarsh\",\n      \"email\": \"adarsh@example.com\"\n    },\n    \"ttlSeconds\": 300,\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create if not exists",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"key\": \"user:1001\",\n    \"value\": {\n      \"name\": \"Adarsh\",\n      \"status\": \"active\"\n    },\n    \"ttlSeconds\": 300,\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/nx",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "nx"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "parsed data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/user:1001?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "user:1001"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/user:1001/raw?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "user:1001",
+                    "raw"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check existence",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/user:1001/exists?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "user:1001",
+                    "exists"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "key ttl",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/user:1001/ttl?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "user:1001",
+                    "ttl"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"key\": \"user:1001\",\n    \"value\": {\n      \"name\": \"Adarsh Goyal\",\n      \"email\": \"adarsh@example.com\",\n      \"role\": \"admin\"\n    },\n    \"preserveTtl\": true,\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update fields",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"key\": \"user:1001\",\n    \"updates\": {\n      \"name\": \"Adarsh Updated\",\n      \"role\": \"super-admin\",\n      \"verified\": true\n    },\n    \"preserveTtl\": true,\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/fields",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "fields"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "set expiration",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"key\": \"user:1001\",\n    \"ttlSeconds\": 600,\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/expire",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "expire"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "rename",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"oldKey\": \"user:1002\",\n    \"newKey\": \"user:1003\",\n    \"db\": 0\n  }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/string/rename",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "string",
+                    "rename"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "http://localhost:3000/redis/string/user:1002?db=0",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "3000",
+                  "path": [
+                    "redis",
+                    "string",
+                    "user:1002"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "hash",
+          "item": [
+            {
+              "name": "create",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "x-internal-api-key",
+                    "value": "vhgv78g7",
+                    "type": "text"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"value\": {\n    \"name\": \"Adarsh\",\n    \"email\": \"adarsh@example.com\",\n    \"role\": \"admin\"\n  },\n  \"ttlSeconds\": 300,\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseURL}}/v1/redis/hash",
+                  "host": [
+                    "{{baseURL}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create if not exists",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"value\": {\n    \"name\": \"Adarsh\",\n    \"email\": \"adarsh@example.com\",\n    \"status\": \"active\"\n  },\n  \"ttlSeconds\": 300,\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/nx",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "nx"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "parsed data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/user:1001?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "user:1001"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/user:1001/raw?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "user:1001",
+                    "raw"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check existence",
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "x-internal-api-key",
+                    "value": "vhgv78g7",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseURL}}/v1/redis/hash/user:1001/exists?db=0",
+                  "host": [
+                    "{{baseURL}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "user:1001",
+                    "exists"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "ket ttl",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/user:1001/ttl?db=0",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "user:1001",
+                    "ttl"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update",
+              "request": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"value\": {\n    \"name\": \"Adarsh Goyal\",\n    \"email\": \"adarsh@example.com\",\n    \"role\": \"super-admin\",\n    \"verified\": true\n  },\n  \"preserveTtl\": true,\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "update fields",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"updates\": {\n    \"name\": \"Updated Adarsh\",\n    \"role\": \"editor\",\n    \"verified\": false\n  },\n  \"preserveTtl\": true,\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/fields",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "fields"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete fields",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"fields\": [\"role\", \"verified\"],\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/fields/delete",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "fields",
+                    "delete"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "set expiration",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"key\": \"user:1001\",\n  \"ttlSeconds\": 600,\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/expire",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "expire"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "rename",
+              "request": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"oldKey\": \"user:1001\",\n  \"newKey\": \"user:2001\",\n  \"db\": 0\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/redis/hash/rename",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "rename"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  {
+                    "key": "x-internal-api-key",
+                    "value": "vhgv78g7",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseURL}}/v1/redis/hash/user:1001?db=0",
+                  "host": [
+                    "{{baseURL}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "redis",
+                    "hash",
+                    "user:1001"
+                  ],
+                  "query": [
+                    {
+                      "key": "db",
+                      "value": "0"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "features",
+      "item": [
+        {
+          "name": "barcode-generator",
+          "item": [
+            {
+              "name": "get-formats",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/formats",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", "formats"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "generate-barcode",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"format\": \"CODE128\",\n    \"content\": \"LINKLAB-2025\",\n    \"barWidth\": 2,\n    \"height\": 100,\n    \"margin\": 10,\n    \"barColor\": \"#000000\",\n    \"backgroundColor\": \"#ffffff\",\n    \"showValue\": true\n}",
+                  "options": { "raw": { "language": "json" } }
+                },
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-recent-barcodes",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/recent?page=1&limit=10",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", "recent"],
+                  "query": [
+                    { "key": "page", "value": "1" },
+                    { "key": "limit", "value": "10" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics-summary",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/summary",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", "analytics", "summary"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics-activity",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/activity?period=week&date=2025-W01",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", "analytics", "activity"],
+                  "query": [
+                    { "key": "period", "value": "week" },
+                    { "key": "date", "value": "2025-W01" }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "preview-barcode",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/preview",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", ":id", "preview"],
+                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "download-barcode-png",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=png",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", ":id", "download"],
+                  "query": [{ "key": "type", "value": "png" }],
+                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "download-barcode-svg",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=svg",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", ":id", "download"],
+                  "query": [{ "key": "type", "value": "svg" }],
+                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-barcode",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id",
+                  "host": ["{{localhost}}"],
+                  "path": ["v1", "barcodes", ":id"],
+                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "url-shortener",
+          "item": [
+            {
+              "name": "get-urls",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}v1/short-urls?limit=10",
+                  "host": [
+                    "{{localhost}}v1"
+                  ],
+                  "path": [
+                    "short-urls"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "69dc196a9f46e1a5d10eb515",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "url-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"longUrl\": \"https://example.com/final-page\",\n  \"customAlias\": \"final-alias-123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}v1/short-urls/:id",
+                  "host": [
+                    "{{localhost}}v1"
+                  ],
+                  "path": [
+                    "short-urls",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "69dc196a9f46e1a5d10eb515"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "url-by-id",
+              "protocolProfileBehavior": {
+                "disableBodyPruning": true
+              },
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer <token>"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}v1/short-urls/:id",
+                  "host": [
+                    "{{localhost}}v1"
+                  ],
+                  "path": [
+                    "short-urls",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "69dc196a9f46e1a5d10eb515"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create-urls",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"longUrl\":\"https://www.google.com\",\n    \"customAlias\":\"ggg\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}v1/short-urls",
+                  "host": [
+                    "{{localhost}}v1"
+                  ],
+                  "path": [
+                    "short-urls"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n    \"longUrl\":\"https://www.google.com\",\n    \"customAlias\":\"ddd\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{localhost}}v1/short-urls/69dfbd69389895e5dfe9a6f0",
+                  "host": [
+                    "{{localhost}}v1"
+                  ],
+                  "path": [
+                    "short-urls",
+                    "69dfbd69389895e5dfe9a6f0"
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "redirect-url",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}r/:alias",
+                  "host": [
+                    "{{localhost}}r"
+                  ],
+                  "path": [
+                    ":alias"
+                  ],
+                  "variable": [
+                    {
+                      "key": "alias",
+                      "value": "hhh"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "cron-job",
+      "item": [
+        {
+          "name": "flush-url-shortener-data",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}v1/api/cron/url-shortener",
+              "host": [
+                "{{localhost}}v1"
+              ],
+              "path": [
+                "api",
+                "cron",
+                "url-shortener"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{localhost}}",
+          "host": [
+            "{{localhost}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "avatar",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{localhost}}/v1/avatar?name=anchal goyal",
+          "host": [
+            "{{localhost}}"
+          ],
+          "path": [
+            "v1",
+            "avatar"
+          ],
+          "query": [
+            {
+              "key": "name",
+              "value": "anchal goyal"
+            }
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "packages": {},
+        "requests": {},
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseURL",
+      "value": ""
+    },
+    {
+      "key": "localhost",
+      "value": ""
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ]
+}
