@@ -1,7 +1,11 @@
 "use client";
 
 import { Button } from "@/components/ui/Button";
-import { Download, Trash2 } from "lucide-react";
+import {
+  GetBarcodeDownloadFilename,
+  GetBarcodeDownloadUrl,
+} from "@/service/dashboard/barcode-generator";
+import { Download, FileImage, Trash2 } from "lucide-react";
 import ToolFeaturePill from "../../common/ToolFeaturePill";
 import BarcodeDeleteModal from "../BarcodeDeleteModal";
 import { RecentBarcode } from "./types";
@@ -22,8 +26,13 @@ export default function RecentBarcodeRow({
   barcode: RecentBarcode;
   onDeleted: (id: string) => void;
 }) {
+  const pngDownloadUrl = GetBarcodeDownloadUrl(barcode.id, "png");
+  const svgDownloadUrl = GetBarcodeDownloadUrl(barcode.id, "svg");
+  const pngFilename = GetBarcodeDownloadFilename(barcode, "png");
+  const svgFilename = GetBarcodeDownloadFilename(barcode, "svg");
+
   return (
-    <article className="grid gap-4 bg-[hsl(var(--card))] p-4 md:grid-cols-[minmax(240px,1.4fr)_120px_170px_110px_80px] md:items-center md:px-5">
+    <article className="grid gap-4 bg-[hsl(var(--card))] p-4 md:grid-cols-[minmax(220px,1.4fr)_110px_150px_100px_150px_52px] md:items-center md:px-5">
       <div className="flex min-w-0 items-center gap-4">
         <div className="hidden h-14 w-24 shrink-0 items-center overflow-hidden rounded-lg border border-slate-200 bg-white px-2 sm:flex">
           <div
@@ -55,7 +64,37 @@ export default function RecentBarcodeRow({
         </span>
       </div>
 
-      <div className="flex items-center">
+      <div className="flex items-center justify-between gap-2 md:justify-start">
+        <span className="text-xs text-[hsl(var(--muted-foreground))] md:hidden">Download</span>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5"
+            asChild
+          >
+            <a href={pngDownloadUrl} download={pngFilename}>
+              <Download className="h-3.5 w-3.5" />
+              PNG
+            </a>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-2.5"
+            asChild
+          >
+            <a href={svgDownloadUrl} download={svgFilename}>
+              <FileImage className="h-3.5 w-3.5" />
+              SVG
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-end md:justify-start">
         <BarcodeDeleteModal
           barcode={barcode}
           onDeleted={onDeleted}

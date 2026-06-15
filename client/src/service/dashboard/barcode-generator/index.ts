@@ -25,6 +25,22 @@ export const NotifyBarcodeDataChanged = () => {
 export const GetBarcodeDownloadUrl = (id: string, type: "png" | "svg") =>
   `${PROXY_BASE}/barcodes/${id}/download?type=${type}`;
 
+export const GetBarcodeDownloadFilename = (
+  barcode: { id: string; format: string; content: string },
+  type: "png" | "svg",
+) => {
+  const safeContent = barcode.content
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 36);
+
+  const name = safeContent || barcode.id;
+
+  return `linklab-${barcode.format.toLowerCase()}-${name}.${type}`;
+};
+
 export const GetBarcodeFormats = async (headers?: HeadersInit) => {
   return requestWithRefresh<GetBarcodeFormatsResponse>({
     baseUrl: BACKEND_BASE,

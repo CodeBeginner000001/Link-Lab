@@ -5,6 +5,19 @@ const BACKEND_API_URL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   "http://localhost:4000/v1";
 
+const EXCLUDED_RESPONSE_HEADERS = new Set([
+  "connection",
+  "content-encoding",
+  "content-length",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+]);
+
 async function handler(
   request: NextRequest,
   context: { params: Promise<{ path: string[] }> },
@@ -24,6 +37,7 @@ async function handler(
 
     if (contentType) headers.set("content-type", contentType);
     if (cookieHeader) headers.set("cookie", cookieHeader);
+    headers.set("accept-encoding", "identity");
 
     const backendResponse = await fetch(targetUrl.toString(), {
       method: request.method,
@@ -40,7 +54,7 @@ async function handler(
     });
 
     for (const [headerName, headerValue] of backendResponse.headers.entries()) {
-      if (headerName.toLowerCase() === "content-length") {
+      if (EXCLUDED_RESPONSE_HEADERS.has(headerName.toLowerCase())) {
         continue;
       }
 

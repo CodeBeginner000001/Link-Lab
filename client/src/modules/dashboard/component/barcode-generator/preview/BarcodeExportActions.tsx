@@ -1,5 +1,8 @@
 import { Button } from "@/components/ui/Button";
-import { GetBarcodeDownloadUrl } from "@/service/dashboard/barcode-generator";
+import {
+  GetBarcodeDownloadFilename,
+  GetBarcodeDownloadUrl,
+} from "@/service/dashboard/barcode-generator";
 import { BarcodeItem } from "@/service/dashboard/barcode-generator/type";
 import { Download, FileImage } from "lucide-react";
 import ToolPillGroup from "../../common/ToolPillGroup";
@@ -15,6 +18,12 @@ export default function BarcodeExportActions({
   const svgDownloadUrl = barcode
     ? GetBarcodeDownloadUrl(barcode.id, "svg")
     : null;
+  const pngFilename = barcode
+    ? GetBarcodeDownloadFilename(barcode, "png")
+    : undefined;
+  const svgFilename = barcode
+    ? GetBarcodeDownloadFilename(barcode, "svg")
+    : undefined;
 
   return (
     <ToolPillGroup className="*:flex-1">
@@ -25,7 +34,7 @@ export default function BarcodeExportActions({
         asChild={Boolean(pngDownloadUrl)}
       >
         {pngDownloadUrl ? (
-          <a href={pngDownloadUrl}>
+          <a href={pngDownloadUrl} download={pngFilename}>
             <Download className="h-4 w-4" />
             Download PNG
           </a>
@@ -44,14 +53,14 @@ export default function BarcodeExportActions({
         asChild={Boolean(svgDownloadUrl)}
       >
         {svgDownloadUrl ? (
-          <a href={svgDownloadUrl}>
+          <a href={svgDownloadUrl} download={svgFilename}>
             <FileImage className="h-4 w-4" />
-            Export SVG
+            Download SVG
           </a>
         ) : (
           <>
             <FileImage className="h-4 w-4" />
-            Export SVG
+            Download SVG
           </>
         )}
       </Button>
