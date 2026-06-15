@@ -69,19 +69,19 @@ export default function BarcodeActivityChart({
 
   return (
     <div
-      className="relative rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary)/0.18)] p-4 sm:p-5"
+      className="relative min-w-0 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--secondary)/0.18)] p-4 max-[400px]:!p-2.5 max-[540px]:rounded-xl max-[540px]:p-3 sm:p-5"
       aria-busy={loading}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-semibold">
+      <div className="flex min-w-0 flex-col gap-4 max-[540px]:gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold max-[540px]:text-xs">
             {PERIOD_LABELS[period]} activity
           </p>
-          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))] max-[540px]:text-[11px]">
             Barcodes generated in the selected {period}
           </p>
           <p
-            className={`mt-2 text-sm font-semibold ${
+            className={`mt-2 text-sm font-semibold max-[540px]:mt-1 max-[540px]:text-xs ${
               growth < 0
                 ? "text-rose-600 dark:text-rose-400"
                 : "text-emerald-600 dark:text-emerald-400"
@@ -91,16 +91,18 @@ export default function BarcodeActivityChart({
             {growth}%
           </p>
         </div>
-        <BarcodeActivityPeriod
-          period={period}
-          date={date}
-          onPeriodChange={onPeriodChange}
-          onDateChange={onDateChange}
-        />
+        <div className="min-w-0 lg:shrink-0">
+          <BarcodeActivityPeriod
+            period={period}
+            date={date}
+            onPeriodChange={onPeriodChange}
+            onDateChange={onDateChange}
+          />
+        </div>
       </div>
 
       <div
-        className={`mt-6 flex h-44 items-end gap-1.5 transition-opacity sm:gap-3 ${
+        className={`mt-6 flex h-44 min-w-0 items-end gap-1.5 transition-opacity max-[400px]:!h-32 max-[400px]:gap-1 max-[540px]:mt-4 max-[540px]:h-36 sm:gap-3 ${
           loading ? "opacity-45" : "opacity-100"
         }`}
       >

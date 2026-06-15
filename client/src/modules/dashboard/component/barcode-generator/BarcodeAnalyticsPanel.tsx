@@ -136,10 +136,19 @@ export default function BarcodeAnalyticsPanel() {
     <ToolPanel
       heading="Barcode Analytics"
       para="Generation volume, downloads, growth, and format usage."
-      headerSlot={<ToolFeaturePill icon={BarChart3} label="Live analytics" />}
+      headerSlot={
+        <ToolFeaturePill
+          icon={BarChart3}
+          label="Live analytics"
+          className="max-[540px]:gap-1.5 max-[540px]:px-2.5 max-[540px]:py-1 max-[540px]:text-[10px] max-[540px]:[&_svg]:h-3 max-[540px]:[&_svg]:w-3"
+        />
+      }
+      className="max-[540px]:rounded-xl max-[540px]:p-3"
+      headerClassName="max-[540px]:gap-3 max-[540px]:pb-3 max-[540px]:[&_h2]:text-lg max-[540px]:[&_p]:text-xs max-[540px]:[&_p]:leading-snug"
+      bodyClassName="max-[540px]:pt-3"
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
-        <div className="space-y-5">
+      <div className="grid gap-5 max-[540px]:gap-3 xl:grid-cols-[minmax(0,1.25fr)_minmax(320px,0.75fr)]">
+        <div className="space-y-5 max-[540px]:space-y-3">
           <BarcodeSummaryMetrics
             summary={summary}
             growth={selectedActivity?.growth ?? null}

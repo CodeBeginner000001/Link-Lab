@@ -21,13 +21,13 @@ export default function BarcodeActivityPeriod({
   onDateChange,
 }: BarcodeActivityPeriodProps) {
   return (
-    <div className="flex flex-col gap-3 sm:items-end">
-      <fieldset className="flex rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1">
+    <div className="flex min-w-0 flex-col gap-3 max-[540px]:gap-2 sm:items-end">
+      <fieldset className="flex w-full rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-1 sm:w-auto">
         <legend className="sr-only">Activity period</legend>
         {PERIOD_OPTIONS.map((option) => (
           <label
             key={option.value}
-            className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] has-[:checked]:bg-[hsl(var(--primary))] has-[:checked]:text-[hsl(var(--primary-foreground))]"
+            className="flex-1 cursor-pointer rounded-lg px-3 py-1.5 text-center text-xs font-medium text-[hsl(var(--muted-foreground))] has-[:checked]:bg-[hsl(var(--primary))] has-[:checked]:text-[hsl(var(--primary-foreground))] max-[540px]:px-2 max-[540px]:py-1 max-[540px]:text-[11px] sm:flex-none"
           >
             <input
               type="radio"

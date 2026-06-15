@@ -32,9 +32,9 @@ export default function RecentBarcodeRow({
   const svgFilename = GetBarcodeDownloadFilename(barcode, "svg");
 
   return (
-    <article className="grid gap-4 bg-[hsl(var(--card))] p-4 md:grid-cols-[minmax(220px,1.4fr)_110px_150px_100px_150px_52px] md:items-center md:px-5">
+    <article className="grid grid-cols-[minmax(0,1fr)_auto] gap-3 bg-[hsl(var(--card))] p-4 lg:grid-cols-[minmax(220px,1.4fr)_110px_150px_100px_150px_52px] lg:items-center lg:gap-4 lg:px-5">
       <div className="flex min-w-0 items-center gap-4">
-        <div className="hidden h-14 w-24 shrink-0 items-center overflow-hidden rounded-lg border border-slate-200 bg-white px-2 sm:flex">
+        <div className="hidden h-12 w-20 shrink-0 items-center overflow-hidden rounded-lg border border-slate-200 bg-white px-2 min-[400px]:flex sm:h-14 sm:w-24">
           <div
             className="w-full"
             dangerouslySetInnerHTML={{ __html: barcode.svg }}
@@ -42,30 +42,28 @@ export default function RecentBarcodeRow({
         </div>
         <div className="min-w-0">
           <p className="truncate font-mono text-sm font-semibold">{barcode.content}</p>
-          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))] sm:hidden">
+          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))] lg:hidden">
             {barcode.format} · {formatDate(barcode.createdAt)}
           </p>
         </div>
       </div>
 
-      <div className="hidden md:block">
+      <div className="hidden lg:block">
         <ToolFeaturePill label={barcode.format} />
       </div>
 
-      <p className="hidden text-sm text-[hsl(var(--muted-foreground))] md:block">
+      <p className="hidden text-sm text-[hsl(var(--muted-foreground))] lg:block">
         {formatDate(barcode.createdAt)}
       </p>
 
-      <div className="flex items-center justify-between gap-3 md:block">
-        <span className="text-xs text-[hsl(var(--muted-foreground))] md:hidden">Downloads</span>
+      <div className="flex items-center justify-end gap-3 lg:block">
         <span className="inline-flex items-center gap-1.5 text-sm font-semibold">
           <Download className="h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" />
           {barcode.totalDownloads}
         </span>
       </div>
 
-      <div className="flex items-center justify-between gap-2 md:justify-start">
-        <span className="text-xs text-[hsl(var(--muted-foreground))] md:hidden">Download</span>
+      <div className="col-span-1 flex min-w-0 items-center justify-start gap-2 lg:col-auto">
         <div className="flex items-center gap-2">
           <Button
             type="button"
@@ -94,7 +92,7 @@ export default function RecentBarcodeRow({
         </div>
       </div>
 
-      <div className="flex items-center justify-end md:justify-start">
+      <div className="flex items-center justify-end lg:justify-start">
         <BarcodeDeleteModal
           barcode={barcode}
           onDeleted={onDeleted}

@@ -42,7 +42,7 @@ export default function BarcodeSummaryMetrics({
 
   return (
     <div
-      className="grid gap-3 sm:grid-cols-3"
+      className="grid gap-3 max-[540px]:gap-2 sm:grid-cols-3"
       aria-busy={summaryLoading || growthLoading}
     >
       {metrics.map(({ label, value, loading, icon: Icon, iconClassName }) => (
@@ -50,12 +50,18 @@ export default function BarcodeSummaryMetrics({
           key={label}
           label={label}
           value={
-            <div className="flex items-end justify-between gap-3">
-              <span className="text-3xl">{loading ? "—" : value}</span>
-              <Icon className={`mb-1 h-5 w-5 ${iconClassName}`} />
+            <div className="flex items-end justify-between gap-3 max-[540px]:gap-2">
+              <span className="text-3xl max-[540px]:text-2xl">
+                {loading ? "—" : value}
+              </span>
+              <Icon
+                className={`mb-1 h-5 w-5 max-[540px]:h-4 max-[540px]:w-4 ${iconClassName}`}
+              />
             </div>
           }
-          className="bg-[hsl(var(--secondary)/0.22)]"
+          className="bg-[hsl(var(--secondary)/0.22)] max-[540px]:rounded-lg max-[540px]:p-3"
+          labelClassName="max-[540px]:text-[10px] max-[540px]:tracking-[0.14em]"
+          valueClassName="max-[540px]:mt-1"
         />
       ))}
     </div>

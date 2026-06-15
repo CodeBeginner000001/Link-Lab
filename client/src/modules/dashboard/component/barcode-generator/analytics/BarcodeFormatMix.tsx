@@ -15,14 +15,14 @@ type BarcodeFormatMixProps = {
 export default function BarcodeFormatMix({ formats }: BarcodeFormatMixProps) {
   return (
     <div>
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex items-center min-[288px]:items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">Format mix</p>
-          <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">
+          <p className="mt-1 text-xs max-[288px]:hidden text-[hsl(var(--muted-foreground))]">
             Share of generated barcodes
           </p>
         </div>
-        <span className="rounded-full bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))]">
+        <span className="rounded-full text-nowrap bg-[hsl(var(--primary)/0.12)] px-2.5 py-1 text-xs font-semibold text-[hsl(var(--primary))]">
           {formats.length} formats
         </span>
       </div>

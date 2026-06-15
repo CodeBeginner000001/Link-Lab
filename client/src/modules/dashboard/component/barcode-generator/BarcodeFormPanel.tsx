@@ -87,7 +87,10 @@ export default function BarcodeFormPanel({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-5 max-[540px]:space-y-4 max-[540px]:[&_input]:h-10 max-[540px]:[&_label]:text-sm"
+    >
       <BarcodeFormatField
         formats={formats}
         value={selectedFormat.value}

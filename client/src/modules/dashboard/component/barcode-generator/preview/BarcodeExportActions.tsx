@@ -26,41 +26,41 @@ export default function BarcodeExportActions({
     : undefined;
 
   return (
-    <ToolPillGroup className="*:flex-1">
+    <ToolPillGroup className="min-w-0 max-[400px]:flex-col *:flex-1">
       <Button
         type="button"
-        className="flex-1"
+        className="flex-1 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
         disabled={!pngDownloadUrl}
         asChild={Boolean(pngDownloadUrl)}
       >
         {pngDownloadUrl ? (
           <a href={pngDownloadUrl} download={pngFilename}>
-            <Download className="h-4 w-4" />
-            Download PNG
+            <Download className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5" />
+            <span className="hidden min-[340px]:inline">Download </span>PNG
           </a>
         ) : (
           <>
-            <Download className="h-4 w-4" />
-            Download PNG
+            <Download className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5" />
+            <span className="hidden min-[340px]:inline">Download </span>PNG
           </>
         )}
       </Button>
       <Button
         type="button"
         variant="outline"
-        className="flex-1"
+        className="flex-1 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
         disabled={!svgDownloadUrl}
         asChild={Boolean(svgDownloadUrl)}
       >
         {svgDownloadUrl ? (
           <a href={svgDownloadUrl} download={svgFilename}>
-            <FileImage className="h-4 w-4" />
-            Download SVG
+            <FileImage className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5" />
+            <span className="hidden min-[340px]:inline">Download </span>SVG
           </a>
         ) : (
           <>
-            <FileImage className="h-4 w-4" />
-            Download SVG
+            <FileImage className="h-4 w-4 max-[400px]:h-3.5 max-[400px]:w-3.5" />
+            <span className="hidden min-[340px]:inline">Download </span>SVG
           </>
         )}
       </Button>

@@ -14,7 +14,7 @@ export default function BarcodeWorkspaceUsage({
     <div className="mt-7 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-sm font-medium">Download formats</p>
-        <p className="text-sm font-semibold">{total} total</p>
+        <p className="text-sm font-semibold">Total {total} </p>
       </div>
       <div className="mt-3 flex h-2 overflow-hidden rounded-full bg-[hsl(var(--muted))]">
         <div

@@ -2,7 +2,7 @@ import BarcodeColorField from "./BarcodeColorField";
 
 export default function BarcodeColorFields() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 max-[540px]:gap-3 sm:grid-cols-2">
       <BarcodeColorField
         id="barcode-bar-color"
         label="Bar color"

@@ -2,7 +2,7 @@ import BarcodeNumberField from "./BarcodeNumberField";
 
 export default function BarcodeDimensionsFields() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
+    <div className="grid gap-4 max-[540px]:gap-3 sm:grid-cols-2">
       <BarcodeNumberField
         id="barcode-width"
         label="Bar width"
