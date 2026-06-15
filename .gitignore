@@ -6,3 +6,5 @@ client/.env.*
 !client/.env.example
 .vercel
 .gocache
+
+*.DS_Store

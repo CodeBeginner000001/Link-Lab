@@ -13,6 +13,7 @@ type ToolPageShellProps = {
   headingClassName?: string;
   iconClassName?: string;
   paraClassName?: string;
+  animated?: boolean;
 };
 
 export default function ToolPageShell({
@@ -24,20 +25,21 @@ export default function ToolPageShell({
   headingClassName,
   iconClassName,
   paraClassName,
+  animated = true,
 }: ToolPageShellProps) {
-  return (
-    <MotionWrapper>
-      <div className={cn("space-y-6", className)}>
-        <Heading
-          icon={icon}
-          heading={heading}
-          para={para}
-          headingClassName={headingClassName}
-          iconClassName={iconClassName}
-          paraClassName={paraClassName}
-        />
-        {children}
-      </div>
-    </MotionWrapper>
+  const content = (
+    <div className={cn("space-y-6", className)}>
+      <Heading
+        icon={icon}
+        heading={heading}
+        para={para}
+        headingClassName={headingClassName}
+        iconClassName={iconClassName}
+        paraClassName={paraClassName}
+      />
+      {children}
+    </div>
   );
+
+  return animated ? <MotionWrapper>{content}</MotionWrapper> : content;
 }
