@@ -5,26 +5,21 @@ export enum BarcodeFormat {
   CODE39 = 'CODE39',
   ITF14 = 'ITF14',
 }
-
 export enum BarcodeDownloadType {
   SVG = 'svg',
   PNG = 'png',
 }
-
 export enum BarcodeStatus {
   ACTIVE = 'active',
   DELETED = 'deleted',
 }
-
 export enum BarcodeActivityPeriod {
   WEEK = 'week',
   MONTH = 'month',
   YEAR = 'year',
 }
-
 export const DEFAULT_BARCODE_PAGE_LIMIT = 10;
 export const MAX_BARCODE_PAGE_LIMIT = 50;
-
 export const BARCODE_FORMATS = [
   {
     value: BarcodeFormat.CODE128,
@@ -97,7 +92,6 @@ export const BARCODE_FORMATS = [
     },
   },
 ] as const;
-
 export const BARCODE_RENDERER_FORMAT: Record<BarcodeFormat, string> = {
   [BarcodeFormat.CODE128]: 'code128',
   [BarcodeFormat.EAN13]: 'ean13',
