@@ -256,15 +256,15 @@ export const menuItems = [
 
 export const dashBoardTools = [
   { name: "URL Shortener", href: "/dashboard/url-shortener", icon: Link2 },
-  { name: "QR Code Generator", href: "/dashboard/qr-generator", icon: QrCode },
-  { name: "QR Code Scanner", href: "/dashboard/qr-scanner", icon: ScanLine },
-  { name: "Dynamic QR Generator", href: "/dashboard/dynamic-qr", icon: Edit3 },
-  { name: "Link Expander", href: "/dashboard/link-expander", icon: ExternalLink },
-  { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
+  // { name: "QR Code Generator", href: "/dashboard/qr-generator", icon: QrCode },
+  // { name: "QR Code Scanner", href: "/dashboard/qr-scanner", icon: ScanLine },
+  // { name: "Dynamic QR Generator", href: "/dashboard/dynamic-qr", icon: Edit3 },
+  // { name: "Link Expander", href: "/dashboard/link-expander", icon: ExternalLink },
+  // { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
   { name: "Barcode Generator", href: "/dashboard/barcode-generator", icon: Barcode },
-  { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanBarcode },
-  { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
-  { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
+  // { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanBarcode },
+  // { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
+  // { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
 ];
 
 export const ANALYTICS_REFRESH_DELAY_SECONDS = 6000;

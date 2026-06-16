@@ -54,7 +54,7 @@ export async function GET() {
       );
     }
 
-    const response = NextResponse.redirect(new URL("/dashboard", APP_URL));
+    const response = NextResponse.redirect(new URL("/dashboard/url-shortener", APP_URL));
 
     response.cookies.set("access_token", data.accessToken, {
       httpOnly: true,

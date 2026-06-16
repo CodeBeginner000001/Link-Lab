@@ -86,7 +86,7 @@ const UserAvatar = () => {
         <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
-            href="/dashboard/settings"
+            href="#"
             className="flex items-center gap-2 cursor-pointer px-4 py-2 border-y border-[hsl(var(--sidebar-border))] focus-visible:outline-none hover:bg-[hsl(var(--secondary)/0.7)]"
           >
             <User className="h-4 w-4" />
