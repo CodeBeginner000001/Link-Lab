@@ -1,3 +1,4 @@
+"use client"
 import ErrorStatePage from "@/modules/error/ErrorStatePage";
 import { Button } from "@/components/ui/Button";
 import { RotateCcw } from "lucide-react";

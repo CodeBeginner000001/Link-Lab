@@ -37,3 +37,7 @@ export function isPublicRoute(pathname: string): boolean {
 export function isProtectedRoute(pathname: string): boolean {
   return PROTECTED_ROUTES.some((route) => pathname === route);
 }
+
+export function isKnownRoute(pathname: string): boolean {
+  return isPublicRoute(pathname) || isProtectedRoute(pathname);
+}

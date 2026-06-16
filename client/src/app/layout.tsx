@@ -9,7 +9,7 @@ import { redirect } from "next/navigation";
 import { DM_Sans } from "next/font/google";
 import "sonner/dist/styles.css";
 import OAuthWrapper from "@/context/OAuthWrapper";
-import { isProtectedRoute } from "@/middleware/auth/check-route";
+import { isKnownRoute, isProtectedRoute } from "@/middleware/auth/check-route";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -43,7 +43,8 @@ export default async function RootLayout({
   const accessToken = cookieStore.get("access_token")?.value;
   const refreshToken = cookieStore.get("refresh_token")?.value;
   const pathname = headerStore.get("x-pathname") || "/";
-  const user = accessToken ? await GetCurrentUser(accessToken) : null;
+  const shouldResolveUser = accessToken && isKnownRoute(pathname);
+  const user = shouldResolveUser ? await GetCurrentUser(accessToken) : null;
 
   if (isProtectedRoute(pathname) && !user && refreshToken) {
     redirect(`/refresh?redirect=${encodeURIComponent(pathname)}`);
