@@ -5,7 +5,6 @@ import {
 } from "@/service/dashboard/barcode-generator";
 import { BarcodeItem } from "@/service/dashboard/barcode-generator/type";
 import { Download, FileImage } from "lucide-react";
-import ToolPillGroup from "../../common/ToolPillGroup";
 
 export default function BarcodeExportActions({
   barcode,
@@ -26,10 +25,10 @@ export default function BarcodeExportActions({
     : undefined;
 
   return (
-    <ToolPillGroup className="min-w-0 max-[400px]:flex-col *:flex-1">
+    <div className="grid min-w-0 grid-cols-2 gap-2 max-[400px]:grid-cols-1">
       <Button
         type="button"
-        className="flex-1 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
+        className="min-w-0 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
         disabled={!pngDownloadUrl}
         asChild={Boolean(pngDownloadUrl)}
       >
@@ -48,7 +47,7 @@ export default function BarcodeExportActions({
       <Button
         type="button"
         variant="outline"
-        className="flex-1 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
+        className="min-w-0 max-[400px]:h-9 max-[400px]:w-full max-[400px]:px-3 max-[400px]:text-xs"
         disabled={!svgDownloadUrl}
         asChild={Boolean(svgDownloadUrl)}
       >
@@ -64,6 +63,6 @@ export default function BarcodeExportActions({
           </>
         )}
       </Button>
-    </ToolPillGroup>
+    </div>
   );
 }

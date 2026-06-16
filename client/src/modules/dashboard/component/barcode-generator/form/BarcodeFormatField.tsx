@@ -23,7 +23,7 @@ export default function BarcodeFormatField({
           value={value}
           disabled={!selectedFormat}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 pr-10 text-sm outline-none transition focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)]"
+          className="h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 pr-10 text-sm outline-none transition focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)] max-md:h-10 max-md:rounded-lg max-md:text-sm"
         >
           {!selectedFormat ? (
             <option>Formats unavailable</option>
@@ -36,7 +36,7 @@ export default function BarcodeFormatField({
         </select>
         <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" />
       </div>
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">
+      <p className="text-xs text-[hsl(var(--muted-foreground))] max-md:text-[11px]">
         {selectedFormat
           ? `${selectedFormat.description} ${selectedFormat.contentRule}.`
           : "Unable to load barcode formats."}

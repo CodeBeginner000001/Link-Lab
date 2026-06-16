@@ -18,7 +18,7 @@ export default function BarcodeColorField({
       <Label htmlFor={id}>{label}</Label>
       <label
         htmlFor={id}
-        className="flex h-11 cursor-pointer items-center gap-3 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3"
+        className="flex h-11 cursor-pointer items-center gap-3 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 max-md:h-10 max-md:gap-2"
       >
         <input
           id={id}
@@ -27,7 +27,7 @@ export default function BarcodeColorField({
           defaultValue={defaultValue}
           className="h-7 w-9 cursor-pointer rounded border-0 bg-transparent p-0"
         />
-        <span className="font-mono text-sm text-[hsl(var(--muted-foreground))]">
+        <span className="font-mono text-sm text-[hsl(var(--muted-foreground))] max-md:text-xs">
           {defaultValue}
         </span>
       </label>

@@ -14,9 +14,9 @@ type BarcodeFormatMixProps = {
 
 export default function BarcodeFormatMix({ formats }: BarcodeFormatMixProps) {
   return (
-    <div>
-      <div className="flex items-center min-[288px]:items-start justify-between gap-3">
-        <div>
+    <div className="min-w-0">
+      <div className="flex min-w-0 items-center justify-between gap-3 min-[288px]:items-start">
+        <div className="min-w-0">
           <p className="text-sm font-semibold">Format mix</p>
           <p className="mt-1 text-xs max-[288px]:hidden text-[hsl(var(--muted-foreground))]">
             Share of generated barcodes
@@ -31,9 +31,11 @@ export default function BarcodeFormatMix({ formats }: BarcodeFormatMixProps) {
         <div className="mt-7 space-y-5">
           {formats.map((format, index) => (
             <div key={format.format}>
-              <div className="mb-2 flex items-center justify-between gap-3 text-sm">
-                <span className="font-medium">{format.format}</span>
-                <span className="text-[hsl(var(--muted-foreground))]">
+              <div className="mb-2 flex min-w-0 items-center justify-between gap-3 text-sm">
+                <span className="min-w-0 truncate font-medium">
+                  {format.format}
+                </span>
+                <span className="shrink-0 text-[hsl(var(--muted-foreground))]">
                   {format.percentage}% · {format.count}
                 </span>
               </div>

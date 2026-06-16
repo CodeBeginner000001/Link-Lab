@@ -52,8 +52,8 @@ export default function BarcodeActivityDateSelect({
     const selectedMonth = Number(monthValue);
 
     return (
-      <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-[hsl(var(--muted-foreground))] max-[400px]:grid max-[400px]:grid-cols-2 max-[400px]:overflow-visible sm:w-max sm:max-w-full sm:justify-end sm:pb-0">
-        <span className="shrink-0 max-[400px]:col-span-2">Selected month</span>
+      <div className="grid w-full grid-cols-2 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] md:flex md:w-max md:max-w-full md:flex-nowrap md:justify-end md:overflow-x-auto md:pb-1">
+        <span className="col-span-2 shrink-0 md:col-auto">Selected month</span>
         <select
           name="activityMonthYear"
           aria-label="Activity year"
@@ -61,7 +61,7 @@ export default function BarcodeActivityDateSelect({
           onChange={(event) =>
             onDateChange(`${event.target.value}-${padMonth(selectedMonth)}`)
           }
-          className={`${selectClassName} w-24 max-[540px]:w-20 max-[400px]:w-full`}
+          className={`${selectClassName} w-full md:w-24`}
         >
           {getYearOptions(selectedYear).map((year) => (
             <option key={year} value={year}>
@@ -78,7 +78,7 @@ export default function BarcodeActivityDateSelect({
               `${selectedYear}-${padMonth(Number(event.target.value))}`,
             )
           }
-          className={`${selectClassName} w-32 max-[540px]:w-24 max-[400px]:w-full`}
+          className={`${selectClassName} w-full md:w-32`}
         >
           {MONTH_OPTIONS.map((month) => (
             <option key={month.value} value={month.value}>
@@ -106,8 +106,8 @@ export default function BarcodeActivityDateSelect({
   };
 
   return (
-    <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-1 text-xs text-[hsl(var(--muted-foreground))] max-[400px]:grid max-[400px]:grid-cols-2 max-[400px]:overflow-visible sm:w-max sm:max-w-full sm:justify-end sm:pb-0">
-      <span className="shrink-0 max-[400px]:col-span-2">Selected week</span>
+    <div className="grid w-full grid-cols-2 items-center gap-2 text-xs text-[hsl(var(--muted-foreground))] md:flex md:w-max md:max-w-full md:flex-nowrap md:justify-end md:overflow-x-auto md:pb-1">
+      <span className="col-span-2 shrink-0 md:col-auto">Selected week</span>
       <select
         name="activityWeekYear"
         aria-label="Week year"
@@ -115,7 +115,7 @@ export default function BarcodeActivityDateSelect({
         onChange={(event) =>
           selectFirstWeek(Number(event.target.value), selectedMonth)
         }
-        className={`${selectClassName} w-24 max-[540px]:w-20 max-[400px]:w-full`}
+        className={`${selectClassName} w-full md:w-24`}
       >
         {getYearOptions(selectedYear).map((year) => (
           <option key={year} value={year}>
@@ -130,7 +130,7 @@ export default function BarcodeActivityDateSelect({
         onChange={(event) =>
           selectFirstWeek(selectedYear, Number(event.target.value))
         }
-        className={`${selectClassName} w-32 max-[540px]:w-24 max-[400px]:w-full`}
+        className={`${selectClassName} w-full md:w-32`}
       >
         {MONTH_OPTIONS.map((month) => (
           <option key={month.value} value={month.value}>
@@ -143,7 +143,7 @@ export default function BarcodeActivityDateSelect({
         aria-label="Activity week"
         value={date}
         onChange={(event) => onDateChange(event.target.value)}
-        className={`${selectClassName} w-56 max-[540px]:w-44 max-[400px]:col-span-2 max-[400px]:w-full`}
+        className={`${selectClassName} col-span-2 w-full md:col-auto md:w-56`}
       >
         {weekOptions.map((week) => (
           <option key={week.value} value={week.value}>

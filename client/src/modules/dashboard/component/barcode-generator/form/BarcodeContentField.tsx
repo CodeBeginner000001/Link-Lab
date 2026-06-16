@@ -31,7 +31,7 @@ export default function BarcodeContentField({
     <div className="grid gap-2">
       <div className="flex items-center justify-between gap-3">
         <Label htmlFor="barcode-content">Content</Label>
-        <span className="text-xs text-[hsl(var(--muted-foreground))]">
+        <span className="text-xs text-[hsl(var(--muted-foreground))] max-md:text-[11px]">
           {value.length} / {format.input.maxLength}
         </span>
       </div>
@@ -49,11 +49,11 @@ export default function BarcodeContentField({
         onChange={(event) =>
           onChange(sanitizeContent(event.target.value, format))
         }
-        className="h-11 font-mono"
+        className="h-11 font-mono max-md:h-10 max-md:text-sm"
       />
       <p
         id="barcode-content-rule"
-        className="text-xs text-[hsl(var(--muted-foreground))]"
+        className="text-xs text-[hsl(var(--muted-foreground))] max-md:text-[11px]"
       >
         {format.contentRule}
       </p>

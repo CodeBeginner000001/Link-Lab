@@ -12,7 +12,7 @@ export default function BarcodeGenerateButton({
     <Button
       type="submit"
       disabled={isLoading || disabled}
-      className="h-11 w-full max-[540px]:h-10 max-[540px]:text-sm"
+      className="h-11 w-full max-md:h-10 max-md:text-sm"
     >
       {isLoading ? (
         <>

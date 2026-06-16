@@ -42,7 +42,7 @@ export default function BarcodeSummaryMetrics({
 
   return (
     <div
-      className="grid gap-3 max-[540px]:gap-2 sm:grid-cols-3"
+      className="grid gap-3 max-[540px]:gap-2 sm:grid-cols-2 lg:grid-cols-3"
       aria-busy={summaryLoading || growthLoading}
     >
       {metrics.map(({ label, value, loading, icon: Icon, iconClassName }) => (

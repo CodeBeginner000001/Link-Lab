@@ -7,7 +7,7 @@ export default function BarcodePreviewMetrics({
   barcode: BarcodeItem | null;
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1 max-[400px]:gap-2 max-[540px]:gap-2 sm:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 max-[400px]:grid-cols-1 max-[400px]:gap-2 max-[540px]:gap-2 lg:grid-cols-4">
       <ToolMetricCard
         label="Format"
         value={barcode?.format ?? "—"}
