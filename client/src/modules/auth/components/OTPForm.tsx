@@ -71,7 +71,7 @@ export default function SignUpOTPForm({
     setLoading(false);
     if (verifyOTP.result) {
       notify(verifyOTP.result.data.message, "success");
-      router.replace("/dashboard");
+      router.replace("/dashboard/url-shortener");
       router.refresh();
       return;
     }

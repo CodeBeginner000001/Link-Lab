@@ -9,7 +9,7 @@ const clearAuthCookies = (response: NextResponse) => {
 
 const getSafeRedirectPath = (value: string | null) => {
   if (!value || !value.startsWith("/")) {
-    return "/dashboard";
+    return "/dashboard/url-shortener";
   }
 
   return value;
