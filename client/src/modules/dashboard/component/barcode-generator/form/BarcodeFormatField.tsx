@@ -23,7 +23,7 @@ export default function BarcodeFormatField({
           value={value}
           disabled={!selectedFormat}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 pr-10 text-sm outline-none transition focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)] max-md:h-10 max-md:rounded-lg max-md:text-sm"
+          className="h-11 w-full appearance-none rounded-xl border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-3 pr-10 text-base outline-none transition focus:border-[hsl(var(--primary))] focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)] md:text-sm max-md:h-10 max-md:rounded-lg"
         >
           {!selectedFormat ? (
             <option>Formats unavailable</option>

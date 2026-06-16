@@ -22,6 +22,7 @@ export default async function BarcodeGenerator() {
       headingClassName="text-xl max-[350px]:text-lg sm:text-2xl"
       iconClassName="h-6 w-6 shrink-0 text-[hsl(var(--primary))] max-[350px]:h-5 max-[350px]:w-5"
       paraClassName="text-sm max-[350px]:text-xs max-[350px]:leading-5 sm:text-base"
+      className="safari-no-zoom-controls"
     >
       <BarcodeGeneratorWorkspace formats={formats} />
 

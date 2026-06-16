@@ -49,7 +49,7 @@ export default function BarcodeContentField({
         onChange={(event) =>
           onChange(sanitizeContent(event.target.value, format))
         }
-        className="h-11 font-mono max-md:h-10 max-md:text-sm"
+        className="h-11 font-mono max-md:h-10 max-md:text-base"
       />
       <p
         id="barcode-content-rule"

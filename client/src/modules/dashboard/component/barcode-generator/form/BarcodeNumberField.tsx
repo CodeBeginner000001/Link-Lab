@@ -34,7 +34,7 @@ export default function BarcodeNumberField({
           max={max}
           step={step}
           defaultValue={defaultValue}
-          className="h-11 pr-10 max-md:h-10 max-md:text-sm"
+          className="h-11 pr-10 max-md:h-10 max-md:text-base"
         />
         <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[hsl(var(--muted-foreground))]">
           px

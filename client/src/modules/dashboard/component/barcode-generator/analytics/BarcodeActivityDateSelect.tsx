@@ -13,7 +13,7 @@ type BarcodeActivityDateSelectProps = {
 };
 
 const selectClassName =
-  "h-9 min-w-0 shrink-0 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-2 text-xs text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)] max-[540px]:h-8 max-[540px]:text-[11px]";
+  "h-9 min-w-0 shrink-0 rounded-lg border border-[hsl(var(--input))] bg-[hsl(var(--background))] px-2 text-base text-[hsl(var(--foreground))] outline-none focus:ring-2 focus:ring-[hsl(var(--ring)/0.22)] sm:text-xs max-[540px]:h-8";
 
 function padMonth(month: number): string {
   return String(month).padStart(2, "0");
