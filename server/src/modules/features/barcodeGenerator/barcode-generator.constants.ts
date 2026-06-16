@@ -5,12 +5,10 @@ export enum BarcodeFormat {
   CODE39 = 'CODE39',
   ITF14 = 'ITF14',
 }
-
 export enum BarcodeDownloadType {
   SVG = 'svg',
   PNG = 'png',
 }
-
 export enum BarcodeStatus {
   ACTIVE = 'active',
   DELETED = 'deleted',

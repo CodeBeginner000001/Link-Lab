@@ -53,7 +53,6 @@ export class BarcodeGeneratorController {
   getSummary(@Req() req: AuthenticatedRequest) {
     return this.barcodeService.getSummary(this.getUser(req));
   }
-
   @Get('analytics/activity')
   getActivity(
     @Query() query: GetBarcodeActivityDto,
@@ -61,12 +60,10 @@ export class BarcodeGeneratorController {
   ) {
     return this.barcodeService.getActivity(this.getUser(req), query);
   }
-
   @Delete(':id')
   delete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.barcodeService.delete(this.getUser(req), id);
   }
-
   @Get(':id/preview')
   @SkipResponseInterceptor()
   async preview(
