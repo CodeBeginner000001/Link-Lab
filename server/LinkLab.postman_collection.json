@@ -464,7 +464,7 @@
             {
               "name": "update",
               "request": {
-                "method": "PUT",
+                "method": "PATCH",
                 "header": [
                   {
                     "key": "Content-Type",
@@ -1030,180 +1030,97 @@
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{localhost}}/v1/barcodes/formats",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", "formats"]
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "formats"
+                  ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"formats\": [\n      {\n        \"value\": \"CODE128\",\n        \"label\": \"Code 128\",\n        \"description\": \"General-purpose barcode for text and numbers.\",\n        \"contentRule\": \"Any text up to 128 characters\",\n        \"input\": {\n          \"inputMode\": \"text\",\n          \"placeholder\": \"LINKLAB-2025\",\n          \"minLength\": 1,\n          \"maxLength\": 128,\n          \"pattern\": \"^.{1,128}$\",\n          \"uppercase\": false\n        }\n      },\n      {\n        \"value\": \"EAN13\",\n        \"label\": \"EAN-13\",\n        \"description\": \"Retail product barcode used internationally.\",\n        \"contentRule\": \"12 or 13 digits\",\n        \"input\": {\n          \"inputMode\": \"numeric\",\n          \"placeholder\": \"5901234123457\",\n          \"minLength\": 12,\n          \"maxLength\": 13,\n          \"pattern\": \"^\\\\d{12,13}$\",\n          \"uppercase\": false\n        }\n      }\n    ]\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/formats\"\n}"
+                }
+              ]
             },
             {
-              "name": "generate-barcode",
+              "name": "create",
               "request": {
                 "auth": {
                   "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
                 },
                 "method": "POST",
                 "header": [],
                 "body": {
                   "mode": "raw",
                   "raw": "{\n    \"format\": \"CODE128\",\n    \"content\": \"LINKLAB-2025\",\n    \"barWidth\": 2,\n    \"height\": 100,\n    \"margin\": 10,\n    \"barColor\": \"#000000\",\n    \"backgroundColor\": \"#ffffff\",\n    \"showValue\": true\n}",
-                  "options": { "raw": { "language": "json" } }
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
                 },
                 "url": {
                   "raw": "{{localhost}}/v1/barcodes",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes"]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "get-recent-barcodes",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/recent?page=1&limit=10",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", "recent"],
-                  "query": [
-                    { "key": "page", "value": "1" },
-                    { "key": "limit", "value": "10" }
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes"
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "created",
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Barcode generated successfully\",\n    \"barcode\": {\n      \"id\": \"6676f8f5c1e7c9f4a2222222\",\n      \"format\": \"CODE128\",\n      \"content\": \"LINKLAB-2026\",\n      \"barWidth\": 2,\n      \"height\": 100,\n      \"margin\": 10,\n      \"barColor\": \"#000000\",\n      \"backgroundColor\": \"#ffffff\",\n      \"showValue\": true,\n      \"svg\": \"<svg>...</svg>\",\n      \"downloadCounts\": {\n        \"svg\": 0,\n        \"png\": 0\n      },\n      \"totalDownloads\": 0,\n      \"lastDownloadType\": null,\n      \"lastDownloadedAt\": null,\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:00:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes\"\n}"
+                }
+              ]
             },
             {
-              "name": "get-analytics-summary",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/analytics/summary",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", "analytics", "summary"]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "get-analytics-activity",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/analytics/activity?period=week&date=2025-W01",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", "analytics", "activity"],
-                  "query": [
-                    { "key": "period", "value": "week" },
-                    { "key": "date", "value": "2025-W01" }
-                  ]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "preview-barcode",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/:id/preview",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", ":id", "preview"],
-                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "download-barcode-png",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=png",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", ":id", "download"],
-                  "query": [{ "key": "type", "value": "png" }],
-                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "download-barcode-svg",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=svg",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", ":id", "download"],
-                  "query": [{ "key": "type", "value": "svg" }],
-                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
-                }
-              },
-              "response": []
-            },
-            {
-              "name": "delete-barcode",
-              "request": {
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [{ "key": "token", "value": "{{access_token}}", "type": "string" }]
-                },
-                "method": "DELETE",
-                "header": [],
-                "url": {
-                  "raw": "{{localhost}}/v1/barcodes/:id",
-                  "host": ["{{localhost}}"],
-                  "path": ["v1", "barcodes", ":id"],
-                  "variable": [{ "key": "id", "value": "<barcode_id>" }]
-                }
-              },
-              "response": []
-            }
-          ]
-        },
-        {
-          "name": "url-shortener",
-          "item": [
-            {
-              "name": "get-urls",
+              "name": "get-paginated-data",
               "request": {
                 "auth": {
                   "type": "bearer",
@@ -1218,31 +1135,236 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{localhost}}v1/short-urls?limit=10",
+                  "raw": "{{localhost}}/v1/barcodes?page=1&limit=10",
                   "host": [
-                    "{{localhost}}v1"
+                    "{{localhost}}"
                   ],
                   "path": [
-                    "short-urls"
+                    "v1",
+                    "barcodes"
                   ],
                   "query": [
                     {
-                      "key": "limit",
-                      "value": "10"
+                      "key": "page",
+                      "value": "1"
                     },
                     {
-                      "key": "cursor",
-                      "value": "69dc196a9f46e1a5d10eb515",
-                      "type": "text",
-                      "disabled": true
+                      "key": "limit",
+                      "value": "10"
                     }
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"6676f8f5c1e7c9f4a2222222\",\n        \"format\": \"CODE128\",\n        \"content\": \"LINKLAB-2026\",\n        \"barWidth\": 2,\n        \"height\": 100,\n        \"margin\": 10,\n        \"barColor\": \"#000000\",\n        \"backgroundColor\": \"#ffffff\",\n        \"showValue\": true,\n        \"svg\": \"<svg>...</svg>\",\n        \"downloadCounts\": {\n          \"svg\": 2,\n          \"png\": 4\n        },\n        \"totalDownloads\": 6,\n        \"lastDownloadType\": \"png\",\n        \"lastDownloadedAt\": \"2026-06-20T10:20:00.000Z\",\n        \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n        \"updatedAt\": \"2026-06-20T10:20:00.000Z\"\n      }\n    ],\n    \"pagination\": {\n      \"totalItems\": 21,\n      \"totalPages\": 3,\n      \"hasMore\": true,\n      \"page\": 1,\n      \"limit\": 10,\n      \"cursor\": \"6676f8f5c1e7c9f4a2222222\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes?page=1&limit=10\"\n}"
+                }
+              ]
             },
             {
-              "name": "url-by-id",
+              "name": "get-analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "analytics"
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"generated\": 21,\n    \"downloads\": 58,\n    \"format\": 12\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/analytics\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "get-analytics-activity-by-period",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/activity/:period/:date",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "analytics",
+                    "activity",
+                    ":period",
+                    ":date"
+                  ],
+                  "variable": [
+                    {
+                      "key": "period",
+                      "value": "week"
+                    },
+                    {
+                      "key": "date",
+                      "value": "2025-W01"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"period\": \"month\",\n    \"selectedDate\": \"2026-06\",\n    \"start\": \"2026-06-01T00:00:00.000Z\",\n    \"end\": \"2026-07-01T00:00:00.000Z\",\n    \"growth\": 18.2,\n    \"points\": [\n      {\n        \"label\": \"2026-06-01\",\n        \"count\": 1\n      },\n      {\n        \"label\": \"2026-06-02\",\n        \"count\": 0\n      },\n      {\n        \"label\": \"2026-06-03\",\n        \"count\": 3\n      },\n      {\n        \"label\": \"2026-06-04\",\n        \"count\": 2\n      },\n      {\n        \"label\": \"2026-06-05\",\n        \"count\": 1\n      }\n    ]\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/analytics/activity/month/2026-06\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "get-format-mix",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/format-mix",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "analytics",
+                    "format-mix"
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"generated\": 21,\n    \"formatDistribution\": [\n      {\n        \"format\": \"CODE128\",\n        \"count\": 12,\n        \"percentage\": 57.1\n      },\n      {\n        \"format\": \"EAN13\",\n        \"count\": 5,\n        \"percentage\": 23.8\n      },\n      {\n        \"format\": \"UPCA\",\n        \"count\": 4,\n        \"percentage\": 19\n      }\n    ],\n    \"downloadFormatDistribution\": {\n      \"svg\": 22,\n      \"png\": 36\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/analytics/format-mix\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "get-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<barcode_id>"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"barcode\": {\n      \"id\": \"6676f8f5c1e7c9f4a2222222\",\n      \"format\": \"CODE128\",\n      \"content\": \"LINKLAB-2026\",\n      \"barWidth\": 2,\n      \"height\": 100,\n      \"margin\": 10,\n      \"barColor\": \"#000000\",\n      \"backgroundColor\": \"#ffffff\",\n      \"showValue\": true,\n      \"svg\": \"<svg>...</svg>\",\n      \"downloadCounts\": {\n        \"svg\": 2,\n        \"png\": 4\n      },\n      \"totalDownloads\": 6,\n      \"lastDownloadType\": \"png\",\n      \"lastDownloadedAt\": \"2026-06-20T10:20:00.000Z\",\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:20:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/6676f8f5c1e7c9f4a2222222\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "edit-by-id",
               "request": {
                 "auth": {
                   "type": "bearer",
@@ -1259,15 +1381,11 @@
                   {
                     "key": "Content-Type",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer <token>"
                   }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"longUrl\": \"https://example.com/final-page\",\n  \"customAlias\": \"final-alias-123\"\n}",
+                  "raw": "{\n    \"content\": \"LINKLAB-UPDATED\",\n    \"height\": 120,\n    \"showValue\": true\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1275,29 +1393,41 @@
                   }
                 },
                 "url": {
-                  "raw": "{{localhost}}v1/short-urls/:id",
+                  "raw": "{{localhost}}/v1/barcodes/:id",
                   "host": [
-                    "{{localhost}}v1"
+                    "{{localhost}}"
                   ],
                   "path": [
-                    "short-urls",
+                    "v1",
+                    "barcodes",
                     ":id"
                   ],
                   "variable": [
                     {
                       "key": "id",
-                      "value": "69dc196a9f46e1a5d10eb515"
+                      "value": "<barcode_id>"
                     }
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Barcode updated successfully\",\n    \"barcode\": {\n      \"id\": \"6676f8f5c1e7c9f4a2222222\",\n      \"format\": \"CODE128\",\n      \"content\": \"LINKLAB-UPDATED\",\n      \"barWidth\": 2,\n      \"height\": 120,\n      \"margin\": 10,\n      \"barColor\": \"#000000\",\n      \"backgroundColor\": \"#ffffff\",\n      \"showValue\": true,\n      \"svg\": \"<svg>...</svg>\",\n      \"downloadCounts\": {\n        \"svg\": 2,\n        \"png\": 4\n      },\n      \"totalDownloads\": 6,\n      \"lastDownloadType\": \"png\",\n      \"lastDownloadedAt\": \"2026-06-20T10:20:00.000Z\",\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:35:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/6676f8f5c1e7c9f4a2222222\"\n}"
+                }
+              ]
             },
             {
-              "name": "url-by-id",
-              "protocolProfileBehavior": {
-                "disableBodyPruning": true
-              },
+              "name": "preview",
               "request": {
                 "auth": {
                   "type": "bearer",
@@ -1310,19 +1440,356 @@
                   ]
                 },
                 "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/preview",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    ":id",
+                    "preview"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<barcode_id>"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "svg preview",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "xml",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "image/svg+xml; charset=utf-8"
+                    },
+                    {
+                      "key": "Cache-Control",
+                      "value": "private, max-age=3600"
+                    },
+                    {
+                      "key": "Content-Disposition",
+                      "value": "inline; filename=\"barcode-code128-6676f8f5c1e7c9f4a2222222.svg\""
+                    }
+                  ],
+                  "body": "<svg>...</svg>"
+                }
+              ]
+            },
+            {
+              "name": "download-png",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=png",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    ":id",
+                    "download"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "png"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<barcode_id>"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "png download",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "text",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "image/png"
+                    },
+                    {
+                      "key": "Cache-Control",
+                      "value": "private, no-store"
+                    },
+                    {
+                      "key": "Content-Disposition",
+                      "value": "attachment; filename=\"barcode-code128-6676f8f5c1e7c9f4a2222222.png\""
+                    }
+                  ],
+                  "body": "<binary png data>"
+                }
+              ]
+            },
+            {
+              "name": "download-svg",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id/download?type=svg",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    ":id",
+                    "download"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "svg"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<barcode_id>"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "svg download",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "xml",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "image/svg+xml; charset=utf-8"
+                    },
+                    {
+                      "key": "Cache-Control",
+                      "value": "private, no-store"
+                    },
+                    {
+                      "key": "Content-Disposition",
+                      "value": "attachment; filename=\"barcode-code128-6676f8f5c1e7c9f4a2222222.svg\""
+                    }
+                  ],
+                  "body": "<svg>...</svg>"
+                }
+              ]
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "<barcode_id>"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Barcode deleted successfully\"\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/6676f8f5c1e7c9f4a2222222\"\n}"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "url-shortener",
+          "item": [
+            {
+              "name": "get-paginated-data",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/short-urls?page=1&limit=10",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "short-urls"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "69dc196a9f46e1a5d10eb515",
+                      "type": "text",
+                      "disabled": true
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"items\": [\n      {\n        \"id\": \"6676f8f5c1e7c9f4a1111111\",\n        \"alias\": \"launch-page\",\n        \"longUrl\": \"https://example.com/products/link-lab-launch\",\n        \"shortUrl\": \"http://localhost:3000/r/launch-page\",\n        \"status\": \"active\",\n        \"clicksPersisted\": 14,\n        \"pendingClicks\": 3,\n        \"totalClicks\": 17,\n        \"lastClickedAt\": \"2026-06-20T10:20:00.000Z\",\n        \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n        \"updatedAt\": \"2026-06-20T10:15:00.000Z\"\n      }\n    ],\n    \"pagination\": {\n      \"totalItems\": 24,\n      \"totalPages\": 3,\n      \"hasMore\": true,\n      \"page\": 1,\n      \"limit\": 10,\n      \"cursor\": \"6676f8f5c1e7c9f4a1111111\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls?page=1&limit=10\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "get-analytics",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/short-urls/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "short-urls",
+                    "analytics"
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"total\": 24,\n    \"activeLinks\": 24,\n    \"totalClicks\": 182,\n    \"topAlias\": \"launch-page\",\n    \"topShortUrl\": {\n      \"id\": \"6676f8f5c1e7c9f4a1111111\",\n      \"alias\": \"launch-page\",\n      \"longUrl\": \"https://example.com/products/link-lab-launch\",\n      \"shortUrl\": \"http://localhost:3000/r/launch-page\",\n      \"status\": \"active\",\n      \"clicksPersisted\": 80,\n      \"pendingClicks\": 4,\n      \"totalClicks\": 84,\n      \"lastClickedAt\": \"2026-06-20T10:20:00.000Z\",\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:15:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls/analytics\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "edit-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PUT",
                 "header": [
                   {
                     "key": "Content-Type",
                     "value": "application/json"
-                  },
-                  {
-                    "key": "Authorization",
-                    "value": "Bearer <token>"
                   }
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "",
+                  "raw": "{\n  \"longUrl\": \"https://example.com/final-page\",\n  \"customAlias\": \"final-alias-123\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1330,11 +1797,12 @@
                   }
                 },
                 "url": {
-                  "raw": "{{localhost}}v1/short-urls/:id",
+                  "raw": "{{localhost}}/v1/short-urls/:id",
                   "host": [
-                    "{{localhost}}v1"
+                    "{{localhost}}"
                   ],
                   "path": [
+                    "v1",
                     "short-urls",
                     ":id"
                   ],
@@ -1346,10 +1814,73 @@
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Short URL updated successfully\",\n    \"shortUrl\": {\n      \"id\": \"6676f8f5c1e7c9f4a1111111\",\n      \"alias\": \"launch-2026\",\n      \"longUrl\": \"https://example.com/products/link-lab-2026\",\n      \"shortUrl\": \"http://localhost:3000/r/launch-2026\",\n      \"status\": \"active\",\n      \"clicksPersisted\": 17,\n      \"pendingClicks\": 0,\n      \"totalClicks\": 17,\n      \"lastClickedAt\": null,\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:35:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls/6676f8f5c1e7c9f4a1111111\"\n}"
+                }
+              ]
             },
             {
-              "name": "create-urls",
+              "name": "get-by-id",
+              "request": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/short-urls/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "short-urls",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "69dc196a9f46e1a5d10eb515"
+                    }
+                  ]
+                }
+              },
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"shortUrl\": {\n      \"id\": \"6676f8f5c1e7c9f4a1111111\",\n      \"alias\": \"launch-page\",\n      \"longUrl\": \"https://example.com/products/link-lab-launch\",\n      \"shortUrl\": \"http://localhost:3000/r/launch-page\",\n      \"status\": \"active\",\n      \"clicksPersisted\": 14,\n      \"pendingClicks\": 3,\n      \"totalClicks\": 17,\n      \"lastClickedAt\": \"2026-06-20T10:20:00.000Z\",\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:15:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls/6676f8f5c1e7c9f4a1111111\"\n}"
+                }
+              ]
+            },
+            {
+              "name": "create",
               "request": {
                 "auth": {
                   "type": "bearer",
@@ -1373,16 +1904,31 @@
                   }
                 },
                 "url": {
-                  "raw": "{{localhost}}v1/short-urls",
+                  "raw": "{{localhost}}/v1/short-urls",
                   "host": [
-                    "{{localhost}}v1"
+                    "{{localhost}}"
                   ],
                   "path": [
+                    "v1",
                     "short-urls"
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "created",
+                  "status": "Created",
+                  "code": 201,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 201,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Short URL created successfully\",\n    \"shortUrl\": {\n      \"id\": \"6676f8f5c1e7c9f4a1111111\",\n      \"alias\": \"launch-page\",\n      \"longUrl\": \"https://example.com/products/link-lab-launch\",\n      \"shortUrl\": \"http://localhost:3000/r/launch-page\",\n      \"status\": \"active\",\n      \"clicksPersisted\": 0,\n      \"pendingClicks\": 0,\n      \"totalClicks\": 0,\n      \"lastClickedAt\": null,\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:00:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls\"\n}"
+                }
+              ]
             },
             {
               "name": "delete-by-id",
@@ -1399,27 +1945,39 @@
                 },
                 "method": "DELETE",
                 "header": [],
-                "body": {
-                  "mode": "raw",
-                  "raw": "{\n    \"longUrl\":\"https://www.google.com\",\n    \"customAlias\":\"ddd\"\n}",
-                  "options": {
-                    "raw": {
-                      "language": "json"
-                    }
-                  }
-                },
                 "url": {
-                  "raw": "{{localhost}}v1/short-urls/69dfbd69389895e5dfe9a6f0",
+                  "raw": "{{localhost}}/v1/short-urls/:id",
                   "host": [
-                    "{{localhost}}v1"
+                    "{{localhost}}"
                   ],
                   "path": [
+                    "v1",
                     "short-urls",
-                    "69dfbd69389895e5dfe9a6f0"
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "69dfbd69389895e5dfe9a6f0"
+                    }
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "success",
+                  "status": "OK",
+                  "code": 200,
+                  "_postman_previewlanguage": "json",
+                  "header": [
+                    {
+                      "key": "Content-Type",
+                      "value": "application/json"
+                    }
+                  ],
+                  "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Short URL deleted successfully\",\n    \"deleted\": true,\n    \"flushedPendingClicks\": 3,\n    \"shortUrl\": {\n      \"id\": \"6676f8f5c1e7c9f4a1111111\",\n      \"alias\": \"launch-page\",\n      \"longUrl\": \"https://example.com/products/link-lab-launch\",\n      \"shortUrl\": \"http://localhost:3000/r/launch-page\",\n      \"status\": \"disabled\",\n      \"clicksPersisted\": 17,\n      \"pendingClicks\": 0,\n      \"totalClicks\": 17,\n      \"lastClickedAt\": null,\n      \"createdAt\": \"2026-06-20T10:00:00.000Z\",\n      \"updatedAt\": \"2026-06-20T10:40:00.000Z\"\n    }\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/short-urls/6676f8f5c1e7c9f4a1111111\"\n}"
+                }
+              ]
             },
             {
               "name": "redirect-url",
@@ -1427,11 +1985,12 @@
                 "method": "GET",
                 "header": [],
                 "url": {
-                  "raw": "{{localhost}}r/:alias",
+                  "raw": "{{localhost}}/r/:alias",
                   "host": [
-                    "{{localhost}}r"
+                    "{{localhost}}"
                   ],
                   "path": [
+                    "r",
                     ":alias"
                   ],
                   "variable": [
@@ -1442,7 +2001,21 @@
                   ]
                 }
               },
-              "response": []
+              "response": [
+                {
+                  "name": "redirect",
+                  "status": "Found",
+                  "code": 302,
+                  "_postman_previewlanguage": "text",
+                  "header": [
+                    {
+                      "key": "Location",
+                      "value": "https://example.com/products/link-lab-launch"
+                    }
+                  ],
+                  "body": ""
+                }
+              ]
             }
           ]
         }
@@ -1467,11 +2040,12 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{localhost}}v1/api/cron/url-shortener",
+              "raw": "{{localhost}}/v1/api/cron/url-shortener",
               "host": [
-                "{{localhost}}v1"
+                "{{localhost}}"
               ],
               "path": [
+                "v1",
                 "api",
                 "cron",
                 "url-shortener"

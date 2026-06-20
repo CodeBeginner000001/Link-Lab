@@ -51,7 +51,7 @@ import {
 } from './urlShortener.constants';
 import {
   CreateShortUrlDto,
-  GetUserShortUrlsDto,
+  GetPaginatedShortUrlsDto,
   UpdateShortUrlDto,
 } from './dto/short-url.dto';
 
@@ -80,6 +80,12 @@ type SerializedShortUrl = {
   lastClickedAt: string | Date | null;
   createdAt: Date | null;
   updatedAt: Date | null;
+};
+
+type ShortUrlAnalyticsSummary = {
+  total: number;
+  totalClicks: number;
+  topAlias: string | null;
 };
 
 @Injectable()
@@ -184,26 +190,36 @@ export class UrlShortenerService {
     throw new ShortUrlAliasGenerationFailedException();
   }
 
-  async getUserShortUrls(user: JwtPayload, query: GetUserShortUrlsDto) {
+  async getPaginatedData(user: JwtPayload, query: GetPaginatedShortUrlsDto) {
     const userId = await this.getAuthenticatedUserId(user);
 
-    const limit = query.limit ?? DEFAULT_SHORT_URL_PAGE_LIMIT;
+    const limit: number = query.limit ?? DEFAULT_SHORT_URL_PAGE_LIMIT;
+    const currentPage: number = query.page ?? 1;
     const cursorId = query.cursor
       ? toObjectId(query.cursor, 'Cursor id is invalid')
       : null;
+    const skip = cursorId ? 0 : (currentPage - 1) * limit;
 
-    const shortUrls = await this.shortUrlModel
-      .find({
-        userId,
-        status: ShortUrlStatus.ACTIVE,
-        ...(cursorId ? { _id: { $lt: cursorId } } : {}),
-      })
-      .sort({ _id: -1 })
-      .limit(limit + 1)
-      .exec();
+    const baseFilter = {
+      userId,
+      status: ShortUrlStatus.ACTIVE,
+    };
 
-    const hasmore = shortUrls.length > limit;
-    const currentPageItems = hasmore ? shortUrls.slice(0, limit) : shortUrls;
+    const [shortUrls, total] = await Promise.all([
+      this.shortUrlModel
+        .find({
+          ...baseFilter,
+          ...(cursorId ? { _id: { $lt: cursorId } } : {}),
+        })
+        .sort({ _id: -1 })
+        .skip(skip)
+        .limit(limit + 1)
+        .exec(),
+      this.shortUrlModel.countDocuments(baseFilter).exec(),
+    ]);
+
+    const hasMore = shortUrls.length > limit;
+    const currentPageItems = hasMore ? shortUrls.slice(0, limit) : shortUrls;
     const items: SerializedShortUrl[] = [];
 
     for (const shortUrl of currentPageItems) {
@@ -223,10 +239,53 @@ export class UrlShortenerService {
     return {
       items,
       pagination: {
-        hasmore,
+        totalItems: total,
+        totalPages: Math.ceil(total / limit),
+        hasMore,
+        page: currentPage,
         limit,
         cursor: nextCursor,
       },
+    };
+  }
+
+  async getShortUrlAnalytics(
+    user: JwtPayload,
+  ): Promise<ShortUrlAnalyticsSummary> {
+    const userId = await this.getAuthenticatedUserId(user);
+    const shortUrls = await this.shortUrlModel
+      .find({
+        userId,
+        status: ShortUrlStatus.ACTIVE,
+      })
+      .sort({ _id: -1 })
+      .exec();
+
+    let totalClicks = 0;
+    let topShortUrl: SerializedShortUrl | null = null;
+
+    for (const shortUrl of shortUrls) {
+      const analytics = await this.getAnalytics(shortUrl.alias);
+      const serialized = this.serializeShortUrl(
+        shortUrl,
+        analytics.count,
+        analytics.lastClickedAt,
+      );
+
+      totalClicks += serialized.totalClicks;
+
+      if (
+        topShortUrl === null ||
+        serialized.totalClicks > topShortUrl.totalClicks
+      ) {
+        topShortUrl = serialized;
+      }
+    }
+
+    return {
+      total: shortUrls.length,
+      totalClicks,
+      topAlias: topShortUrl?.alias ?? null,
     };
   }
 

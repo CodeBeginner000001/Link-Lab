@@ -1,4 +1,5 @@
 import { Type } from 'class-transformer';
+import { PartialType } from '@nestjs/mapped-types';
 import {
   IsBoolean,
   IsEnum,
@@ -77,6 +78,8 @@ export class GenerateBarcodeDto {
   showValue!: boolean;
 }
 
+export class UpdateBarcodeDto extends PartialType(GenerateBarcodeDto) {}
+
 export class GetBarcodeActivityDto {
   @IsEnum(BarcodeActivityPeriod, {
     message: 'period: Period must be week, month, or year',
@@ -87,7 +90,7 @@ export class GetBarcodeActivityDto {
   date!: string;
 }
 
-export class GetRecentBarcodesDto {
+export class GetPaginatedBarcodesDto {
   @IsOptional()
   @Type(() => Number)
   @IsInt({ message: 'page: Page must be an integer' })

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { createHash } from 'crypto';
 import { Model, Types } from 'mongoose';
@@ -12,7 +12,11 @@ import {
   BarcodeNotFoundException,
 } from 'src/exceptions/barcode.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
-import { Barcode, BarcodeDocument } from 'src/models/barcode.schema';
+import {
+  Barcode,
+  BarcodeDocument,
+  BarcodeDownloadCounts,
+} from 'src/models/barcode.schema';
 import { User, UserDocument } from 'src/models/user.schema';
 import { isDuplicateKeyError, toObjectId } from '../utils/common.utils';
 import {
@@ -26,7 +30,8 @@ import { BarcodeRendererService } from './barcode-renderer.service';
 import {
   GenerateBarcodeDto,
   GetBarcodeActivityDto,
-  GetRecentBarcodesDto,
+  GetPaginatedBarcodesDto,
+  UpdateBarcodeDto,
 } from './dto/barcode-generator.dto';
 
 type ActivityRange = {
@@ -36,6 +41,48 @@ type ActivityRange = {
   previousEnd: Date;
   labels: string[];
   mongoDateFormat: string;
+};
+
+type BarcodeInput = {
+  format: BarcodeFormat;
+  content: string;
+  barWidth: number;
+  height: number;
+  margin: number;
+  barColor: string;
+  backgroundColor: string;
+  showValue: boolean;
+};
+
+export type SerializedBarcode = {
+  id: string;
+  format: BarcodeFormat;
+  content: string;
+  barWidth: number;
+  height: number;
+  margin: number;
+  barColor: string;
+  backgroundColor: string;
+  showValue: boolean;
+  svg: string;
+  downloadCounts: BarcodeDownloadCounts;
+  totalDownloads: number;
+  lastDownloadType: BarcodeDownloadType | null;
+  lastDownloadedAt: Date | null;
+  createdAt: Date | null;
+  updatedAt: Date | null;
+};
+
+export type PaginatedBarcodesResponse = {
+  items: SerializedBarcode[];
+  pagination: {
+    totalItems: number;
+    totalPages: number;
+    hasMore: boolean;
+    page: number;
+    limit: number;
+    cursor: string | null;
+  };
 };
 
 @Injectable()
@@ -56,28 +103,10 @@ export class BarcodeGeneratorService {
 
   async generate(user: JwtPayload, dto: GenerateBarcodeDto) {
     const userId = await this.getAuthenticatedUserId(user);
-    const normalizedDto = {
-      ...dto,
-      content: dto.content.trim(),
-      barColor: dto.barColor.toLowerCase(),
-      backgroundColor: dto.backgroundColor.toLowerCase(),
-    };
+    const normalizedDto = this.normalizeBarcodeInput(dto);
 
     this.validateContent(normalizedDto.format, normalizedDto.content);
-    const requestBodyHash = createHash('sha256')
-      .update(
-        JSON.stringify({
-          format: normalizedDto.format,
-          content: normalizedDto.content,
-          barWidth: normalizedDto.barWidth,
-          height: normalizedDto.height,
-          margin: normalizedDto.margin,
-          barColor: normalizedDto.barColor,
-          backgroundColor: normalizedDto.backgroundColor,
-          showValue: normalizedDto.showValue,
-        }),
-      )
-      .digest('hex');
+    const requestBodyHash = this.getRequestBodyHash(normalizedDto);
 
     const existingBarcode = await this.barcodeModel
       .exists({
@@ -186,9 +215,89 @@ export class BarcodeGeneratorService {
     return { message: 'Barcode deleted successfully' };
   }
 
-  async getRecent(user: JwtPayload, query: GetRecentBarcodesDto) {
+  async getById(user: JwtPayload, barcodeId: string) {
+    const barcode = await this.getOwnedBarcode(user, barcodeId);
+
+    return {
+      barcode: this.serializeBarcode(barcode),
+    };
+  }
+
+  async update(user: JwtPayload, barcodeId: string, dto: UpdateBarcodeDto) {
+    if (Object.keys(dto).length === 0) {
+      throw new BadRequestException({
+        message: 'At least one field is required to update the barcode',
+        error: 'Bad Request',
+      });
+    }
+
+    const barcode = await this.getOwnedBarcode(user, barcodeId);
+    const nextBarcode = this.normalizeBarcodeInput({
+      format: dto.format ?? barcode.format,
+      content: dto.content ?? barcode.content,
+      barWidth: dto.barWidth ?? barcode.barWidth,
+      height: dto.height ?? barcode.height,
+      margin: dto.margin ?? barcode.margin,
+      barColor: dto.barColor ?? barcode.barColor,
+      backgroundColor: dto.backgroundColor ?? barcode.backgroundColor,
+      showValue: dto.showValue ?? barcode.showValue,
+    });
+
+    this.validateContent(nextBarcode.format, nextBarcode.content);
+
+    const requestBodyHash = this.getRequestBodyHash(nextBarcode);
+
+    const hasChanges =
+      barcode.format !== nextBarcode.format ||
+      barcode.content !== nextBarcode.content ||
+      barcode.barWidth !== nextBarcode.barWidth ||
+      barcode.height !== nextBarcode.height ||
+      barcode.margin !== nextBarcode.margin ||
+      barcode.barColor !== nextBarcode.barColor ||
+      barcode.backgroundColor !== nextBarcode.backgroundColor ||
+      barcode.showValue !== nextBarcode.showValue;
+
+    if (!hasChanges) {
+      throw new BadRequestException({
+        message: 'No changes detected for the barcode',
+        error: 'Bad Request',
+      });
+    }
+
+    barcode.format = nextBarcode.format;
+    barcode.content = nextBarcode.content;
+    barcode.barWidth = nextBarcode.barWidth;
+    barcode.height = nextBarcode.height;
+    barcode.margin = nextBarcode.margin;
+    barcode.barColor = nextBarcode.barColor;
+    barcode.backgroundColor = nextBarcode.backgroundColor;
+    barcode.showValue = nextBarcode.showValue;
+    barcode.requestBodyHash = requestBodyHash;
+    barcode.svg = this.renderer.renderSvg(nextBarcode);
+
+    try {
+      await barcode.save();
+    } catch (error) {
+      if (isDuplicateKeyError(error)) {
+        throw new BarcodeDuplicateRequestException();
+      }
+
+      throw error;
+    }
+
+    return {
+      message: 'Barcode updated successfully',
+      barcode: this.serializeBarcode(barcode),
+    };
+  }
+
+  async getPaginatedData(
+    user: JwtPayload,
+    query: GetPaginatedBarcodesDto,
+  ): Promise<PaginatedBarcodesResponse> {
     const userId = await this.getAuthenticatedUserId(user);
-    const { page, limit } = query;
+    const page: number = query.page;
+    const limit: number = query.limit;
     const skip = (page - 1) * limit;
 
     const [barcodes, total] = await Promise.all([
@@ -206,88 +315,118 @@ export class BarcodeGeneratorService {
         .exec(),
     ]);
 
+    const items = barcodes.map((barcode) => this.serializeBarcode(barcode));
+
     return {
-      items: barcodes.map((barcode) => this.serializeBarcode(barcode)),
+      items,
       pagination: {
-        page,
-        limit,
-        total,
+        totalItems: total,
         totalPages: Math.ceil(total / limit),
         hasMore: page * limit < total,
+        page,
+        limit,
+        cursor: items.length > 0 ? items[items.length - 1].id : null,
       },
     };
   }
 
-  async getSummary(user: JwtPayload) {
+  async getAnalytics(user: JwtPayload) {
     const userId = await this.getAuthenticatedUserId(user);
 
-    const [generated, downloadAggregation, formatRows, downloadFormatRows] =
-      await Promise.all([
-        this.barcodeModel
-          .countDocuments({
-            userId,
-            status: { $ne: BarcodeStatus.DELETED },
-          })
-          .exec(),
-        this.barcodeModel
-          .aggregate<{
-            total: number;
-          }>([
-            {
-              $match: {
-                userId,
-                status: { $ne: BarcodeStatus.DELETED },
-              },
+    const [generated, downloadAggregation, topFormatRows] = await Promise.all([
+      this.barcodeModel
+        .countDocuments({
+          userId,
+          status: { $ne: BarcodeStatus.DELETED },
+        })
+        .exec(),
+      this.barcodeModel
+        .aggregate<{
+          total: number;
+        }>([
+          {
+            $match: {
+              userId,
+              status: { $ne: BarcodeStatus.DELETED },
             },
-            { $group: { _id: null, total: { $sum: '$totalDownloads' } } },
-          ])
-          .exec(),
-        this.barcodeModel
-          .aggregate<{
-            _id: BarcodeFormat;
-            count: number;
-          }>([
-            {
-              $match: {
-                userId,
-                status: { $ne: BarcodeStatus.DELETED },
-              },
+          },
+          { $group: { _id: null, total: { $sum: '$totalDownloads' } } },
+        ])
+        .exec(),
+      this.barcodeModel
+        .aggregate<{
+          _id: BarcodeFormat;
+          count: number;
+        }>([
+          {
+            $match: {
+              userId,
+              status: { $ne: BarcodeStatus.DELETED },
             },
-            { $group: { _id: '$format', count: { $sum: 1 } } },
-            { $sort: { count: -1 } },
-          ])
-          .exec(),
-        this.barcodeModel
-          .aggregate<{ svg: number; png: number }>([
-            {
-              $match: {
-                userId,
-                status: { $ne: BarcodeStatus.DELETED },
-              },
-            },
-            {
-              $group: {
-                _id: null,
-                svg: { $sum: '$downloadCounts.svg' },
-                png: { $sum: '$downloadCounts.png' },
-              },
-            },
-            { $project: { _id: 0, svg: 1, png: 1 } },
-          ])
-          .exec(),
-      ]);
+          },
+          { $group: { _id: '$format', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+          { $limit: 1 },
+        ])
+        .exec(),
+    ]);
 
-    const formatDistribution = formatRows.map((row) => ({
-      format: row._id,
-      count: row.count,
-      percentage:
-        generated > 0 ? Number(((row.count / generated) * 100).toFixed(1)) : 0,
-    }));
+    const topFormat = topFormatRows[0] ?? null;
 
     return {
       generated,
       downloads: downloadAggregation[0]?.total ?? 0,
-      formatDistribution,
+      format: topFormat?.count ?? 0,
+    };
+  }
+
+  async getFormatMix(user: JwtPayload) {
+    const userId = await this.getAuthenticatedUserId(user);
+    const [generated, formatRows, downloadFormatRows] = await Promise.all([
+      this.barcodeModel
+        .countDocuments({
+          userId,
+          status: { $ne: BarcodeStatus.DELETED },
+        })
+        .exec(),
+      this.barcodeModel
+        .aggregate<{
+          _id: BarcodeFormat;
+          count: number;
+        }>([
+          {
+            $match: {
+              userId,
+              status: { $ne: BarcodeStatus.DELETED },
+            },
+          },
+          { $group: { _id: '$format', count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+        ])
+        .exec(),
+      this.barcodeModel
+        .aggregate<{ svg: number; png: number }>([
+          {
+            $match: {
+              userId,
+              status: { $ne: BarcodeStatus.DELETED },
+            },
+          },
+          {
+            $group: {
+              _id: null,
+              svg: { $sum: '$downloadCounts.svg' },
+              png: { $sum: '$downloadCounts.png' },
+            },
+          },
+          { $project: { _id: 0, svg: 1, png: 1 } },
+        ])
+        .exec(),
+    ]);
+
+    return {
+      generated,
+      formatDistribution: this.getFormatDistribution(formatRows, generated),
       downloadFormatDistribution: {
         svg: downloadFormatRows[0]?.svg ?? 0,
         png: downloadFormatRows[0]?.png ?? 0,
@@ -389,6 +528,44 @@ export class BarcodeGeneratorService {
         `Content is invalid for ${format}. Expected: ${formatRule}`,
       );
     }
+  }
+
+  private normalizeBarcodeInput(input: BarcodeInput): BarcodeInput {
+    return {
+      ...input,
+      content: input.content.trim(),
+      barColor: input.barColor.toLowerCase(),
+      backgroundColor: input.backgroundColor.toLowerCase(),
+    };
+  }
+
+  private getRequestBodyHash(input: BarcodeInput): string {
+    return createHash('sha256')
+      .update(
+        JSON.stringify({
+          format: input.format,
+          content: input.content,
+          barWidth: input.barWidth,
+          height: input.height,
+          margin: input.margin,
+          barColor: input.barColor,
+          backgroundColor: input.backgroundColor,
+          showValue: input.showValue,
+        }),
+      )
+      .digest('hex');
+  }
+
+  private getFormatDistribution(
+    rows: Array<{ _id: BarcodeFormat; count: number }>,
+    total: number,
+  ) {
+    return rows.map((row) => ({
+      format: row._id,
+      count: row.count,
+      percentage:
+        total > 0 ? Number(((row.count / total) * 100).toFixed(1)) : 0,
+    }));
   }
 
   private getActivityRange(
@@ -546,7 +723,7 @@ export class BarcodeGeneratorService {
     return barcode;
   }
 
-  private serializeBarcode(barcode: BarcodeDocument) {
+  private serializeBarcode(barcode: BarcodeDocument): SerializedBarcode {
     const id = String(barcode._id);
 
     return {

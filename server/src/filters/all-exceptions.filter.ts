@@ -14,11 +14,17 @@ const VALIDATION_CONSTRAINT_PRIORITY = [
   'isNotEmpty',
   'isNotEmptyObject',
   'isString',
+  'isUrl',
+  'isEnum',
+  'isBoolean',
+  'isInt',
   'isEmail',
   'minLength',
   'length',
   'matches',
   'maxLength',
+  'min',
+  'max',
 ] as const;
 
 function pickValidationMessage(

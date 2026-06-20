@@ -5,6 +5,7 @@ import {
   Get,
   Param,
   Post,
+  Put,
   Query,
   Req,
   Res,
@@ -14,13 +15,17 @@ import { Public } from 'src/decorators/public.decorator';
 import { SkipResponseInterceptor } from 'src/decorators/skip-success-interceptor.decorator';
 import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
-import { BarcodeGeneratorService } from './barcode-generator.service';
+import {
+  BarcodeGeneratorService,
+  PaginatedBarcodesResponse,
+} from './barcode-generator.service';
 import {
   GenerateBarcodeDto,
-  GetRecentBarcodesDto,
-  GetBarcodeActivityDto,
+  GetPaginatedBarcodesDto,
   DownloadBarcodeDto,
+  UpdateBarcodeDto,
 } from './dto/barcode-generator.dto';
+import { BarcodeActivityPeriod } from './barcode-generator.constants';
 
 type AuthenticatedRequest = Request & {
   user?: JwtPayload;
@@ -41,30 +46,53 @@ export class BarcodeGeneratorController {
     return this.barcodeService.generate(this.getUser(req), dto);
   }
 
-  @Get('recent')
-  getRecent(
-    @Query() query: GetRecentBarcodesDto,
+  @Get()
+  getPaginatedData(
+    @Query() query: GetPaginatedBarcodesDto,
     @Req() req: AuthenticatedRequest,
-  ) {
-    return this.barcodeService.getRecent(this.getUser(req), query);
+  ): Promise<PaginatedBarcodesResponse> {
+    return this.barcodeService.getPaginatedData(this.getUser(req), query);
   }
 
-  @Get('analytics/summary')
+  @Get('analytics')
   getSummary(@Req() req: AuthenticatedRequest) {
-    return this.barcodeService.getSummary(this.getUser(req));
+    return this.barcodeService.getAnalytics(this.getUser(req));
   }
 
-  @Get('analytics/activity')
-  getActivity(
-    @Query() query: GetBarcodeActivityDto,
+  @Get(':id')
+  getById(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.barcodeService.getById(this.getUser(req), id);
+  }
+
+  @Put(':id')
+  edit(
+    @Param('id') id: string,
+    @Body() dto: UpdateBarcodeDto,
     @Req() req: AuthenticatedRequest,
   ) {
-    return this.barcodeService.getActivity(this.getUser(req), query);
+    return this.barcodeService.update(this.getUser(req), id, dto);
   }
 
   @Delete(':id')
   delete(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.barcodeService.delete(this.getUser(req), id);
+  }
+
+  @Get('analytics/activity/:period/:date')
+  getActivityByPeriod(
+    @Param('period') period: BarcodeActivityPeriod,
+    @Param('date') date: string,
+    @Req() req: AuthenticatedRequest,
+  ) {
+    return this.barcodeService.getActivity(this.getUser(req), {
+      period,
+      date,
+    });
+  }
+
+  @Get('analytics/format-mix')
+  getFormatMix(@Req() req: AuthenticatedRequest) {
+    return this.barcodeService.getFormatMix(this.getUser(req));
   }
 
   @Get(':id/preview')
