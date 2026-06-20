@@ -44,7 +44,13 @@ export class CreateShortUrlDto {
   customAlias?: string;
 }
 
-export class GetUserShortUrlsDto {
+export class GetPaginatedShortUrlsDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'page: Page must be an integer' })
+  @Min(1, { message: 'page: Page must be at least 1' })
+  page: number = 1;
+
   @IsOptional()
   @IsString({ message: 'cursor: Cursor must be a string' })
   @IsMongoId({ message: 'cursor: Cursor must be a valid id' })
