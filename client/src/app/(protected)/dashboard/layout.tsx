@@ -1,8 +1,16 @@
 import ProtectedShell from "@/components/layouts/ProtectedShell";
 import { GetCurrentUser } from "@/service/auth";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { ReactNode } from "react";
+
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
 
 export default async function ProtectedLayout({
   children,

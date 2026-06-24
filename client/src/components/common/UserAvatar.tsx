@@ -16,6 +16,7 @@ import { useState } from "react";
 import { Avatar, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Logout } from "@/service/auth";
+import { getApiErrorMessage } from "@/utils/custom-error-message";
 
 const USER_MENU_TRIGGER_ID = "dashboard-user-menu-trigger";
 const USER_MENU_CONTENT_ID = "dashboard-user-menu-content";
@@ -45,12 +46,10 @@ const UserAvatar = () => {
 
     const message =
       "error" in logOutResult
-        ? Array.isArray(logOutResult.error?.message)
-          ? logOutResult.error.message[0]
-          : logOutResult.error?.message
+        ? getApiErrorMessage(logOutResult.error, "Unable to logout")
         : "Unable to logout";
 
-    notify(message || "Unable to logout", "error");
+    notify(message, "error");
   };
 
   return (

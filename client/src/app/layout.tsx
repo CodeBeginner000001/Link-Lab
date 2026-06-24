@@ -10,6 +10,7 @@ import { DM_Sans } from "next/font/google";
 import "sonner/dist/styles.css";
 import OAuthWrapper from "@/context/OAuthWrapper";
 import { isKnownRoute, isProtectedRoute } from "@/middleware/auth/check-route";
+import { APP_URL } from "@/utils/env";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
@@ -17,6 +18,21 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(APP_URL),
+  applicationName: "Link Lab",
+  title: {
+    default: "Link Lab",
+    template: "%s | Link Lab",
+  },
+  description:
+    "Link Lab is a digital toolkit for short links, barcodes, QR tools, and link utilities.",
+  openGraph: {
+    siteName: "Link Lab",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+  },
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -32,6 +48,28 @@ export const metadata: Metadata = {
     ],
   },
 };
+
+const themeInitScript = `
+(() => {
+  try {
+    const storedTheme = localStorage.getItem("theme");
+    const theme = ["light", "dark", "system"].includes(storedTheme)
+      ? storedTheme
+      : "system";
+    const resolvedTheme =
+      theme === "system"
+        ? (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light")
+        : theme;
+
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(resolvedTheme);
+  } catch {
+    document.documentElement.classList.add(
+      window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light",
+    );
+  }
+})();
+`;
 
 export default async function RootLayout({
   children,
@@ -51,7 +89,10 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en" className={dmSans.variable}>
+    <html lang="en" className={dmSans.variable} suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body>
         <OAuthWrapper>
           <ThemeProvider>

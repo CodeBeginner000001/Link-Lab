@@ -1,9 +1,6 @@
+import { BACKEND_API_URL } from "@/utils/env";
+import { revalidateTag } from "next/cache";
 import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_API_URL =
-  process.env.BACKEND_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "http://localhost:4000/v1";
 
 const EXCLUDED_RESPONSE_HEADERS = new Set([
   "connection",
@@ -17,6 +14,22 @@ const EXCLUDED_RESPONSE_HEADERS = new Set([
   "transfer-encoding",
   "upgrade",
 ]);
+
+const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+
+function revalidateFeatureTags(endpoint: string) {
+  if (endpoint.startsWith("short-urls")) {
+    revalidateTag("short-urls", { expire: 0 });
+  }
+
+  if (endpoint.startsWith("barcodes")) {
+    revalidateTag("barcodes", { expire: 0 });
+  }
+
+  if (endpoint.startsWith("one-time-links")) {
+    revalidateTag("one-time-links", { expire: 0 });
+  }
+}
 
 async function handler(
   request: NextRequest,
@@ -53,6 +66,10 @@ async function handler(
       status: backendResponse.status,
     });
 
+    if (backendResponse.ok && MUTATING_METHODS.has(request.method)) {
+      revalidateFeatureTags(endpoint);
+    }
+
     for (const [headerName, headerValue] of backendResponse.headers.entries()) {
       if (EXCLUDED_RESPONSE_HEADERS.has(headerName.toLowerCase())) {
         continue;
@@ -71,8 +88,11 @@ async function handler(
     return NextResponse.json(
       {
         success: false,
+        statusCode: 503,
         message: ["Unable to reach server"],
         error: "Service Unavailable",
+        timeStamp: new Date().toISOString(),
+        path: request.nextUrl.pathname,
       },
       { status: 503 },
     );

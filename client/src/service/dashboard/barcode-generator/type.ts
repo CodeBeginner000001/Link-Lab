@@ -59,6 +59,21 @@ export type GenerateBarcodeData = {
 
 export type GenerateBarcodeResponse = ApiSuccessResponse<GenerateBarcodeData>;
 
+export type GetBarcodeByIdData = {
+  barcode: BarcodeItem;
+};
+
+export type GetBarcodeByIdResponse = ApiSuccessResponse<GetBarcodeByIdData>;
+
+export type UpdateBarcodePayload = Partial<GenerateBarcodePayload>;
+
+export type UpdateBarcodeData = {
+  message: string;
+  barcode: BarcodeItem;
+};
+
+export type UpdateBarcodeResponse = ApiSuccessResponse<UpdateBarcodeData>;
+
 export type BarcodePagination = {
   page: number;
   limit: number;
@@ -89,6 +104,16 @@ export type BarcodeFormatDistribution = {
 export type BarcodeAnalyticsSummary = {
   generated: number;
   downloads: number;
+  format?: number;
+  formatDistribution?: BarcodeFormatDistribution[];
+  downloadFormatDistribution?: {
+    svg: number;
+    png: number;
+  };
+};
+
+export type BarcodeFormatMix = {
+  generated: number;
   formatDistribution: BarcodeFormatDistribution[];
   downloadFormatDistribution: {
     svg: number;
@@ -98,6 +123,8 @@ export type BarcodeAnalyticsSummary = {
 
 export type GetBarcodeAnalyticsSummaryResponse =
   ApiSuccessResponse<BarcodeAnalyticsSummary>;
+
+export type GetBarcodeFormatMixResponse = ApiSuccessResponse<BarcodeFormatMix>;
 
 export type BarcodeActivityPeriod = "week" | "month" | "year";
 

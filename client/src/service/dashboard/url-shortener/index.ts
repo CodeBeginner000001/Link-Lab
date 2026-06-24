@@ -1,13 +1,18 @@
-import { BACKEND_API_URL_ENV } from "@/config/api";
+import { BACKEND_API_URL } from "@/utils/env";
 import { requestWithRefresh } from "@/service/request-with-refresh";
 import {
   CreateShortUrlResponse,
   DeleteShortUrlResponse,
+  GetShortUrlAnalyticsResponse,
+  GetShortUrlByIdResponse,
   GetUserShortUrlsResponse,
+  UpdateShortUrlPayload,
+  UpdateShortUrlResponse,
 } from "./type";
 
 const PROXY_BASE = "/api/features";
-const BACKEND_BASE = BACKEND_API_URL_ENV;
+const BACKEND_BASE = BACKEND_API_URL;
+const SHORT_URL_CACHE_TAG = "short-urls";
 
 
 export const CreateShortUrl = async (longUrl: string, customAlias?: string) => {
@@ -26,14 +31,53 @@ export const CreateShortUrl = async (longUrl: string, customAlias?: string) => {
 };
 
 // Server-side only — called from a server component with the forwarded Cookie header
-export const GetUserShortUrls = async (headers?: HeadersInit) => {
+export const GetUserShortUrls = async (
+  headers?: HeadersInit,
+  page = 1,
+  limit = 10,
+) => {
   return requestWithRefresh<GetUserShortUrlsResponse>({
     baseUrl: BACKEND_BASE,
-    path: "/short-urls",
+    path: `/short-urls?page=${page}&limit=${limit}`,
     init: {
       method: "GET",
       headers,
-      cache: "no-store",
+      next: { revalidate: 10, tags: [SHORT_URL_CACHE_TAG] },
+    },
+  });
+};
+
+export const GetShortUrlAnalytics = async (headers?: HeadersInit) => {
+  return requestWithRefresh<GetShortUrlAnalyticsResponse>({
+    baseUrl: headers ? BACKEND_BASE : PROXY_BASE,
+    path: "/short-urls/analytics",
+    init: {
+      method: "GET",
+      headers,
+      next: { revalidate: 10, tags: [SHORT_URL_CACHE_TAG] },
+    },
+  });
+};
+
+export const GetShortUrlById = async (id: string) => {
+  return requestWithRefresh<GetShortUrlByIdResponse>({
+    baseUrl: PROXY_BASE,
+    path: `/short-urls/${id}`,
+    init: { method: "GET", cache: "no-store" },
+  });
+};
+
+export const UpdateShortUrl = async (
+  id: string,
+  payload: UpdateShortUrlPayload,
+) => {
+  return requestWithRefresh<UpdateShortUrlResponse>({
+    baseUrl: PROXY_BASE,
+    path: `/short-urls/${id}`,
+    init: {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
     },
   });
 };

@@ -398,13 +398,13 @@ sequenceDiagram
     Service->>Redis: HSET short_url:analytics:{alias} { count:0, lastClickedAt:null }
     Controller-->>Client: 201 { message, shortUrl }
 
-    Client->>Controller: GET /v1/short-urls?limit=N&cursor=X
-    Controller->>Service: getUserShortUrls(user, query)
-    Service->>Mongo: find({ userId, status:active, _id < cursor }).sort(-_id).limit(N+1)
+    Client->>Controller: GET /v1/short-urls?page=P&limit=N
+    Controller->>Service: getPaginatedData(user, query)
+    Service->>Mongo: find({ userId, status:active }).sort(-_id).skip((P-1)*N).limit(N+1)
     loop for each shortUrl
         Service->>Redis: HGETALL short_url:analytics:{alias}
     end
-    Controller-->>Client: { items, pagination: { hasmore, limit, cursor } }
+    Controller-->>Client: { items, pagination: { totalItems, totalPages, hasMore, page, limit, cursor } }
 
     Client->>Controller: PUT /v1/short-urls/:id { longUrl?, customAlias? }
     Controller->>Service: updateShortUrl(user, id, dto)

@@ -1,4 +1,4 @@
-import { BACKEND_API_URL_ENV } from "@/config/api";
+import { BACKEND_API_URL } from "@/utils/env";
 import { requestWithRefresh } from "@/service/request-with-refresh";
 import {
   DeleteBarcodeResponse,
@@ -6,13 +6,18 @@ import {
   GenerateBarcodeResponse,
   GetBarcodeActivityResponse,
   GetBarcodeAnalyticsSummaryResponse,
+  GetBarcodeByIdResponse,
+  GetBarcodeFormatMixResponse,
   GetBarcodeFormatsResponse,
   GetUserBarcodesResponse,
   BarcodeActivityPeriod,
+  UpdateBarcodePayload,
+  UpdateBarcodeResponse,
 } from "./type";
 
 const PROXY_BASE = "/api/features";
-const BACKEND_BASE = BACKEND_API_URL_ENV;
+const BACKEND_BASE = BACKEND_API_URL;
+const BARCODE_CACHE_TAG = "barcodes";
 
 export const BARCODE_DATA_CHANGED_EVENT = "barcode-data-changed";
 
@@ -24,6 +29,9 @@ export const NotifyBarcodeDataChanged = () => {
 
 export const GetBarcodeDownloadUrl = (id: string, type: "png" | "svg") =>
   `${PROXY_BASE}/barcodes/${id}/download?type=${type}`;
+
+export const GetBarcodePreviewUrl = (id: string) =>
+  `${PROXY_BASE}/barcodes/${id}/preview`;
 
 export const GetBarcodeDownloadFilename = (
   barcode: { id: string; format: string; content: string },
@@ -48,7 +56,7 @@ export const GetBarcodeFormats = async (headers?: HeadersInit) => {
     init: {
       method: "GET",
       headers,
-      cache: "no-store",
+      next: { revalidate: 10 },
     },
   });
 };
@@ -65,11 +73,42 @@ export const GenerateBarcode = async (payload: GenerateBarcodePayload) => {
   });
 };
 
-export const GetUserBarcodes = async (page = 1, limit = 10) => {
-  return requestWithRefresh<GetUserBarcodesResponse>({
+export const GetBarcodeById = async (id: string) => {
+  return requestWithRefresh<GetBarcodeByIdResponse>({
     baseUrl: PROXY_BASE,
-    path: `/barcodes/recent?page=${page}&limit=${limit}`,
+    path: `/barcodes/${id}`,
     init: { method: "GET", cache: "no-store" },
+  });
+};
+
+export const UpdateBarcode = async (
+  id: string,
+  payload: UpdateBarcodePayload,
+) => {
+  return requestWithRefresh<UpdateBarcodeResponse>({
+    baseUrl: PROXY_BASE,
+    path: `/barcodes/${id}`,
+    init: {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    },
+  });
+};
+
+export const GetUserBarcodes = async (
+  page = 1,
+  limit = 10,
+  headers?: HeadersInit,
+) => {
+  return requestWithRefresh<GetUserBarcodesResponse>({
+    baseUrl: headers ? BACKEND_BASE : PROXY_BASE,
+    path: `/barcodes?page=${page}&limit=${limit}`,
+    init: {
+      method: "GET",
+      headers,
+      next: { revalidate: 10, tags: [BARCODE_CACHE_TAG] },
+    },
   });
 };
 
@@ -81,11 +120,27 @@ export const DeleteBarcode = async (id: string) => {
   });
 };
 
-export const GetBarcodeAnalyticsSummary = async () => {
+export const GetBarcodeAnalyticsSummary = async (headers?: HeadersInit) => {
   return requestWithRefresh<GetBarcodeAnalyticsSummaryResponse>({
-    baseUrl: PROXY_BASE,
-    path: "/barcodes/analytics/summary",
-    init: { method: "GET", cache: "no-store" },
+    baseUrl: headers ? BACKEND_BASE : PROXY_BASE,
+    path: "/barcodes/analytics",
+    init: {
+      method: "GET",
+      headers,
+      next: { revalidate: 10, tags: [BARCODE_CACHE_TAG] },
+    },
+  });
+};
+
+export const GetBarcodeFormatMix = async (headers?: HeadersInit) => {
+  return requestWithRefresh<GetBarcodeFormatMixResponse>({
+    baseUrl: headers ? BACKEND_BASE : PROXY_BASE,
+    path: "/barcodes/analytics/format-mix",
+    init: {
+      method: "GET",
+      headers,
+      next: { revalidate: 10, tags: [BARCODE_CACHE_TAG] },
+    },
   });
 };
 
@@ -93,11 +148,9 @@ export const GetBarcodeActivity = async (
   period: BarcodeActivityPeriod,
   date: string,
 ) => {
-  const query = new URLSearchParams({ period, date });
-
   return requestWithRefresh<GetBarcodeActivityResponse>({
     baseUrl: PROXY_BASE,
-    path: `/barcodes/analytics/activity?${query.toString()}`,
+    path: `/barcodes/analytics/activity/${period}/${encodeURIComponent(date)}`,
     init: { method: "GET", cache: "no-store" },
   });
 };

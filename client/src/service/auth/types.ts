@@ -1,10 +1,11 @@
 export interface ApiErrorResponse {
   success: false;
   statusCode: number;
-  message: string[];
+  message: string | string[];
   error: string;
   timeStamp: string;
   path: string;
+  details?: unknown;
 }
 
 export interface ApiSuccessResponse<T> {

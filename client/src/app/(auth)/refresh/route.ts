@@ -1,7 +1,6 @@
-import { BACKEND_API_URL_ENV } from "@/config/api";
+import { BACKEND_API_URL } from "@/utils/env";
 import { NextResponse } from "next/server";
 
-const BACKEND_API_URL = BACKEND_API_URL_ENV;
 const clearAuthCookies = (response: NextResponse) => {
   response.cookies.delete("access_token");
   response.cookies.delete("refresh_token");

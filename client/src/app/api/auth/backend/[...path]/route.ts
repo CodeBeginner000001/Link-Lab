@@ -1,9 +1,5 @@
+import { BACKEND_API_URL } from "@/utils/env";
 import { NextRequest, NextResponse, userAgent } from "next/server";
-
-const BACKEND_API_URL =
-  process.env.BACKEND_API_URL ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  "http://localhost:4000/v1";
 
 const ALLOWED_AUTH_PATHS = new Set([
   "login",
@@ -147,8 +143,11 @@ async function handler(
     return NextResponse.json(
       {
         success: false,
+        statusCode: 503,
         message: ["Unable to reach auth server"],
         error: "Service Unavailable",
+        timeStamp: new Date().toISOString(),
+        path: request.nextUrl.pathname,
       },
       { status: 503 },
     );

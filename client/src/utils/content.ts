@@ -263,8 +263,8 @@ export const dashBoardTools = [
   // { name: "Broken Link Checker", href: "/dashboard/broken-link-checker", icon: LinkIcon },
   { name: "Barcode Generator", href: "/dashboard/barcode-generator", icon: Barcode },
   // { name: "Barcode Decoder", href: "/dashboard/barcode-decoder", icon: ScanBarcode },
-  // { name: "One-Time Link", href: "/dashboard/one-time-link", icon: Clock },
+  { name: "One-Time Link", href: "/dashboard/onetime-link", icon: Clock },
   // { name: "DNS & Domain Checker", href: "/dashboard/dns-checker", icon: Globe },
 ];
 
-export const ANALYTICS_REFRESH_DELAY_SECONDS = 6000;
+export const ANALYTICS_REFRESH_DELAY_SECONDS = 10;

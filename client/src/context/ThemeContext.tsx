@@ -5,24 +5,42 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { Theme, ThemeContextType } from "@/interfaces/context";
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const THEMES = new Set<Theme>(["light", "dark", "system"]);
 
 const getSystemTheme = (): "light" | "dark" =>
   window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 
-const applyThemeToDOM = (resolvedTheme: "light" | "dark") => {
+const getStoredTheme = (): Theme => {
+  const storedTheme = localStorage.getItem("theme");
+
+  return THEMES.has(storedTheme as Theme) ? (storedTheme as Theme) : "system";
+};
+
+const applyThemeToDOM = (
+  resolvedTheme: "light" | "dark",
+  shouldTransition = true,
+) => {
   const root = document.documentElement;
-  root.classList.add("theme-transition");
+
+  if (shouldTransition) {
+    root.classList.add("theme-transition");
+  }
+
   root.classList.remove("light", "dark");
   root.classList.add(resolvedTheme);
-  setTimeout(() => {
-    root.classList.remove("theme-transition");
-  }, 300);
+
+  if (shouldTransition) {
+    setTimeout(() => {
+      root.classList.remove("theme-transition");
+    }, 300);
+  }
 };
 
 const handleChange = () => {
@@ -30,9 +48,10 @@ const handleChange = () => {
 };
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
+  const hasAppliedTheme = useRef(false);
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window === "undefined") return "system";
-    return (localStorage.getItem("theme") as Theme) ?? "system";
+    return getStoredTheme();
   });
 
   const resolvedTheme = useMemo<"light" | "dark">(() => {
@@ -41,7 +60,8 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   }, [theme]);
 
   useEffect(() => {
-    applyThemeToDOM(resolvedTheme);
+    applyThemeToDOM(resolvedTheme, hasAppliedTheme.current);
+    hasAppliedTheme.current = true;
     localStorage.setItem("theme", theme);
   }, [resolvedTheme, theme]);
 
