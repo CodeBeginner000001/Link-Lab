@@ -3,6 +3,8 @@ import { BarChart3 } from "lucide-react";
 import BarcodeRecentRowSlot from "./custom-slots/barcode-generator/BarcodeRecentRowSlot";
 import BarcodeGeneratorPreviewSlot from "./custom-slots/barcode-generator/BarcodeGeneratorPreviewSlot";
 import RecentBarcodesHeader from "./custom-slots/barcode-generator/RecentBarcodesHeader";
+import LinkExpanderDataSlot from "./custom-slots/link-expander/LinkExpanderDataSlot";
+import LinkExpanderResultSlot from "./custom-slots/link-expander/LinkExpanderResultSlot";
 import OneTimeLinkDataSlot from "./custom-slots/onetime-link/OneTimeLinkDataSlot";
 import OneTimeLinkGeneratedLinkSlot from "./custom-slots/onetime-link/OneTimeLinkGeneratedLinkSlot";
 import URLShortenerLinksDataSlot from "./custom-slots/url-shortener/URLShortenerLinksDataSlot";
@@ -54,6 +56,21 @@ export function getFeaturePanelSlots(
       dataHeader: <RecentBarcodesHeader />,
       row: (item) => (
         <BarcodeRecentRowSlot barcode={item} deleteAction={deleteAction} />
+      ),
+    };
+  }
+
+  if (slug === "link-expander") {
+    return {
+      secondary: <LinkExpanderResultSlot items={items} />,
+      dataPanelDescription: items.length
+        ? `${items.length} expanded link${items.length > 1 ? "s" : ""}.`
+        : "Recent expanded links will appear here after you run a lookup.",
+      dataPanelHeader: items.length ? (
+        <ToolFeaturePill icon={BarChart3} label={`${items.length} total`} />
+      ) : undefined,
+      dataContent: (
+        <LinkExpanderDataSlot items={items} deleteAction={deleteAction} />
       ),
     };
   }

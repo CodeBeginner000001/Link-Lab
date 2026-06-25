@@ -10,7 +10,10 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { FormEvent, useMemo, useState } from "react";
-import type { SchemaField, SchemaForm as SchemaFormConfig } from "../schema-driven/types";
+import type {
+  SchemaField,
+  SchemaForm as SchemaFormConfig,
+} from "../schema-driven/types";
 
 type SchemaFormProps<TFormValues extends Record<string, unknown>> = {
   schema: SchemaFormConfig<TFormValues>;
@@ -164,6 +167,20 @@ export default function SchemaForm<
           getApiErrorMessage(json, "Request failed. Please try again."),
           "error",
         );
+        if (
+          json &&
+          typeof json === "object" &&
+          (json as { saved?: boolean }).saved === true
+        ) {
+          if (schema.successEvent) {
+            window.dispatchEvent(
+              new CustomEvent(schema.successEvent, {
+                detail: { response: json },
+              }),
+            );
+          }
+          router.refresh();
+        }
         return;
       }
 

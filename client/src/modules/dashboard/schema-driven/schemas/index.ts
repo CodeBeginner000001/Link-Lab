@@ -8,4 +8,9 @@ export type {
   UrlShortenerFormValues,
   UrlShortenerListItem,
 } from "./url-shortener.schema";
+export type {
+  LinkExpanderAnalytics,
+  LinkExpanderFormValues,
+  LinkExpanderListItem,
+} from "./link-expander.schema";
 export { createBarcodeGeneratorToolSchema } from "./barcode-generator.schema";

@@ -29,6 +29,10 @@ function revalidateFeatureTags(endpoint: string) {
   if (endpoint.startsWith("one-time-links")) {
     revalidateTag("one-time-links", { expire: 0 });
   }
+
+  if (endpoint.startsWith("link-expanders")) {
+    revalidateTag("link-expanders", { expire: 0 });
+  }
 }
 
 async function handler(
@@ -66,7 +70,10 @@ async function handler(
       status: backendResponse.status,
     });
 
-    if (backendResponse.ok && MUTATING_METHODS.has(request.method)) {
+    if (
+      MUTATING_METHODS.has(request.method) &&
+      (backendResponse.ok || endpoint.startsWith("link-expanders"))
+    ) {
       revalidateFeatureTags(endpoint);
     }
 
