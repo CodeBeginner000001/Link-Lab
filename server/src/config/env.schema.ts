@@ -76,6 +76,7 @@ export const envSchema = z
     SIGNUP_SESSION_TTL_MINUTES: z.coerce.number().positive().default(60),
     FORGOT_PASSWORD_TTL_MINUTES: z.coerce.number().positive().default(10),
     CRON_SECRET: z.coerce.string(),
+    GOOGLE_SAFE_BROWSING_API_KEY: z.string().trim().optional(),
   })
   .superRefine((env, ctx) => {
     if (!env.REDIS_HOST && !env.UPSTASH_REDIS_URL) {

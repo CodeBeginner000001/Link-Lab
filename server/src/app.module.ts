@@ -15,6 +15,7 @@ import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { CronJobModule } from './modules/cron-job/cron-job.module';
 import { BarcodeGeneratorModule } from './modules/features/barcodeGenerator/barcode-generator.module';
+import { BrokenLinkCheckerModule } from './modules/features/brokenLinkChecker/broken-link-checker.module';
 import { LinkExpanderModule } from './modules/features/linkExpander/link-expander.module';
 import { OneTimeLinkModule } from './modules/features/oneTimeLink/one-time-link.module';
 import { UrlShortenerModule } from './modules/features/urlShortener/urlShortener.module';
@@ -35,6 +36,7 @@ import { RedisModule } from './modules/redis/redis.module';
     OneTimeLinkModule,
     BarcodeGeneratorModule,
     LinkExpanderModule,
+    BrokenLinkCheckerModule,
     RedisModule,
     CronJobModule,
   ],

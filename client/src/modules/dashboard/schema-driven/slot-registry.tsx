@@ -3,6 +3,8 @@ import { BarChart3 } from "lucide-react";
 import BarcodeRecentRowSlot from "./custom-slots/barcode-generator/BarcodeRecentRowSlot";
 import BarcodeGeneratorPreviewSlot from "./custom-slots/barcode-generator/BarcodeGeneratorPreviewSlot";
 import RecentBarcodesHeader from "./custom-slots/barcode-generator/RecentBarcodesHeader";
+import BrokenLinkCheckerDataSlot from "./custom-slots/broken-link-checker/BrokenLinkCheckerDataSlot";
+import BrokenLinkCheckerResultSlot from "./custom-slots/broken-link-checker/BrokenLinkCheckerResultSlot";
 import LinkExpanderDataSlot from "./custom-slots/link-expander/LinkExpanderDataSlot";
 import LinkExpanderResultSlot from "./custom-slots/link-expander/LinkExpanderResultSlot";
 import OneTimeLinkDataSlot from "./custom-slots/onetime-link/OneTimeLinkDataSlot";
@@ -71,6 +73,24 @@ export function getFeaturePanelSlots(
       ) : undefined,
       dataContent: (
         <LinkExpanderDataSlot items={items} deleteAction={deleteAction} />
+      ),
+    };
+  }
+
+  if (slug === "broken-link-checker") {
+    return {
+      secondary: <BrokenLinkCheckerResultSlot items={items} />,
+      dataPanelDescription: items.length
+        ? `${items.length} checked link${items.length > 1 ? "s" : ""}.`
+        : "Recent link checks will appear here after you run a lookup.",
+      dataPanelHeader: items.length ? (
+        <ToolFeaturePill icon={BarChart3} label={`${items.length} total`} />
+      ) : undefined,
+      dataContent: (
+        <BrokenLinkCheckerDataSlot
+          items={items}
+          deleteAction={deleteAction}
+        />
       ),
     };
   }

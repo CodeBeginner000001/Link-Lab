@@ -33,6 +33,10 @@ function revalidateFeatureTags(endpoint: string) {
   if (endpoint.startsWith("link-expanders")) {
     revalidateTag("link-expanders", { expire: 0 });
   }
+
+  if (endpoint.startsWith("broken-link-checkers")) {
+    revalidateTag("broken-link-checkers", { expire: 0 });
+  }
 }
 
 async function handler(
@@ -72,7 +76,9 @@ async function handler(
 
     if (
       MUTATING_METHODS.has(request.method) &&
-      (backendResponse.ok || endpoint.startsWith("link-expanders"))
+      (backendResponse.ok ||
+        endpoint.startsWith("link-expanders") ||
+        endpoint.startsWith("broken-link-checkers"))
     ) {
       revalidateFeatureTags(endpoint);
     }

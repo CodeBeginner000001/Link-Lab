@@ -13,4 +13,9 @@ export type {
   LinkExpanderFormValues,
   LinkExpanderListItem,
 } from "./link-expander.schema";
+export type {
+  BrokenLinkCheckerAnalytics,
+  BrokenLinkCheckerFormValues,
+  BrokenLinkCheckerListItem,
+} from "./broken-link-checker.schema";
 export { createBarcodeGeneratorToolSchema } from "./barcode-generator.schema";
