@@ -513,10 +513,10 @@ export class BarcodeGeneratorService {
 
     const rules: Record<BarcodeFormat, RegExp> = {
       [BarcodeFormat.CODE128]: /^.{1,128}$/u,
-      [BarcodeFormat.EAN13]: /^\d{12,13}$/,
+      [BarcodeFormat.EAN13]: /^\d{12,14}$/,
       [BarcodeFormat.UPCA]: /^\d{11,12}$/,
       [BarcodeFormat.CODE39]: /^[0-9A-Z .$/+%-]+$/,
-      [BarcodeFormat.ITF14]: /^\d{13,14}$/,
+      [BarcodeFormat.ITF14]: /^\d{13,15}$/,
     };
 
     if (!rules[format].test(content)) {
