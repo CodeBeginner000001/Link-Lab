@@ -3,6 +3,9 @@ import { BarChart3 } from "lucide-react";
 import BarcodeRecentRowSlot from "./custom-slots/barcode-generator/BarcodeRecentRowSlot";
 import BarcodeGeneratorPreviewSlot from "./custom-slots/barcode-generator/BarcodeGeneratorPreviewSlot";
 import RecentBarcodesHeader from "./custom-slots/barcode-generator/RecentBarcodesHeader";
+import BulkBarcodeTemplateSlot from "./custom-slots/bulk-barcode-generator/BulkBarcodeTemplateSlot";
+import BulkBarcodeUploadsHeader from "./custom-slots/bulk-barcode-generator/BulkBarcodeUploadsHeader";
+import BulkBarcodeUploadRowSlot from "./custom-slots/bulk-barcode-generator/BulkBarcodeUploadRowSlot";
 import BrokenLinkCheckerDataSlot from "./custom-slots/broken-link-checker/BrokenLinkCheckerDataSlot";
 import BrokenLinkCheckerResultSlot from "./custom-slots/broken-link-checker/BrokenLinkCheckerResultSlot";
 import LinkExpanderDataSlot from "./custom-slots/link-expander/LinkExpanderDataSlot";
@@ -58,6 +61,22 @@ export function getFeaturePanelSlots(
       dataHeader: <RecentBarcodesHeader />,
       row: (item) => (
         <BarcodeRecentRowSlot barcode={item} deleteAction={deleteAction} />
+      ),
+    };
+  }
+
+  if (slug === "bulk-barcode-generator") {
+    return {
+      secondary: <BulkBarcodeTemplateSlot />,
+      dataPanelDescription: items.length
+        ? `${items.length} bulk upload${items.length > 1 ? "s" : ""}.`
+        : "Bulk barcode batches will appear here after you upload a CSV.",
+      dataPanelHeader: items.length ? (
+        <ToolFeaturePill icon={BarChart3} label={`${items.length} total`} />
+      ) : undefined,
+      dataHeader: <BulkBarcodeUploadsHeader />,
+      row: (item) => (
+        <BulkBarcodeUploadRowSlot item={item} deleteAction={deleteAction} />
       ),
     };
   }

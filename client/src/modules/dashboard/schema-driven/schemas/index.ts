@@ -4,6 +4,11 @@ export type {
   BarcodeListItem,
 } from "./barcode-generator.schema";
 export type {
+  BulkBarcodeAnalytics,
+  BulkBarcodeGeneratorFormValues,
+  BulkBarcodeListItem,
+} from "./bulk-barcode-generator.schema";
+export type {
   UrlShortenerAnalytics,
   UrlShortenerFormValues,
   UrlShortenerListItem,

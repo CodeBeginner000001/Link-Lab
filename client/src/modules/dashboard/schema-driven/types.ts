@@ -22,6 +22,16 @@ export type SchemaButton = {
   icon?: LucideIcon;
 };
 
+export type SchemaFieldValidation = {
+  pattern?: string;
+  message?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  minLength?: number;
+  maxLength?: number;
+};
+
 type BaseField<TName extends string> = {
   name: TName;
   label: string;
@@ -44,12 +54,19 @@ type BaseField<TName extends string> = {
     colSpan?: 1 | 2;
     className?: string;
   };
-  validation?: {
-    pattern?: string;
-    message?: string;
-    min?: number;
-    max?: number;
-    step?: number;
+  validation?: SchemaFieldValidation;
+  dynamicByField?: {
+    field: string;
+    values: Record<
+      string,
+      {
+        placeholder?: string;
+        description?: string;
+        inputMode?: "text" | "url" | "email" | "numeric" | "decimal";
+        uppercase?: boolean;
+        validation?: SchemaFieldValidation;
+      }
+    >;
   };
 };
 
@@ -84,12 +101,23 @@ export type CheckboxSchemaField<TName extends string = string> =
     type: "checkbox";
   };
 
+export type UploadSchemaField<TName extends string = string> =
+  BaseField<TName> & {
+    type: "upload";
+    acceptedExtensions: string[];
+    accept?: string;
+    maxSizeMb?: number;
+    minRows?: number;
+    maxRows?: number;
+  };
+
 export type SchemaField<TName extends string = string> =
   | TextSchemaField<TName>
   | NumberSchemaField<TName>
   | SelectSchemaField<TName>
   | ColorSchemaField<TName>
-  | CheckboxSchemaField<TName>;
+  | CheckboxSchemaField<TName>
+  | UploadSchemaField<TName>;
 
 export type SchemaForm<TFormValues extends Record<string, unknown>> = {
   title: string;

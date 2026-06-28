@@ -26,6 +26,10 @@ function revalidateFeatureTags(endpoint: string) {
     revalidateTag("barcodes", { expire: 0 });
   }
 
+  if (endpoint.startsWith("bulk-barcodes")) {
+    revalidateTag("bulk-barcodes", { expire: 0 });
+  }
+
   if (endpoint.startsWith("one-time-links")) {
     revalidateTag("one-time-links", { expire: 0 });
   }
@@ -66,7 +70,7 @@ async function handler(
       body:
         request.method === "GET" || request.method === "HEAD"
           ? undefined
-          : await request.text(),
+          : await request.arrayBuffer(),
       cache: "no-store",
     });
 
@@ -74,12 +78,19 @@ async function handler(
       status: backendResponse.status,
     });
 
-    if (
+    const shouldRevalidate =
       MUTATING_METHODS.has(request.method) &&
       (backendResponse.ok ||
+        endpoint.startsWith("bulk-barcodes") ||
         endpoint.startsWith("link-expanders") ||
-        endpoint.startsWith("broken-link-checkers"))
-    ) {
+        endpoint.startsWith("broken-link-checkers"));
+    const isBulkDownload =
+      request.method === "GET" &&
+      backendResponse.ok &&
+      endpoint.startsWith("bulk-barcodes/") &&
+      endpoint.endsWith("/download");
+
+    if (shouldRevalidate || isBulkDownload) {
       revalidateFeatureTags(endpoint);
     }
 

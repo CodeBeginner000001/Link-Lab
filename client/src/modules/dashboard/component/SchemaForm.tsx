@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/Label";
 import { getApiErrorMessage } from "@/utils/custom-error-message";
 import { cn } from "@/utils/tailwindcss-merger";
 import { useToastNotification } from "@/utils/toast";
-import { Loader2 } from "lucide-react";
+import { FileUp, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
-import { FormEvent, useMemo, useState } from "react";
+import { DragEvent, FormEvent, useMemo, useState } from "react";
 import type {
   SchemaField,
   SchemaForm as SchemaFormConfig,
@@ -24,6 +24,10 @@ type SchemaFormProps<TFormValues extends Record<string, unknown>> = {
 };
 
 const getInitialValue = (field: SchemaField) => {
+  if (field.type === "upload") {
+    return null;
+  }
+
   if (field.type === "checkbox") {
     return Boolean(field.defaultValue);
   }
@@ -102,6 +106,72 @@ const buildPayload = (
   }, {});
 };
 
+const hasUploadField = (fields: SchemaField[]) =>
+  fields.some((field) => field.type === "upload");
+
+const buildFormDataPayload = (
+  fields: SchemaField[],
+  values: Record<string, unknown>,
+) => {
+  const formData = new FormData();
+
+  fields.forEach((field) => {
+    if (field.submit?.omitWhenHidden && !isFieldVisible(field, values)) {
+      return;
+    }
+
+    const value = getSubmitValue(field, values[field.name]);
+
+    if (field.submit?.omitWhenEmpty && value === "") {
+      return;
+    }
+
+    if (field.type === "upload") {
+      if (value instanceof File) {
+        formData.append(field.name, value);
+      }
+      return;
+    }
+
+    formData.append(field.name, String(value));
+  });
+
+  return formData;
+};
+
+const getUploadValidationError = (
+  field: SchemaField,
+  value: unknown,
+): string | null => {
+  if (field.type !== "upload") {
+    return null;
+  }
+
+  if (!(value instanceof File)) {
+    return field.required ? `${field.label} is required.` : null;
+  }
+
+  const fileName = value.name.trim();
+  const extensionCount = (fileName.match(/\./g) ?? []).length;
+  const lowerFileName = fileName.toLowerCase();
+  const acceptedExtensions = field.acceptedExtensions.map((extension) =>
+    extension.toLowerCase(),
+  );
+  const extension = acceptedExtensions.find((item) =>
+    lowerFileName.endsWith(item),
+  );
+
+  if (!extension || extensionCount !== 1) {
+    return `${field.label} must be one ${acceptedExtensions.join(", ")} file with no extra extensions.`;
+  }
+
+  if (field.maxSizeMb && value.size > field.maxSizeMb * 1024 * 1024) {
+    return `${field.label} must be ${field.maxSizeMb} MB or smaller.`;
+  }
+
+  return null;
+};
+
 export default function SchemaForm<
   TFormValues extends Record<string, unknown>,
 >({
@@ -151,14 +221,31 @@ export default function SchemaForm<
       if (schema.successEvent) {
         window.dispatchEvent(new CustomEvent(`${schema.successEvent}:start`));
       }
-      const payload = buildPayload(schema.fields, values);
+      const uploadError = visibleFields
+        .map((field) => getUploadValidationError(field, values[field.name]))
+        .find(Boolean);
+
+      if (uploadError) {
+        notify(uploadError, "error");
+        return;
+      }
+
+      const isMultipart = hasUploadField(schema.fields);
+      const payload = isMultipart
+        ? buildFormDataPayload(schema.fields, values)
+        : buildPayload(schema.fields, values);
+      const body: BodyInit = isMultipart
+        ? (payload as FormData)
+        : JSON.stringify(payload);
 
       const response = await fetch(endpoint, {
         method: schema.api.method ?? "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
+        headers: isMultipart
+          ? undefined
+          : {
+              "Content-Type": "application/json",
+            },
+        body,
       });
       const json = await response.json().catch(() => null);
 
@@ -220,10 +307,12 @@ export default function SchemaForm<
               key={field.name}
               field={field}
               value={values[field.name]}
+              values={values}
               className={cn(
                 field.layout?.colSpan === 2 && "sm:col-span-2",
                 field.layout?.className,
               )}
+              isLoading={isLoading}
               onChange={(value) => setFieldValue(field.name, value)}
             />
           ))}
@@ -250,14 +339,33 @@ export default function SchemaForm<
 function SchemaFieldControl({
   field,
   value,
+  values,
   className,
+  isLoading,
   onChange,
 }: {
   field: SchemaField;
   value: unknown;
+  values: Record<string, unknown>;
   className?: string;
+  isLoading?: boolean;
   onChange: (value: unknown) => void;
 }) {
+  const dynamicConfig = field.dynamicByField
+    ? field.dynamicByField.values[
+        String(values[field.dynamicByField.field] ?? "")
+      ]
+    : undefined;
+  const description = dynamicConfig?.description ?? field.description;
+  const placeholder = dynamicConfig?.placeholder ?? field.placeholder;
+  const validation = {
+    ...field.validation,
+    ...dynamicConfig?.validation,
+  };
+  const inputMode =
+    dynamicConfig?.inputMode ??
+    ("inputMode" in field ? field.inputMode : undefined);
+
   if (field.type === "select") {
     return (
       <div className={cn("grid gap-2", className)}>
@@ -276,9 +384,7 @@ function SchemaFieldControl({
             </option>
           ))}
         </select>
-        {field.description ? (
-          <FieldDescription text={field.description} />
-        ) : null}
+        {description ? <FieldDescription text={description} /> : null}
       </div>
     );
   }
@@ -293,9 +399,7 @@ function SchemaFieldControl({
       >
         <span>
           <span className="font-medium">{field.label}</span>
-          {field.description ? (
-            <FieldDescription text={field.description} />
-          ) : null}
+          {description ? <FieldDescription text={description} /> : null}
         </span>
         <input
           name={field.name}
@@ -314,6 +418,18 @@ function SchemaFieldControl({
     );
   }
 
+  if (field.type === "upload") {
+    return (
+      <SchemaUploadControl
+        field={field}
+        value={value}
+        className={className}
+        isLoading={Boolean(isLoading)}
+        onChange={onChange}
+      />
+    );
+  }
+
   return (
     <div className={cn("grid gap-2", className)}>
       <Label htmlFor={field.name}>{field.label}</Label>
@@ -322,20 +438,113 @@ function SchemaFieldControl({
         name={field.name}
         type={field.type}
         required={field.required}
-        placeholder={field.placeholder}
-        pattern={field.validation?.pattern}
-        min={field.validation?.min}
-        max={field.validation?.max}
-        step={field.validation?.step}
-        inputMode={"inputMode" in field ? field.inputMode : undefined}
+        placeholder={placeholder}
+        pattern={validation.pattern}
+        min={validation.min}
+        max={validation.max}
+        step={validation.step}
+        minLength={validation.minLength}
+        maxLength={validation.maxLength}
+        inputMode={inputMode}
         value={String(value ?? "")}
         onChange={(event) => {
           const nextValue =
             field.type === "number"
               ? Number(event.target.value)
-              : event.target.value;
+              : dynamicConfig?.uppercase
+                ? event.target.value.toUpperCase()
+                : event.target.value;
           onChange(nextValue);
         }}
+      />
+      {description ? <FieldDescription text={description} /> : null}
+    </div>
+  );
+}
+
+function SchemaUploadControl({
+  field,
+  value,
+  className,
+  isLoading,
+  onChange,
+}: {
+  field: Extract<SchemaField, { type: "upload" }>;
+  value: unknown;
+  className?: string;
+  isLoading: boolean;
+  onChange: (value: unknown) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const file = value instanceof File ? value : null;
+  const accept =
+    field.accept ?? field.acceptedExtensions.map((item) => item).join(",");
+
+  const handleDragOver = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (event: DragEvent<HTMLLabelElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setIsDragging(false);
+    }
+  };
+
+  const handleDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    setIsDragging(false);
+    if (isLoading) {
+      return;
+    }
+    onChange(event.dataTransfer.files?.[0] ?? null);
+  };
+
+  return (
+    <div className={cn("grid gap-2", className)}>
+      <Label htmlFor={field.name}>{field.label}</Label>
+      <label
+        htmlFor={field.name}
+        onDragOver={handleDragOver}
+        onDragEnter={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        className={cn(
+          "flex min-h-32 cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.35)] px-4 py-5 text-center transition-colors hover:bg-[hsl(var(--muted)/0.55)]",
+          isDragging &&
+            "border-[hsl(var(--primary))] bg-[hsl(var(--primary)/0.08)]",
+          isLoading && "cursor-wait opacity-80",
+        )}
+      >
+        {isLoading ? (
+          <Loader2 className="h-5 w-5 animate-spin text-[hsl(var(--primary))]" />
+        ) : (
+          <FileUp className="h-5 w-5 text-[hsl(var(--primary))]" />
+        )}
+        <span className="text-sm font-medium">
+          {isLoading
+            ? "Uploading file..."
+            : file
+              ? file.name
+              : isDragging
+                ? "Drop file to upload"
+                : "Drag and drop or choose file"}
+        </span>
+        <span className="text-xs text-[hsl(var(--muted-foreground))]">
+          {field.acceptedExtensions.join(", ")}
+          {field.maxSizeMb ? ` up to ${field.maxSizeMb} MB` : ""}
+        </span>
+      </label>
+      <input
+        id={field.name}
+        name={field.name}
+        type="file"
+        required={field.required}
+        accept={accept}
+        disabled={isLoading}
+        onChange={(event) => onChange(event.target.files?.[0] ?? null)}
+        className="sr-only"
       />
       {field.description ? <FieldDescription text={field.description} /> : null}
     </div>
