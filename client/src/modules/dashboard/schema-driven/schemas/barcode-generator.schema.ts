@@ -45,6 +45,26 @@ export function createBarcodeGeneratorToolSchema(
   BarcodeListItem,
   BarcodeAnalytics
 > {
+  const contentRulesByFormat = Object.fromEntries(
+    formats.map((format) => [
+      format.value,
+      {
+        placeholder: format.input.placeholder,
+        inputMode: format.input.inputMode,
+        uppercase: format.input.uppercase,
+        description: [
+          `${format.label}: ${format.contentRule}.`,
+          ...(format.rules ?? []),
+        ].join(" "),
+        validation: {
+          pattern: format.input.pattern,
+          minLength: format.input.minLength,
+          maxLength: format.input.maxLength,
+        },
+      },
+    ]),
+  );
+
   return {
     slug: "barcode-generator",
     route: "/dashboard/barcode-generator",
@@ -80,6 +100,7 @@ export function createBarcodeGeneratorToolSchema(
             label: "Barcode Format",
             type: "select",
             required: true,
+            defaultValue: formats[0]?.value,
             layout: { row: 1, colSpan: 2 },
             options: formats.map((format) => ({
               label: format.label,
@@ -94,7 +115,11 @@ export function createBarcodeGeneratorToolSchema(
             required: true,
             placeholder: "Enter barcode value",
             description:
-              "This value will be encoded using the selected barcode format.",
+              "Choose a barcode format to see its content rules.",
+            dynamicByField: {
+              field: "format",
+              values: contentRulesByFormat,
+            },
             layout: { row: 2, colSpan: 2 },
           },
           {

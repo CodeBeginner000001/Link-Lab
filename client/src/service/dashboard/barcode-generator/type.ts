@@ -5,6 +5,7 @@ export type BarcodeFormatOption = {
   label: string;
   description: string;
   contentRule: string;
+  rules?: string[];
   input: {
     inputMode: "text" | "numeric";
     placeholder: string;

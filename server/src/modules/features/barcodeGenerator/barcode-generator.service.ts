@@ -20,6 +20,10 @@ import {
 import { User, UserDocument } from 'src/models/user.schema';
 import { isDuplicateKeyError, toObjectId } from '../utils/common.utils';
 import {
+  getBarcodeContentValidationError,
+  normalizeBarcodeContent,
+} from './barcode-content.utils';
+import {
   BARCODE_FORMATS,
   BarcodeActivityPeriod,
   BarcodeDownloadType,
@@ -511,29 +515,17 @@ export class BarcodeGeneratorService {
       throw new BarcodeContentInvalidException('Barcode content is required');
     }
 
-    const rules: Record<BarcodeFormat, RegExp> = {
-      [BarcodeFormat.CODE128]: /^.{1,128}$/u,
-      [BarcodeFormat.EAN13]: /^\d{12,14}$/,
-      [BarcodeFormat.UPCA]: /^\d{11,12}$/,
-      [BarcodeFormat.CODE39]: /^[0-9A-Z .$/+%-]+$/,
-      [BarcodeFormat.ITF14]: /^\d{13,15}$/,
-    };
+    const validationError = getBarcodeContentValidationError(format, content);
 
-    if (!rules[format].test(content)) {
-      const formatRule = BARCODE_FORMATS.find(
-        (item) => item.value === format,
-      )?.contentRule;
-
-      throw new BarcodeContentInvalidException(
-        `Content is invalid for ${format}. Expected: ${formatRule}`,
-      );
+    if (validationError) {
+      throw new BarcodeContentInvalidException(validationError);
     }
   }
 
   private normalizeBarcodeInput(input: BarcodeInput): BarcodeInput {
     return {
       ...input,
-      content: input.content.trim(),
+      content: normalizeBarcodeContent(input.format, input.content),
       barColor: input.barColor.toLowerCase(),
       backgroundColor: input.backgroundColor.toLowerCase(),
     };
