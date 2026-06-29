@@ -1,62 +1,124 @@
 import { BARCODE_FORMATS, BarcodeFormat } from './barcode-generator.constants';
 
-export function normalizeBarcodeContent(
+type BarcodeContentRule = {
+  pattern: RegExp;
+  checkDigitPayloadLength?: number;
+};
+
+type PreparedBarcodeContent =
+  | {
+      success: true;
+      content: string;
+    }
+  | {
+      success: false;
+      error: string;
+    };
+
+const BARCODE_CONTENT_RULES: Record<BarcodeFormat, BarcodeContentRule> = {
+  [BarcodeFormat.CODE128]: {
+    pattern: /^.{1,128}$/u,
+  },
+
+  [BarcodeFormat.EAN13]: {
+    pattern: /^\d{13}$/,
+    checkDigitPayloadLength: 12,
+  },
+
+  [BarcodeFormat.UPCA]: {
+    pattern: /^\d{12}$/,
+    checkDigitPayloadLength: 11,
+  },
+
+  [BarcodeFormat.CODE39]: {
+    pattern: /^[0-9A-Z .$/+%-]+$/,
+  },
+
+  [BarcodeFormat.ITF14]: {
+    pattern: /^\d{14}$/,
+    checkDigitPayloadLength: 13,
+  },
+};
+
+export function prepareBarcodeContent(
   format: BarcodeFormat,
-  content: string,
-): string {
-  const trimmedContent = content.trim();
+  rawContent: string,
+): PreparedBarcodeContent {
+  const content = rawContent.trim();
 
-  if (format === BarcodeFormat.EAN13 && /^\d{12}$/.test(trimmedContent)) {
-    return `${trimmedContent}${calculateGtinCheckDigit(trimmedContent)}`;
+  if (!content) {
+    return {
+      success: false,
+      error: 'Barcode content is required',
+    };
   }
 
-  if (format === BarcodeFormat.UPCA && /^\d{11}$/.test(trimmedContent)) {
-    return `${trimmedContent}${calculateGtinCheckDigit(trimmedContent)}`;
+  const rule = BARCODE_CONTENT_RULES[format];
+  const finalContent = addMissingCheckDigit(content, rule);
+
+  if (!rule.pattern.test(finalContent)) {
+    return {
+      success: false,
+      error: getFormatErrorMessage(format),
+    };
   }
 
-  if (format === BarcodeFormat.ITF14 && /^\d{13}$/.test(trimmedContent)) {
-    return `${trimmedContent}${calculateGtinCheckDigit(trimmedContent)}`;
+  const checkDigitError = validateCheckDigit(format, finalContent, rule);
+
+  if (checkDigitError) {
+    return {
+      success: false,
+      error: checkDigitError,
+    };
   }
 
-  return trimmedContent;
+  return {
+    success: true,
+    content: finalContent,
+  };
 }
 
-export function getBarcodeContentValidationError(
+function addMissingCheckDigit(
+  content: string,
+  rule: BarcodeContentRule,
+): string {
+  if (!rule.checkDigitPayloadLength) {
+    return content;
+  }
+
+  const isOnlyDigits = /^\d+$/.test(content);
+  const isMissingCheckDigit = content.length === rule.checkDigitPayloadLength;
+
+  if (!isOnlyDigits || !isMissingCheckDigit) {
+    return content;
+  }
+
+  const checkDigit = calculateGtinCheckDigit(content);
+
+  return `${content}${checkDigit}`;
+}
+
+function validateCheckDigit(
   format: BarcodeFormat,
   content: string,
+  rule: BarcodeContentRule,
 ): string | null {
-  if (!content) {
-    return 'Barcode content is required';
+  if (!rule.checkDigitPayloadLength) {
+    return null;
   }
 
-  const rules: Record<BarcodeFormat, RegExp> = {
-    [BarcodeFormat.CODE128]: /^.{1,128}$/u,
-    [BarcodeFormat.EAN13]: /^\d{12,13}$/,
-    [BarcodeFormat.UPCA]: /^\d{11,12}$/,
-    [BarcodeFormat.CODE39]: /^[0-9A-Z .$/+%-]+$/,
-    [BarcodeFormat.ITF14]: /^\d{13,14}$/,
-  };
+  const fullContentLength = rule.checkDigitPayloadLength + 1;
 
-  if (!rules[format].test(content)) {
-    const formatRule = BARCODE_FORMATS.find(
-      (item) => item.value === format,
-    )?.contentRule;
-
-    return `Content is invalid for ${format}. Expected: ${formatRule}`;
+  if (content.length !== fullContentLength) {
+    return null;
   }
 
-  if (
-    (format === BarcodeFormat.EAN13 && content.length === 13) ||
-    (format === BarcodeFormat.UPCA && content.length === 12) ||
-    (format === BarcodeFormat.ITF14 && content.length === 14)
-  ) {
-    const payload = content.slice(0, -1);
-    const expectedCheckDigit = calculateGtinCheckDigit(payload);
-    const actualCheckDigit = Number(content.slice(-1));
+  const payload = content.slice(0, -1);
+  const expectedCheckDigit = calculateGtinCheckDigit(payload);
+  const actualCheckDigit = Number(content.slice(-1));
 
-    if (actualCheckDigit !== expectedCheckDigit) {
-      return `${format} check digit is invalid. Expected ${expectedCheckDigit} for ${payload}.`;
-    }
+  if (actualCheckDigit !== expectedCheckDigit) {
+    return `${format} check digit is invalid. Expected ${expectedCheckDigit} for ${payload}.`;
   }
 
   return null;
@@ -64,8 +126,18 @@ export function getBarcodeContentValidationError(
 
 function calculateGtinCheckDigit(payload: string): number {
   const sum = [...payload].reverse().reduce((total, digit, index) => {
-    return total + Number(digit) * (index % 2 === 0 ? 3 : 1);
+    const weight = index % 2 === 0 ? 3 : 1;
+
+    return total + Number(digit) * weight;
   }, 0);
 
   return (10 - (sum % 10)) % 10;
+}
+
+function getFormatErrorMessage(format: BarcodeFormat): string {
+  const formatRule = BARCODE_FORMATS.find(
+    (item) => item.value === format,
+  )?.contentRule;
+
+  return `Content is invalid for ${format}. Expected: ${formatRule}`;
 }

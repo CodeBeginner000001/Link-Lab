@@ -1153,83 +1153,442 @@ sequenceDiagram
 
 ### BarcodeGeneratorController — `/v1/barcodes`
 
-Primary data store: `barcodes`. Rendering uses `BarcodeRendererService`; PNG
-exports use `sharp`.
+Primary data store: `barcodes`. The feature uses `BarcodeGeneratorService` for
+ownership, validation, persistence, analytics, and file responses;
+`BarcodeRendererService` renders SVG through `@bwip-js/node`; PNG downloads are
+created from stored SVG with `sharp`.
 
-#### Generate Barcode Flow
+Supported formats:
 
-- User sends `POST /v1/barcodes` with format, content, colors, dimensions, and
-  display options.
-- Request passes through middleware, JWT guard, and DTO validation.
-- Controller checks authenticated user and calls `BarcodeGeneratorService.generate`.
-- Service checks MongoDB `users` for authenticated user existence.
-- Service normalizes barcode content and lowercases color values.
-- Service validates content using format-specific barcode rules.
-- Service computes request-body hash and checks MongoDB `barcodes` for active
-  duplicate with same user and rendered options.
-- If duplicate exists, service throws duplicate barcode exception.
-- Service renders SVG with `BarcodeRendererService`.
-- Service creates active MongoDB `barcodes` document with SVG and request hash.
-- Controller returns serialized barcode.
+| Format | Content rule | Normalization |
+| --- | --- | --- |
+| `CODE128` | Any text, 1-128 characters | Trim only |
+| `EAN13` | 12 digits to auto-add check digit, or 13 digits with valid check digit | Trim, calculate/validate GTIN check digit |
+| `UPCA` | 11 digits to auto-add check digit, or 12 digits with valid check digit | Trim, calculate/validate GTIN check digit |
+| `CODE39` | Uppercase letters, digits, space, and `-.$/+%` | Trim; client metadata marks uppercase input |
+| `ITF14` | 13 digits to auto-add check digit, or 14 digits with valid check digit | Trim, calculate/validate GTIN check digit |
 
-#### Barcode Read, Update, Delete, Analytics, Preview, and Download Flow
+Shared validation:
+- `format` must be one of `CODE128`, `EAN13`, `UPCA`, `CODE39`, or `ITF14`.
+- `content` is required and is capped at 256 characters by DTO validation, then
+  narrowed by format-specific rules.
+- `barWidth` must be an integer from 1 to 5.
+- `height` must be an integer from 40 to 300 pixels.
+- `margin` must be an integer from 0 to 100 pixels.
+- `barColor` and `backgroundColor` must be six-digit hex colors and are stored
+  lowercase.
+- `showValue` must be boolean.
+- Pagination defaults to 10 and caps at 50.
+- Download `type` must be `svg` or `png`.
 
-- User sends protected request for list/detail/update/delete/analytics or file.
-- Request passes through middleware, guard, and DTO/query validation.
-- Controller calls `getUser(req)` and then the matching service method.
-- Service confirms MongoDB user exists.
-- For list/detail, service loads non-deleted barcode records owned by user.
-- For update, service requires at least one field, merges current and incoming
-  values, normalizes and validates content, rejects no-op changes, rerenders SVG,
-  and saves MongoDB document.
-- For delete, service soft-deletes the barcode, sets `deletedAt`, and clears
-  `requestBodyHash` so the same barcode can be generated later.
-- For analytics/activity/format mix, service aggregates MongoDB records and
-  download counters.
-- For preview, service returns stored SVG as raw inline image response.
-- For download, service returns SVG or converts SVG to PNG with `sharp`, then
-  increments MongoDB download counters and last-download metadata.
+MongoDB document:
 
-| Endpoint | Controller flow | Service/data flow | Handled edges |
-| --- | --- | --- | --- |
-| `GET /formats` | Public | Return supported barcode format metadata | No auth required |
-| `POST /` | Protected generate DTO | Normalize content/colors, validate by format, hash request body, block duplicates, render SVG, persist active barcode | Invalid format content, duplicate active barcode, deleted user |
-| `GET /` | Protected pagination | List non-deleted barcodes by owner with totals | Empty list, page bounds handled by pagination metadata |
-| `GET /analytics` | Protected | Count generated barcodes, total downloads, top format count | Zero-data analytics |
-| `GET /:id` | Protected | Convert id, confirm owner and non-deleted status | Invalid id, not found, access denied |
-| `PUT /:id` | Protected update DTO | Require at least one field, merge current values, validate content, detect no-op updates, rerender SVG, save | Empty body, no changes, duplicate updated barcode |
-| `DELETE /:id` | Protected | Soft-delete, set `deletedAt`, null `requestBodyHash` so future identical creates are allowed | Deleted records no longer count/list |
-| `GET /analytics/activity/:period/:date` | Protected | Build UTC week/month/year ranges, aggregate created counts, calculate growth vs previous period | Invalid period date format, invalid ISO week |
-| `GET /analytics/format-mix` | Protected | Aggregate format distribution and SVG/PNG download mix | Percentages return `0` when total is zero |
-| `GET /:id/preview` | Protected raw SVG | Confirm owner, return stored SVG inline with private cache header | Not found/access denied, skips success wrapper |
-| `GET /:id/download?type=svg|png` | Protected raw attachment | Confirm owner, convert to PNG if requested, increment download counters and last download metadata | Invalid type through DTO, conversion errors, skips success wrapper |
+| Field | Purpose |
+| --- | --- |
+| `userId` | Owner reference for all protected access control. |
+| `format`, `content`, `barWidth`, `height`, `margin`, `barColor`, `backgroundColor`, `showValue` | Render inputs after normalization. |
+| `requestBodyHash` | SHA-256 hash of render inputs; unique per user while not null. |
+| `svg` | Stored SVG output returned by preview/download and reused for PNG conversion. |
+| `status` | `active` or `deleted`; delete is soft-delete. |
+| `deletedAt` | Soft-delete timestamp. |
+| `downloadCounts.svg`, `downloadCounts.png` | Per-format download counters. |
+| `totalDownloads` | Total SVG + PNG downloads. |
+| `lastDownloadType`, `lastDownloadedAt` | Latest download metadata. |
+
+Important indexes:
+- `(userId, createdAt desc)` for list ordering.
+- `(userId, format, createdAt desc)` for format-scoped analytics/listing.
+- `(userId, status, createdAt desc)` for active/non-deleted lookups.
+- Unique partial `(userId, requestBodyHash)` where `requestBodyHash` is a
+  string; delete clears `requestBodyHash` so the same barcode can be generated
+  again later.
+
+#### Barcode API Summary
+
+| Endpoint | Response type | Details |
+| --- | --- | --- |
+| `GET /v1/barcodes/formats` | Wrapped JSON, public | Returns `BARCODE_FORMATS` metadata for UI controls and input rules. |
+| `POST /v1/barcodes` | Wrapped JSON, protected | Validates input, prevents duplicate active barcode, renders SVG, stores document. |
+| `GET /v1/barcodes` | Wrapped JSON, protected | Lists non-deleted barcodes owned by user with `page`, `limit`, and cursor metadata. |
+| `GET /v1/barcodes/analytics` | Wrapped JSON, protected | Returns generated count, total downloads, and count of the top format. |
+| `GET /v1/barcodes/analytics/activity/:period/:date` | Wrapped JSON, protected | Returns week/month/year creation activity points and growth vs previous period. |
+| `GET /v1/barcodes/analytics/format-mix` | Wrapped JSON, protected | Returns generated count, format distribution, and SVG/PNG download totals. |
+| `GET /v1/barcodes/:id` | Wrapped JSON, protected | Returns one owned non-deleted barcode. |
+| `PUT /v1/barcodes/:id` | Wrapped JSON, protected | Merges update fields, validates, rerenders SVG, and saves changed barcode. |
+| `DELETE /v1/barcodes/:id` | Wrapped JSON, protected | Soft-deletes barcode, sets `deletedAt`, clears duplicate hash. |
+| `GET /v1/barcodes/:id/preview` | Raw SVG, protected | Returns stored SVG inline with private cache header. |
+| `GET /v1/barcodes/:id/download?type=svg\|png` | Raw attachment, protected | Returns SVG or PNG and increments download counters. |
+
+#### `GET /v1/barcodes/formats`
+
+This is the only public barcode endpoint. It does not call `getUser(req)` and
+does not require JWT authentication. The service returns the static
+`BARCODE_FORMATS` array, including label, description, content rules, input
+mode, placeholder, min/max length, regex pattern, and uppercase hint.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /formats @Public
+    participant Service as BarcodeGeneratorService
+
+    Client->>Ctrl: GET /v1/barcodes/formats
+    Ctrl->>Service: getFormats()
+    Service-->>Ctrl: { formats: BARCODE_FORMATS }
+    Ctrl-->>Client: success envelope with format metadata
+```
+
+#### `POST /v1/barcodes`
+
+Generate creates a new active barcode owned by the authenticated user.
+
+The service first confirms the JWT subject still exists in `users`. It prepares
+the render input by trimming/normalizing content, calculating or validating
+check digits where needed, and lowercasing colors. It then checks for an active
+duplicate using the full render-input tuple. If no duplicate exists, the
+renderer converts the input into SVG and MongoDB persists the barcode.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Guard as JwtAuthGuard + ValidationPipe
+    participant Ctrl as BarcodeGeneratorController\nPOST /v1/barcodes
+    participant Service as BarcodeGeneratorService
+    participant Users as MongoDB users
+    participant Renderer as BarcodeRendererService
+    participant Mongo as MongoDB barcodes
+
+    Client->>Guard: POST /v1/barcodes\nGenerateBarcodeDto
+    Guard->>Ctrl: req.user + validated body
+    Ctrl->>Service: generate(user, dto)
+    Service->>Users: exists({ _id: user.sub })
+    Service->>Service: prepareBarcodeInput()\ntrim content + check digit + lowercase colors
+    alt content invalid for format
+        Service-->>Ctrl: throw BarcodeContentInvalidException
+    else content valid
+        Service->>Service: getRequestBodyHash(render inputs)
+        Service->>Mongo: exists({ userId, render inputs, status != deleted })
+        alt duplicate active barcode
+            Service-->>Ctrl: throw BarcodeDuplicateRequestException
+        else unique barcode
+            Service->>Renderer: renderSvg(input)
+            Renderer->>Renderer: bwipjs.toSVG\nbcid from BARCODE_RENDERER_FORMAT
+            Service->>Mongo: create({ userId, input, requestBodyHash, svg, status:active })
+            Mongo-->>Service: Barcode document
+            Service-->>Ctrl: { message, barcode }
+            Ctrl-->>Client: success envelope
+        end
+    end
+```
+
+#### `GET /v1/barcodes`
+
+List returns only non-deleted barcodes for the authenticated user.
+
+Query DTO:
+- `page` defaults to `1`, minimum `1`.
+- `limit` defaults to `10`, minimum `1`, maximum `50`.
+
+MongoDB sorts by newest first using `createdAt: -1` and `_id: -1`, applies
+`skip = (page - 1) * limit`, and returns pagination metadata.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /v1/barcodes
+    participant Service as BarcodeGeneratorService
+    participant Users as MongoDB users
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: GET /v1/barcodes?page=1&limit=10
+    Ctrl->>Service: getPaginatedData(user, query)
+    Service->>Users: exists({ _id: user.sub })
+    par query page
+        Service->>Mongo: find({ userId, status != deleted })\nsort createdAt desc, _id desc\nskip + limit
+    and count total
+        Service->>Mongo: countDocuments({ userId, status != deleted })
+    end
+    Service->>Service: serializeBarcode each item
+    Service-->>Ctrl: { items, pagination }
+    Ctrl-->>Client: success envelope
+```
+
+#### `GET /v1/barcodes/analytics`
+
+Analytics returns dashboard totals for non-deleted barcodes owned by the user:
+
+- `generated`: count of active/non-deleted barcode documents.
+- `downloads`: sum of `totalDownloads`.
+- `format`: count of the most-used barcode format. This is a count, not the
+  format name.
 
 ```mermaid
 flowchart TD
-    BarcodeReq["/v1/barcodes request"]
-    BarcodeCtrl["BarcodeGeneratorController"]
-    PublicFormats{"GET /formats?"}
-    AuthUser["getUser(req)\nthrow AccessTokenExpired if missing"]
-    Service["BarcodeGeneratorService"]
-    Normalize["normalize input\ncontent + colors"]
-    Validate["format-specific content validation"]
-    Duplicate["duplicate active request check\nrequestBodyHash / unique index"]
-    Render["BarcodeRendererService\nrender SVG"]
-    Mongo["MongoDB barcodes"]
-    File{"preview/download?"}
-    Sharp["sharp SVG -> PNG\nwhen type=png"]
-    Counters["$inc download counts\nset lastDownloadedAt/type"]
-    Json["wrapped JSON response"]
-    Raw["raw image attachment/inline"]
+    Req["GET /v1/barcodes/analytics"]
+    User["Confirm user exists"]
+    Count["countDocuments\nstatus != deleted"]
+    Downloads["aggregate sum\ntotalDownloads"]
+    TopFormat["aggregate group by format\nsort count desc limit 1"]
+    Response["{ generated, downloads, format }"]
 
-    BarcodeReq --> BarcodeCtrl --> PublicFormats
-    PublicFormats -- yes --> Json
-    PublicFormats -- no --> AuthUser --> Service
-    Service --> Normalize --> Validate --> Duplicate --> Render --> Mongo --> Json
-    Service --> File
-    File -- preview --> Mongo --> Raw
-    File -- download svg --> Mongo --> Counters --> Raw
-    File -- download png --> Mongo --> Sharp --> Counters --> Raw
+    Req --> User
+    User --> Count --> Response
+    User --> Downloads --> Response
+    User --> TopFormat --> Response
+```
+
+#### `GET /v1/barcodes/analytics/activity/:period/:date`
+
+Activity aggregates barcode creation counts in UTC for a selected period and
+compares the total with the previous equivalent period.
+
+Accepted date formats:
+- `week`: `YYYY-Www`, for example `2026-W01`. ISO week validation rejects
+  impossible weeks.
+- `month`: `YYYY-MM`, for example `2026-06`.
+- `year`: `YYYY`, for example `2026`.
+
+Returned fields:
+- `period`, `selectedDate`, `start`, `end`.
+- `growth`: percentage change vs previous period. If previous total is `0`,
+  growth is `100` when current total is positive, otherwise `0`.
+- `points`: one entry for each day in week/month mode, or each month in year
+  mode, with missing labels filled as count `0`.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /analytics/activity/:period/:date
+    participant Service as BarcodeGeneratorService
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: GET /v1/barcodes/analytics/activity/week/2026-W01
+    Ctrl->>Service: getActivity(user, { period, date })
+    Service->>Service: getActivityRange(period, date)\nvalidate week/month/year format
+    par current points
+        Service->>Mongo: aggregate createdAt in [start,end)\ngroup by date string UTC
+    and current total
+        Service->>Mongo: countDocuments current range
+    and previous total
+        Service->>Mongo: countDocuments previous range
+    end
+    Service->>Service: calculate growth\nfill missing labels with 0
+    Service-->>Ctrl: { period, selectedDate, start, end, growth, points }
+    Ctrl-->>Client: success envelope
+```
+
+#### `GET /v1/barcodes/analytics/format-mix`
+
+Format mix returns both creation distribution and download-type totals.
+
+- `generated`: total non-deleted barcodes.
+- `formatDistribution`: array of `{ format, count, percentage }`, sorted by
+  count descending.
+- `downloadFormatDistribution`: `{ svg, png }`, summed from all owned
+  non-deleted barcodes.
+
+```mermaid
+flowchart TD
+    Req["GET /v1/barcodes/analytics/format-mix"]
+    User["Confirm user exists"]
+    Generated["countDocuments\nstatus != deleted"]
+    Formats["aggregate group by format\nsort count desc"]
+    Downloads["aggregate sum\ndownloadCounts.svg + downloadCounts.png"]
+    Distribution["percentage = count / generated * 100\n0 when generated = 0"]
+    Response["{ generated, formatDistribution,\ndownloadFormatDistribution }"]
+
+    Req --> User
+    User --> Generated --> Distribution
+    User --> Formats --> Distribution
+    User --> Downloads --> Response
+    Distribution --> Response
+```
+
+#### `GET /v1/barcodes/:id`
+
+Detail resolves the Mongo id, confirms the barcode exists, rejects deleted
+records, and enforces ownership by comparing `barcode.userId` with the
+authenticated user id.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /:id
+    participant Service as BarcodeGeneratorService
+    participant Users as MongoDB users
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: GET /v1/barcodes/{id}
+    Ctrl->>Service: getById(user, id)
+    Service->>Users: exists({ _id: user.sub })
+    Service->>Service: toObjectId(id)
+    Service->>Mongo: findById(id)
+    Service->>Service: require not deleted + owner match
+    Service-->>Ctrl: { barcode: serializeBarcode(barcode) }
+    Ctrl-->>Client: success envelope
+```
+
+#### `PUT /v1/barcodes/:id`
+
+Update accepts any subset of generate fields. The service rejects an empty body,
+loads the owned barcode, merges current values with incoming fields, prepares
+and validates the merged input, rejects no-op changes, rerenders SVG, updates
+the request hash, and saves.
+
+If the new render-input hash conflicts with another non-deleted barcode owned by
+the same user, MongoDB raises a duplicate key error and the service returns a
+duplicate request exception.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nPUT /:id
+    participant Service as BarcodeGeneratorService
+    participant Renderer as BarcodeRendererService
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: PUT /v1/barcodes/{id}\npartial GenerateBarcodeDto
+    Ctrl->>Service: update(user, id, dto)
+    alt empty dto
+        Service-->>Ctrl: throw BadRequestException\nAt least one field required
+    else fields present
+        Service->>Mongo: findById(id)
+        Service->>Service: require not deleted + owner match
+        Service->>Service: merge existing + dto\nprepareBarcodeInput()
+        alt no changed render fields
+            Service-->>Ctrl: throw BadRequestException\nNo changes detected
+        else changed
+            Service->>Renderer: renderSvg(updated input)
+            Service->>Mongo: save updated input + hash + svg
+            Service-->>Ctrl: { message, barcode }
+            Ctrl-->>Client: success envelope
+        end
+    end
+```
+
+#### `DELETE /v1/barcodes/:id`
+
+Delete is a soft-delete. It marks the barcode as `deleted`, sets `deletedAt`,
+and clears `requestBodyHash`. Clearing the hash matters because the schema uses
+a unique partial index on `(userId, requestBodyHash)`; once the hash is null,
+the same render inputs can be generated again.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nDELETE /:id
+    participant Service as BarcodeGeneratorService
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: DELETE /v1/barcodes/{id}
+    Ctrl->>Service: delete(user, id)
+    Service->>Mongo: findById(id)
+    Service->>Service: require not deleted + owner match
+    Service->>Mongo: save status=deleted\ndeletedAt=now\nrequestBodyHash=null
+    Service-->>Ctrl: { message: "Barcode deleted successfully" }
+    Ctrl-->>Client: success envelope
+```
+
+#### `GET /v1/barcodes/:id/preview`
+
+Preview is a protected raw response. It skips `SuccessResponseInterceptor`, so
+the client receives the SVG bytes directly.
+
+Headers:
+- `Content-Type: image/svg+xml; charset=utf-8`
+- `Cache-Control: private, max-age=3600`
+- `Content-Disposition: inline; filename="barcode-{format}-{id}.svg"`
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /:id/preview
+    participant Service as BarcodeGeneratorService
+    participant Mongo as MongoDB barcodes
+
+    Client->>Ctrl: GET /v1/barcodes/{id}/preview
+    Ctrl->>Service: getPreview(user, id)
+    Service->>Mongo: findById(id)
+    Service->>Service: require not deleted + owner match
+    Service-->>Ctrl: Buffer.from(svg), contentType, filename
+    Ctrl-->>Client: raw inline SVG response
+```
+
+#### `GET /v1/barcodes/:id/download?type=svg|png`
+
+Download is a protected raw attachment response. It confirms ownership before
+generating the file. SVG downloads return the stored SVG. PNG downloads convert
+the stored SVG to PNG with `sharp`.
+
+After file creation, MongoDB updates download metadata atomically:
+
+```text
+$inc: {
+  totalDownloads: 1,
+  downloadCounts.{type}: 1
+}
+$set: {
+  lastDownloadType: type,
+  lastDownloadedAt: now
+}
+```
+
+Headers:
+- SVG: `Content-Type: image/svg+xml; charset=utf-8`
+- PNG: `Content-Type: image/png`
+- `Cache-Control: private, no-store`
+- `Content-Disposition: attachment; filename="barcode-{format}-{id}.{type}"`
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as BarcodeGeneratorController\nGET /:id/download
+    participant Service as BarcodeGeneratorService
+    participant Mongo as MongoDB barcodes
+    participant Sharp as sharp
+
+    Client->>Ctrl: GET /v1/barcodes/{id}/download?type=png
+    Ctrl->>Service: download(user, id, type)
+    Service->>Mongo: findById(id)
+    Service->>Service: require not deleted + owner match
+    alt type=svg
+        Service->>Service: Buffer.from(svg)
+    else type=png
+        Service->>Sharp: sharp(Buffer.from(svg)).png().toBuffer()
+    end
+    Service->>Mongo: updateOne $inc download counters\n$set last download metadata
+    Service-->>Ctrl: body, contentType, filename
+    Ctrl-->>Client: raw attachment
+```
+
+#### Barcode End-to-End Map
+
+```mermaid
+flowchart TD
+    Req["/v1/barcodes request"]
+    Ctrl["BarcodeGeneratorController"]
+    Formats{"GET /formats?"}
+    Raw{"preview/download?"}
+    Auth["getUser(req)\nAccessTokenExpired if missing"]
+    Service["BarcodeGeneratorService"]
+    Users["MongoDB users\nconfirm JWT subject exists"]
+    Owned["getOwnedBarcode\nObjectId + not deleted + owner"]
+    Prepare["prepareBarcodeInput\ntrim content, check digit, lowercase colors"]
+    Render["BarcodeRendererService\nbwipjs.toSVG"]
+    Mongo["MongoDB barcodes"]
+    SharpNode["sharp SVG to PNG"]
+    Json["SuccessResponseInterceptor\nwrapped JSON"]
+    File["Raw response\n@SkipResponseInterceptor"]
+
+    Req --> Ctrl --> Formats
+    Formats -- yes --> Service --> Json
+    Formats -- no --> Auth --> Service --> Users
+    Service --> Prepare --> Render --> Mongo --> Json
+    Service --> Owned --> Mongo --> Json
+    Service --> Raw
+    Raw -- preview --> Owned --> File
+    Raw -- download svg --> Owned --> Mongo --> File
+    Raw -- download png --> Owned --> SharpNode --> Mongo --> File
 ```
 
 ### BulkBarcodeGeneratorController — `/v1/bulk-barcodes`

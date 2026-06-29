@@ -19,10 +19,7 @@ import {
 } from 'src/models/barcode.schema';
 import { User, UserDocument } from 'src/models/user.schema';
 import { isDuplicateKeyError, toObjectId } from '../utils/common.utils';
-import {
-  getBarcodeContentValidationError,
-  normalizeBarcodeContent,
-} from './barcode-content.utils';
+import { prepareBarcodeContent } from './barcode-content.utils';
 import {
   BARCODE_FORMATS,
   BarcodeActivityPeriod,
@@ -107,22 +104,20 @@ export class BarcodeGeneratorService {
 
   async generate(user: JwtPayload, dto: GenerateBarcodeDto) {
     const userId = await this.getAuthenticatedUserId(user);
-    const normalizedDto = this.normalizeBarcodeInput(dto);
-
-    this.validateContent(normalizedDto.format, normalizedDto.content);
-    const requestBodyHash = this.getRequestBodyHash(normalizedDto);
+    const barcodeInput = this.prepareBarcodeInput(dto);
+    const requestBodyHash = this.getRequestBodyHash(barcodeInput);
 
     const existingBarcode = await this.barcodeModel
       .exists({
         userId,
-        format: normalizedDto.format,
-        content: normalizedDto.content,
-        barWidth: normalizedDto.barWidth,
-        height: normalizedDto.height,
-        margin: normalizedDto.margin,
-        barColor: normalizedDto.barColor,
-        backgroundColor: normalizedDto.backgroundColor,
-        showValue: normalizedDto.showValue,
+        format: barcodeInput.format,
+        content: barcodeInput.content,
+        barWidth: barcodeInput.barWidth,
+        height: barcodeInput.height,
+        margin: barcodeInput.margin,
+        barColor: barcodeInput.barColor,
+        backgroundColor: barcodeInput.backgroundColor,
+        showValue: barcodeInput.showValue,
         status: { $ne: BarcodeStatus.DELETED },
       })
       .exec();
@@ -131,12 +126,12 @@ export class BarcodeGeneratorService {
       throw new BarcodeDuplicateRequestException();
     }
 
-    const svg = this.renderer.renderSvg(normalizedDto);
+    const svg = this.renderer.renderSvg(barcodeInput);
 
     try {
       const barcode = await this.barcodeModel.create({
         userId,
-        ...normalizedDto,
+        ...barcodeInput,
         requestBodyHash,
         svg,
         status: BarcodeStatus.ACTIVE,
@@ -211,12 +206,16 @@ export class BarcodeGeneratorService {
 
   async delete(user: JwtPayload, barcodeId: string) {
     const barcode = await this.getOwnedBarcode(user, barcodeId);
+
     barcode.status = BarcodeStatus.DELETED;
     barcode.deletedAt = new Date();
     barcode.requestBodyHash = null;
+
     await barcode.save();
 
-    return { message: 'Barcode deleted successfully' };
+    return {
+      message: 'Barcode deleted successfully',
+    };
   }
 
   async getById(user: JwtPayload, barcodeId: string) {
@@ -236,7 +235,8 @@ export class BarcodeGeneratorService {
     }
 
     const barcode = await this.getOwnedBarcode(user, barcodeId);
-    const nextBarcode = this.normalizeBarcodeInput({
+
+    const barcodeInput = this.prepareBarcodeInput({
       format: dto.format ?? barcode.format,
       content: dto.content ?? barcode.content,
       barWidth: dto.barWidth ?? barcode.barWidth,
@@ -247,19 +247,15 @@ export class BarcodeGeneratorService {
       showValue: dto.showValue ?? barcode.showValue,
     });
 
-    this.validateContent(nextBarcode.format, nextBarcode.content);
-
-    const requestBodyHash = this.getRequestBodyHash(nextBarcode);
-
     const hasChanges =
-      barcode.format !== nextBarcode.format ||
-      barcode.content !== nextBarcode.content ||
-      barcode.barWidth !== nextBarcode.barWidth ||
-      barcode.height !== nextBarcode.height ||
-      barcode.margin !== nextBarcode.margin ||
-      barcode.barColor !== nextBarcode.barColor ||
-      barcode.backgroundColor !== nextBarcode.backgroundColor ||
-      barcode.showValue !== nextBarcode.showValue;
+      barcode.format !== barcodeInput.format ||
+      barcode.content !== barcodeInput.content ||
+      barcode.barWidth !== barcodeInput.barWidth ||
+      barcode.height !== barcodeInput.height ||
+      barcode.margin !== barcodeInput.margin ||
+      barcode.barColor !== barcodeInput.barColor ||
+      barcode.backgroundColor !== barcodeInput.backgroundColor ||
+      barcode.showValue !== barcodeInput.showValue;
 
     if (!hasChanges) {
       throw new BadRequestException({
@@ -268,16 +264,16 @@ export class BarcodeGeneratorService {
       });
     }
 
-    barcode.format = nextBarcode.format;
-    barcode.content = nextBarcode.content;
-    barcode.barWidth = nextBarcode.barWidth;
-    barcode.height = nextBarcode.height;
-    barcode.margin = nextBarcode.margin;
-    barcode.barColor = nextBarcode.barColor;
-    barcode.backgroundColor = nextBarcode.backgroundColor;
-    barcode.showValue = nextBarcode.showValue;
-    barcode.requestBodyHash = requestBodyHash;
-    barcode.svg = this.renderer.renderSvg(nextBarcode);
+    barcode.format = barcodeInput.format;
+    barcode.content = barcodeInput.content;
+    barcode.barWidth = barcodeInput.barWidth;
+    barcode.height = barcodeInput.height;
+    barcode.margin = barcodeInput.margin;
+    barcode.barColor = barcodeInput.barColor;
+    barcode.backgroundColor = barcodeInput.backgroundColor;
+    barcode.showValue = barcodeInput.showValue;
+    barcode.requestBodyHash = this.getRequestBodyHash(barcodeInput);
+    barcode.svg = this.renderer.renderSvg(barcodeInput);
 
     try {
       await barcode.save();
@@ -300,17 +296,24 @@ export class BarcodeGeneratorService {
     query: GetPaginatedBarcodesDto,
   ): Promise<PaginatedBarcodesResponse> {
     const userId = await this.getAuthenticatedUserId(user);
-    const page: number = query.page;
-    const limit: number = query.limit;
+    const page = query.page;
+    const limit = query.limit;
     const skip = (page - 1) * limit;
 
     const [barcodes, total] = await Promise.all([
       this.barcodeModel
-        .find({ userId, status: { $ne: BarcodeStatus.DELETED } })
-        .sort({ createdAt: -1, _id: -1 })
+        .find({
+          userId,
+          status: { $ne: BarcodeStatus.DELETED },
+        })
+        .sort({
+          createdAt: -1,
+          _id: -1,
+        })
         .skip(skip)
         .limit(limit)
         .exec(),
+
       this.barcodeModel
         .countDocuments({
           userId,
@@ -344,19 +347,24 @@ export class BarcodeGeneratorService {
           status: { $ne: BarcodeStatus.DELETED },
         })
         .exec(),
+
       this.barcodeModel
-        .aggregate<{
-          total: number;
-        }>([
+        .aggregate<{ total: number }>([
           {
             $match: {
               userId,
               status: { $ne: BarcodeStatus.DELETED },
             },
           },
-          { $group: { _id: null, total: { $sum: '$totalDownloads' } } },
+          {
+            $group: {
+              _id: null,
+              total: { $sum: '$totalDownloads' },
+            },
+          },
         ])
         .exec(),
+
       this.barcodeModel
         .aggregate<{
           _id: BarcodeFormat;
@@ -368,9 +376,20 @@ export class BarcodeGeneratorService {
               status: { $ne: BarcodeStatus.DELETED },
             },
           },
-          { $group: { _id: '$format', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
-          { $limit: 1 },
+          {
+            $group: {
+              _id: '$format',
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: {
+              count: -1,
+            },
+          },
+          {
+            $limit: 1,
+          },
         ])
         .exec(),
     ]);
@@ -386,6 +405,7 @@ export class BarcodeGeneratorService {
 
   async getFormatMix(user: JwtPayload) {
     const userId = await this.getAuthenticatedUserId(user);
+
     const [generated, formatRows, downloadFormatRows] = await Promise.all([
       this.barcodeModel
         .countDocuments({
@@ -393,6 +413,7 @@ export class BarcodeGeneratorService {
           status: { $ne: BarcodeStatus.DELETED },
         })
         .exec(),
+
       this.barcodeModel
         .aggregate<{
           _id: BarcodeFormat;
@@ -404,10 +425,20 @@ export class BarcodeGeneratorService {
               status: { $ne: BarcodeStatus.DELETED },
             },
           },
-          { $group: { _id: '$format', count: { $sum: 1 } } },
-          { $sort: { count: -1 } },
+          {
+            $group: {
+              _id: '$format',
+              count: { $sum: 1 },
+            },
+          },
+          {
+            $sort: {
+              count: -1,
+            },
+          },
         ])
         .exec(),
+
       this.barcodeModel
         .aggregate<{ svg: number; png: number }>([
           {
@@ -423,7 +454,13 @@ export class BarcodeGeneratorService {
               png: { $sum: '$downloadCounts.png' },
             },
           },
-          { $project: { _id: 0, svg: 1, png: 1 } },
+          {
+            $project: {
+              _id: 0,
+              svg: 1,
+              png: 1,
+            },
+          },
         ])
         .exec(),
     ]);
@@ -449,7 +486,10 @@ export class BarcodeGeneratorService {
             $match: {
               userId,
               status: { $ne: BarcodeStatus.DELETED },
-              createdAt: { $gte: range.start, $lt: range.end },
+              createdAt: {
+                $gte: range.start,
+                $lt: range.end,
+              },
             },
           },
           {
@@ -464,16 +504,25 @@ export class BarcodeGeneratorService {
               count: { $sum: 1 },
             },
           },
-          { $sort: { _id: 1 } },
+          {
+            $sort: {
+              _id: 1,
+            },
+          },
         ])
         .exec(),
+
       this.barcodeModel
         .countDocuments({
           userId,
           status: { $ne: BarcodeStatus.DELETED },
-          createdAt: { $gte: range.start, $lt: range.end },
+          createdAt: {
+            $gte: range.start,
+            $lt: range.end,
+          },
         })
         .exec(),
+
       this.barcodeModel
         .countDocuments({
           userId,
@@ -510,22 +559,16 @@ export class BarcodeGeneratorService {
     };
   }
 
-  private validateContent(format: BarcodeFormat, content: string): void {
-    if (!content) {
-      throw new BarcodeContentInvalidException('Barcode content is required');
+  private prepareBarcodeInput(input: BarcodeInput): BarcodeInput {
+    const preparedContent = prepareBarcodeContent(input.format, input.content);
+
+    if (!preparedContent.success) {
+      throw new BarcodeContentInvalidException(preparedContent.error);
     }
 
-    const validationError = getBarcodeContentValidationError(format, content);
-
-    if (validationError) {
-      throw new BarcodeContentInvalidException(validationError);
-    }
-  }
-
-  private normalizeBarcodeInput(input: BarcodeInput): BarcodeInput {
     return {
       ...input,
-      content: normalizeBarcodeContent(input.format, input.content),
+      content: preparedContent.content,
       barColor: input.barColor.toLowerCase(),
       backgroundColor: input.backgroundColor.toLowerCase(),
     };
@@ -577,12 +620,14 @@ export class BarcodeGeneratorService {
 
   private getWeekRange(value: string): ActivityRange {
     const match = /^(\d{4})-W(\d{2})$/.exec(value);
+
     if (!match) {
       throw new BarcodeActivityDateInvalidException('week');
     }
 
     const year = Number(match[1]);
     const week = Number(match[2]);
+
     if (year < 1000 || year > 9999 || week < 1 || week > 53) {
       throw new BarcodeActivityDateInvalidException('week');
     }
@@ -590,12 +635,15 @@ export class BarcodeGeneratorService {
     const januaryFourth = new Date(Date.UTC(year, 0, 4));
     const januaryFourthDay = januaryFourth.getUTCDay() || 7;
     const firstMonday = new Date(januaryFourth);
+
     firstMonday.setUTCDate(januaryFourth.getUTCDate() - januaryFourthDay + 1);
 
     const start = new Date(firstMonday);
     start.setUTCDate(firstMonday.getUTCDate() + (week - 1) * 7);
+
     const end = new Date(start);
     end.setUTCDate(start.getUTCDate() + 7);
+
     const weekThursday = new Date(start);
     weekThursday.setUTCDate(start.getUTCDate() + 3);
 
@@ -618,6 +666,7 @@ export class BarcodeGeneratorService {
 
   private getMonthRange(value: string): ActivityRange {
     const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
+
     if (!match) {
       throw new BarcodeActivityDateInvalidException('month');
     }
@@ -632,6 +681,7 @@ export class BarcodeGeneratorService {
     const start = new Date(Date.UTC(year, monthIndex, 1));
     const end = new Date(Date.UTC(year, monthIndex + 1, 1));
     const previousStart = new Date(Date.UTC(year, monthIndex - 1, 1));
+
     const days = Math.round(
       (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
     );
@@ -660,6 +710,7 @@ export class BarcodeGeneratorService {
     const start = new Date(Date.UTC(year, 0, 1));
     const end = new Date(Date.UTC(year + 1, 0, 1));
     const previousStart = new Date(Date.UTC(year - 1, 0, 1));
+
     const labels = Array.from(
       { length: 12 },
       (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`,
@@ -678,7 +729,9 @@ export class BarcodeGeneratorService {
   private getDailyLabels(start: Date, count: number): string[] {
     return Array.from({ length: count }, (_, index) => {
       const date = new Date(start);
+
       date.setUTCDate(start.getUTCDate() + index);
+
       return date.toISOString().slice(0, 10);
     });
   }
@@ -716,10 +769,8 @@ export class BarcodeGeneratorService {
   }
 
   private serializeBarcode(barcode: BarcodeDocument): SerializedBarcode {
-    const id = String(barcode._id);
-
     return {
-      id,
+      id: String(barcode._id),
       format: barcode.format,
       content: barcode.content,
       barWidth: barcode.barWidth,
