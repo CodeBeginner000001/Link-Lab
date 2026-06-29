@@ -38,38 +38,6 @@ export function getExpiryIsoFromNow(minutes: number): string {
   return new Date(Date.now() + minutes * 60 * 1000).toISOString();
 }
 
-export function parseDurationToMilliseconds(duration: string): number | null {
-  const value = duration.trim().toLowerCase();
-  const match = value.match(/^(\d+)(ms|s|m|h|d|w)$/);
-
-  if (!match) {
-    return null;
-  }
-
-  const amount = Number(match[1]);
-  const unit = match[2];
-  const unitToMilliseconds: Record<string, number> = {
-    ms: 1,
-    s: 1000,
-    m: 60 * 1000,
-    h: 60 * 60 * 1000,
-    d: 24 * 60 * 60 * 1000,
-    w: 7 * 24 * 60 * 60 * 1000,
-  };
-
-  return amount * unitToMilliseconds[unit];
-}
-
-export function parseDurationToSeconds(duration: string): number | null {
-  const milliseconds = parseDurationToMilliseconds(duration);
-
-  if (milliseconds === null) {
-    return null;
-  }
-
-  return Math.ceil(milliseconds / 1000);
-}
-
 export function hashPassword(password: string, salt: number): Promise<string> {
   return bcrypt.hash(password, salt);
 }

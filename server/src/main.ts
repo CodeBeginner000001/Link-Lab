@@ -24,6 +24,7 @@ function printStartupBanner(logger: AppLogger, values: Record<string, string>) {
   const lines = Object.entries(values).map(
     ([key, value]) => `${key}: ${value}`,
   );
+
   const contentWidth = Math.max(...lines.map((line) => line.length), 30);
   const horizontal = '-'.repeat(contentWidth + 2);
   logger.log(`┌${horizontal}┐`, 'Bootstrap');
@@ -44,7 +45,7 @@ async function bootstrap() {
   app.useLogger(logger);
   app.enableCors({
     origin: [process.env.CORS_ALLOWED_ORIGINS],
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    methods: 'GET,PUT,PATCH,POST,DELETE',
     credentials: true,
   });
 

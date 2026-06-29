@@ -278,6 +278,234 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "session signup",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/session",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowName\": \"signup\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "session forgot password",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/session",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "session"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowName\": \"forgot-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "resend signup otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/resend-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "resend-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowName\": \"signup\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "resend forgot password otp",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/resend-otp",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "resend-otp"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"flowName\": \"forgot-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "get user",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/getUser",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "getUser"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{access_token}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "refresh with body token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/refresh-token",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "refresh-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "validate reset token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/forgot-password/validate-reset-token",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "forgot-password",
+                "validate-reset-token"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"<reset_token>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "github oauth exchange",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/auth/oauth/github/exchange",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "auth",
+                "oauth",
+                "github",
+                "exchange"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"<github_oauth_code>\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
         }
       ]
     },
@@ -1660,6 +1888,70 @@
                   "body": "{\n  \"success\": true,\n  \"statusCode\": 200,\n  \"message\": \"Request successful\",\n  \"data\": {\n    \"message\": \"Barcode deleted successfully\"\n  },\n  \"timeStamp\": \"2026-06-20T10:30:00.000Z\",\n  \"path\": \"/v1/barcodes/6676f8f5c1e7c9f4a2222222\"\n}"
                 }
               ]
+            },
+            {
+              "name": "get-analytics-activity-by-month",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/activity/month/2026-06",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "analytics",
+                    "activity",
+                    "month",
+                    "2026-06"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics-activity-by-year",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/barcodes/analytics/activity/year/2026",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "barcodes",
+                    "analytics",
+                    "activity",
+                    "year",
+                    "2026"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
           ]
         },
@@ -2016,6 +2308,1267 @@
                   "body": ""
                 }
               ]
+            },
+            {
+              "name": "get-paginated-data cursor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/short-urls?page=1&limit=10&cursor=6676f8f5c1e7c9f4a1111111",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "short-urls"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create auto-alias",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/short-urls",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "short-urls"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"longUrl\": \"https://example.com/products/link-lab-launch\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "one-time-link",
+          "item": [
+            {
+              "name": "create",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originalUrl\": \"https://example.com/private-report\",\n  \"passwordProtect\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "create protected",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originalUrl\": \"https://example.com/protected-report\",\n  \"passwordProtect\": true,\n  \"password\": \"LinkLab@123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links?page=1&limit=10",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data cursor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links?page=1&limit=10&cursor=6676f8f5c1e7c9f4a1111111",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links",
+                    "analytics"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/one-time-links/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "one-time-links",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "redirect-one-time-link",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/ot/:alias",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "ot",
+                    ":alias"
+                  ],
+                  "variable": [
+                    {
+                      "key": "alias",
+                      "value": "launch-page"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "resolve-protected-json",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{localhost}}/ot/:alias/resolve",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "ot",
+                    ":alias",
+                    "resolve"
+                  ],
+                  "variable": [
+                    {
+                      "key": "alias",
+                      "value": "launch-page"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"password\": \"LinkLab@123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "resolve-protected-html",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Accept",
+                    "value": "text/html"
+                  },
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{localhost}}/ot/:alias/resolve",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "ot",
+                    ":alias",
+                    "resolve"
+                  ],
+                  "variable": [
+                    {
+                      "key": "alias",
+                      "value": "launch-page"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"password\": \"LinkLab@123\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "link-expander",
+          "item": [
+            {
+              "name": "expand-link",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/link-expanders",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "link-expanders"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://bit.ly/example\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/link-expanders?page=1&limit=10",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "link-expanders"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data cursor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/link-expanders?page=1&limit=10&cursor=6676f8f5c1e7c9f4a1111111",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "link-expanders"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/link-expanders/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "link-expanders",
+                    "analytics"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/link-expanders/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "link-expanders",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "broken-link-checker",
+          "item": [
+            {
+              "name": "check-link",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "check-link unsafe-download-example",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"url\": \"https://example.com/file.zip\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers?page=1&limit=10",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data cursor",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers?page=1&limit=10&cursor=6676f8f5c1e7c9f4a1111111",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    },
+                    {
+                      "key": "cursor",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers",
+                    "analytics"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/broken-link-checkers/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "broken-link-checkers",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "bulk-barcode-generator",
+          "item": [
+            {
+              "name": "generate-auto",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "generationMode",
+                      "value": "auto",
+                      "type": "text"
+                    },
+                    {
+                      "key": "autoFormat",
+                      "value": "code128",
+                      "type": "text"
+                    },
+                    {
+                      "key": "autoCount",
+                      "value": "10",
+                      "type": "text"
+                    },
+                    {
+                      "key": "barWidth",
+                      "value": "2",
+                      "type": "text"
+                    },
+                    {
+                      "key": "height",
+                      "value": "120",
+                      "type": "text"
+                    },
+                    {
+                      "key": "margin",
+                      "value": "10",
+                      "type": "text"
+                    },
+                    {
+                      "key": "barColor",
+                      "value": "#111827",
+                      "type": "text"
+                    },
+                    {
+                      "key": "backgroundColor",
+                      "value": "#ffffff",
+                      "type": "text"
+                    },
+                    {
+                      "key": "showValue",
+                      "value": "true",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "generate-upload",
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "generationMode",
+                      "value": "upload",
+                      "type": "text"
+                    },
+                    {
+                      "key": "bulkFile",
+                      "type": "file",
+                      "src": []
+                    },
+                    {
+                      "key": "barWidth",
+                      "value": "2",
+                      "type": "text"
+                    },
+                    {
+                      "key": "height",
+                      "value": "120",
+                      "type": "text"
+                    },
+                    {
+                      "key": "margin",
+                      "value": "10",
+                      "type": "text"
+                    },
+                    {
+                      "key": "barColor",
+                      "value": "#111827",
+                      "type": "text"
+                    },
+                    {
+                      "key": "backgroundColor",
+                      "value": "#ffffff",
+                      "type": "text"
+                    },
+                    {
+                      "key": "showValue",
+                      "value": "true",
+                      "type": "text"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-paginated-data",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes?page=1&limit=10",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes"
+                  ],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "1"
+                    },
+                    {
+                      "key": "limit",
+                      "value": "10"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/analytics",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    "analytics"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-analytics-activity-by-week",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/analytics/activity/:period/:date",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    "analytics",
+                    "activity",
+                    ":period",
+                    ":date"
+                  ],
+                  "variable": [
+                    {
+                      "key": "period",
+                      "value": "week"
+                    },
+                    {
+                      "key": "date",
+                      "value": "2026-W26"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "get-export-mix",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/analytics/export-mix",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    "analytics",
+                    "export-mix"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "download-template-csv",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/templates/:type",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    "templates",
+                    ":type"
+                  ],
+                  "variable": [
+                    {
+                      "key": "type",
+                      "value": "csv"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "download-zip",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/:id/download?type=zip",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    ":id",
+                    "download"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "zip"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "download-pdf",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/:id/download?type=pdf",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    ":id",
+                    "download"
+                  ],
+                  "query": [
+                    {
+                      "key": "type",
+                      "value": "pdf"
+                    }
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "delete-by-id",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{localhost}}/v1/bulk-barcodes/:id",
+                  "host": [
+                    "{{localhost}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "bulk-barcodes",
+                    ":id"
+                  ],
+                  "variable": [
+                    {
+                      "key": "id",
+                      "value": "6676f8f5c1e7c9f4a1111111"
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{access_token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": []
             }
           ]
         }
@@ -2039,6 +3592,31 @@
             },
             "method": "GET",
             "header": [],
+            "url": {
+              "raw": "{{localhost}}/v1/api/cron/url-shortener",
+              "host": [
+                "{{localhost}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "cron",
+                "url-shortener"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "flush-url-shortener-data with secret",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{cron_secret}}"
+              }
+            ],
             "url": {
               "raw": "{{localhost}}/v1/api/cron/url-shortener",
               "host": [
@@ -2130,6 +3708,14 @@
     },
     {
       "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    },
+    {
+      "key": "cron_secret",
       "value": ""
     }
   ]

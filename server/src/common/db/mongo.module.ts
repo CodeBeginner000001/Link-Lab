@@ -11,15 +11,10 @@ import { AppLogger } from '../app.logger';
       useFactory: (configService: ConfigService, logger: AppLogger) => {
         const env = configService.getOrThrow<string>('ENV');
 
-        const mongoUrl =
-          env === 'dev'
-            ? 'mongodb://127.0.0.1:27017'
-            : configService.getOrThrow<string>('MONGO_URI');
+        const mongoUrl = configService.getOrThrow<string>('MONGO_URI');
 
         const mongoDb =
-          env === 'dev'
-            ? 'linklab'
-            : configService.get<string>('MONGO_DB', 'prod');
+          env === 'dev' ? 'dev' : configService.get<string>('MONGO_DB', 'prod');
 
         const connectTimeoutMs =
           configService.getOrThrow<number>('MONGO_CONNECT_TIMEOUT_SECONDS') *

@@ -181,15 +181,24 @@ export class AuthService {
       throw new InvalidGithubAccountException();
     }
 
-    const [existingGithubUser, existingEmailUser] = await Promise.all([
-      this.userModel
-        .findOne({
-          provider: 'github',
-          providerUserId,
-        })
-        .exec(),
-      this.userModel.findOne({ email }).exec(),
-    ]);
+    const matchedUsers = await this.userModel
+      .find({
+        $or: [
+          {
+            provider: 'github',
+            providerUserId,
+          },
+          {
+            email,
+          },
+        ],
+      })
+      .exec();
+    const existingGithubUser = matchedUsers.find(
+      (user) =>
+        user.provider === 'github' && user.providerUserId === providerUserId,
+    );
+    const existingEmailUser = matchedUsers.find((user) => user.email === email);
 
     if (
       existingGithubUser &&

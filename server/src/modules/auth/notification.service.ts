@@ -42,12 +42,7 @@ export interface WelcomeEmailNotificationParams {
   frontendUrl: string;
 }
 
-export interface ForgotPasswordOtpNotificationParams {
-  email: string;
-  name: string;
-  otp: string;
-  otpExpirationMinutes: number;
-  requestId: string;
+export interface ForgotPasswordOtpNotificationParams extends SignupOtpNotificationParams {
   frontendUrl: string;
 }
 
