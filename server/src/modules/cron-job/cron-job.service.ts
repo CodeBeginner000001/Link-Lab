@@ -10,14 +10,9 @@ import {
 import { getShortUrlAnalyticsKey } from '../features/urlShortener/urlShortener.constants';
 import { parseNonNegativeInt } from '../features/utils/common.utils';
 import {
-  getHashFields,
-  setHashFields,
+  drainShortUrlAnalyticsHash,
+  incrementHashField,
 } from '../features/utils/redis-helper.utils';
-
-type ShortUrlAnalyticsHash = {
-  count?: number | string;
-  lastClickedAt?: string | null;
-};
 
 @Injectable()
 export class CronJobService {
@@ -46,18 +41,16 @@ export class CronJobService {
       try {
         const analyticsKey = getShortUrlAnalyticsKey(shortUrl.alias);
 
-        const analytics = await getHashFields<ShortUrlAnalyticsHash>(
-          this.redisService.client,
-          analyticsKey,
-        );
+        const analytics = await drainShortUrlAnalyticsHash({
+          client: this.redisService.client,
+          key: analyticsKey,
+        });
 
         if (!analytics) {
           continue;
         }
 
-        const count = parseNonNegativeInt(
-          analytics.count != null ? String(analytics.count) : null,
-        );
+        const count = parseNonNegativeInt(analytics.count);
 
         const lastClickedAtRaw =
           typeof analytics.lastClickedAt === 'string'
@@ -89,18 +82,25 @@ export class CronJobService {
           continue;
         }
 
-        await this.shortUrlModel.updateOne({ _id: shortUrl._id }, mongoUpdate);
+        try {
+          await this.shortUrlModel.updateOne(
+            { _id: shortUrl._id },
+            mongoUpdate,
+          );
+        } catch (error) {
+          if (count > 0) {
+            await incrementHashField({
+              client: this.redisService.client,
+              key: analyticsKey,
+              field: 'count',
+              by: count,
+            });
+          }
+
+          throw error;
+        }
 
         updated += 1;
-
-        await setHashFields({
-          client: this.redisService.client,
-          key: analyticsKey,
-          value: {
-            count: 0,
-            lastClickedAt: null,
-          },
-        });
       } catch (error) {
         failed += 1;
         this.logger.error(

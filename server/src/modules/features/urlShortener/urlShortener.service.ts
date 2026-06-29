@@ -36,7 +36,7 @@ import {
   deleteCacheKeys,
   getHashFields,
   getJsonCache,
-  incrementHashField,
+  recordShortUrlAnalyticsClick,
   setHashFields,
   warmJsonCache,
 } from '../utils/redis-helper.utils';
@@ -457,20 +457,7 @@ export class UrlShortenerService {
     const clickedAt = new Date().toISOString();
 
     if (cached?.status === ShortUrlStatus.ACTIVE) {
-      await incrementHashField({
-        client: this.redisService.client,
-        key: getShortUrlAnalyticsKey(alias),
-        field: 'count',
-        by: 1,
-      });
-
-      await setHashFields({
-        client: this.redisService.client,
-        key: getShortUrlAnalyticsKey(alias),
-        value: {
-          lastClickedAt: clickedAt,
-        },
-      });
+      await this.recordClick(alias, clickedAt);
 
       return cached.longUrl;
     }
@@ -484,21 +471,7 @@ export class UrlShortenerService {
     }
 
     await this.warmCache(shortUrl);
-
-    await incrementHashField({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      field: 'count',
-      by: 1,
-    });
-
-    await setHashFields({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      value: {
-        lastClickedAt: clickedAt,
-      },
-    });
+    await this.recordClick(alias, clickedAt);
 
     return shortUrl.longUrl;
   }
@@ -573,32 +546,46 @@ export class UrlShortenerService {
       status: shortUrl.status,
     };
 
-    await warmJsonCache({
-      client: this.redisService.client,
-      key: getShortUrlLookupKey(shortUrl.alias),
-      value: payload,
-    });
+    try {
+      await warmJsonCache({
+        client: this.redisService.client,
+        key: getShortUrlLookupKey(shortUrl.alias),
+        value: payload,
+      });
+    } catch {
+      return;
+    }
   }
 
   private async initializeAnalytics(alias: string): Promise<void> {
-    await setHashFields({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      value: {
-        count: 0,
-        lastClickedAt: null,
-      },
-    });
+    try {
+      await setHashFields({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        value: {
+          count: 0,
+          lastClickedAt: null,
+        },
+      });
+    } catch {
+      return;
+    }
   }
 
   private async getAnalytics(alias: string): Promise<{
     count: number;
     lastClickedAt: string | null;
   }> {
-    const analytics = await getHashFields<ShortUrlAnalytics>(
-      this.redisService.client,
-      getShortUrlAnalyticsKey(alias),
-    );
+    let analytics: ShortUrlAnalytics | null = null;
+
+    try {
+      analytics = await getHashFields<ShortUrlAnalytics>(
+        this.redisService.client,
+        getShortUrlAnalyticsKey(alias),
+      );
+    } catch {
+      analytics = null;
+    }
 
     const count = parseNonNegativeInt(
       analytics?.count !== undefined && analytics?.count !== null
@@ -628,10 +615,16 @@ export class UrlShortenerService {
   private async getCachedShortUrl(
     alias: string,
   ): Promise<ShortUrlCacheEntry | null> {
-    const parsed = await getJsonCache<Partial<ShortUrlCacheEntry>>(
-      this.redisService.client,
-      getShortUrlLookupKey(alias),
-    );
+    let parsed: Partial<ShortUrlCacheEntry> | null = null;
+
+    try {
+      parsed = await getJsonCache<Partial<ShortUrlCacheEntry>>(
+        this.redisService.client,
+        getShortUrlLookupKey(alias),
+      );
+    } catch {
+      parsed = null;
+    }
 
     if (!parsed) {
       return null;
@@ -656,5 +649,27 @@ export class UrlShortenerService {
           ? ShortUrlStatus.DISABLED
           : ShortUrlStatus.ACTIVE,
     };
+  }
+
+  private async recordClick(alias: string, clickedAt: string): Promise<void> {
+    try {
+      await recordShortUrlAnalyticsClick({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        clickedAt,
+      });
+
+      return;
+    } catch {
+      await this.shortUrlModel
+        .updateOne(
+          { alias, status: ShortUrlStatus.ACTIVE },
+          {
+            $inc: { clicksPersisted: 1 },
+            $set: { lastClickedAt: new Date(clickedAt) },
+          },
+        )
+        .exec();
+    }
   }
 }

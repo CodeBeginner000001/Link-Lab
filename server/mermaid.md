@@ -251,8 +251,8 @@ Indexes: `(userId, createdAt desc)`, `(userId, status, _id desc)`,
 | `signup:session:{sessionId}` | Hash | full signup session fields |
 | `fp:lock:{email}` | String | forgot-password in-progress lock |
 | `fp:session:{sessionId}` | Hash | full forgot-password session fields |
-| `short_url:lookup:{alias}` | String (JSON) | redirect cache entry |
-| `short_url:analytics:{alias}` | Hash | `count` + `lastClickedAt` |
+| `short-url:lookup:{alias}` | String (JSON) | redirect cache entry |
+| `short-url:analytics:{alias}` | Hash | `count` + `lastClickedAt` |
 
 ---
 
@@ -459,69 +459,424 @@ sequenceDiagram
 
 ---
 
-## URL Shortener — CRUD
+## URL Shortener — Detailed Design
 
-Controller: `UrlShortenerController` at `/v1/short-urls` (all protected)
-Service: `UrlShortenerService`
-MongoDB: `short_urls`, `users`
-Redis: `short_url:lookup:{alias}` (JSON String), `short_url:analytics:{alias}` (Hash)
+The URL Shortener feature lets an authenticated user create and manage short
+links, while the public redirect route resolves aliases without authentication.
+MongoDB is the durable source of truth. Redis is an acceleration layer for
+redirect lookup and a short-lived buffer for click analytics.
 
-| Method | Route | Operation |
-| --- | --- | --- |
-| POST | `/v1/short-urls` | create |
-| GET | `/v1/short-urls` | list (cursor-paginated) |
-| GET | `/v1/short-urls/:id` | get by id |
-| PUT | `/v1/short-urls/:id` | update longUrl / alias |
-| DELETE | `/v1/short-urls/:id` | soft-delete (set status=disabled) |
+Controllers:
+- `UrlShortenerController` at `/v1/short-urls` for authenticated CRUD,
+  pagination, and analytics.
+- `UrlShortenerRedirectController` at `/r/:alias` for public redirects.
+- `CronController` at `/v1/api/cron/url-shortener` for scheduled analytics
+  persistence.
+
+Service and storage:
+- `UrlShortenerService` owns create, list, detail, update, delete, redirect, and
+  user-level analytics behavior.
+- `CronJobService.flushShortedURLRedisAnalyticsToMongo` moves pending Redis
+  click analytics into MongoDB.
+- MongoDB collection `short_urls` stores the canonical short URL document.
+- Redis key `short-url:lookup:{alias}` stores the cached redirect payload.
+- Redis key `short-url:analytics:{alias}` stores pending click `count` and
+  `lastClickedAt`.
+
+### URL Shortener Responsibilities
+
+| Concern | Durable store | Cache / buffer | Notes |
+| --- | --- | --- | --- |
+| Short URL ownership | MongoDB `short_urls.userId` | none | Every protected operation checks the authenticated user owns the record. |
+| Original destination | MongoDB `short_urls.longUrl` | Redis lookup JSON | Redirects can use Redis, but MongoDB can rebuild the cache. |
+| Alias uniqueness | MongoDB unique `alias` index | Redis lookup key | MongoDB prevents race-condition collisions across users. |
+| Soft deletion | MongoDB `status=disabled` | Redis keys deleted | Disabled aliases are treated as not found. |
+| Click count | MongoDB `clicksPersisted` | Redis analytics hash `count` | Total shown to user is persisted clicks plus pending Redis clicks. |
+| Last click time | MongoDB `lastClickedAt` | Redis analytics hash `lastClickedAt` | Redis has the freshest value until cron flushes it. |
+| Redis outage | MongoDB fallback | best-effort cache writes | Redirects and click tracking continue using MongoDB atomic update. |
+
+### Endpoint Summary
+
+| Method | Route | Auth | Purpose |
+| --- | --- | --- | --- |
+| `POST` | `/v1/short-urls` | Protected | Create a short URL for the logged-in user. |
+| `GET` | `/v1/short-urls` | Protected | List active short URLs with page/cursor support. |
+| `GET` | `/v1/short-urls/analytics` | Protected | Return total active links, total clicks, and top alias. |
+| `GET` | `/v1/short-urls/:id` | Protected | Read one owned active short URL by Mongo id. |
+| `PUT` | `/v1/short-urls/:id` | Protected | Update destination URL and/or custom alias. |
+| `DELETE` | `/v1/short-urls/:id` | Protected | Soft-delete an owned short URL. |
+| `GET` | `/r/:alias` | Public | Resolve alias and return raw HTTP redirect. |
+| `GET` | `/v1/api/cron/url-shortener` | Cron secret | Drain pending Redis analytics into MongoDB. |
+
+### Validation and Alias Rules
+
+Incoming DTOs are handled by the global `ValidationPipe`, so query values are
+transformed before service logic runs.
+
+- `longUrl` is required for creation, must be a URL with protocol, and must not
+  exceed 2048 characters.
+- `customAlias` is optional on create and optional on update.
+- Alias length must be 3 to 32 characters.
+- Alias characters must match `^[a-z0-9_-]+$`.
+- Alias is normalized before persistence.
+- Reserved aliases such as `admin`, `api`, `auth`, `dashboard`, `docs`,
+  `health`, `login`, `logout`, `short-urls`, and `v1` are rejected.
+- Auto-generated aliases use length 8 and retry up to 12 times when MongoDB
+  reports a duplicate key.
+- Pagination defaults to limit 10 and caps limit at 100.
+
+### MongoDB ShortUrl Document
+
+| Field | Purpose |
+| --- | --- |
+| `userId` | Owner reference. Used for protected access control. |
+| `requestBodyHash` | SHA-256 hash of the create DTO for active duplicate-request detection. |
+| `longUrl` | Canonical destination URL. |
+| `alias` | Unique public slug used by `/r/:alias`. |
+| `status` | `active` or `disabled`; delete is soft-delete. |
+| `clicksPersisted` | Durable click count already flushed from Redis or written by fallback. |
+| `lastClickedAt` | Durable latest click time known to MongoDB. |
+| `createdAt`, `updatedAt` | Mongoose timestamps. |
+
+Important indexes:
+- Unique index on `alias`.
+- `(userId, createdAt desc)` for owner lists.
+- `(userId, status, _id desc)` for active owner pagination.
+- `(alias, status)` for public redirect lookup.
+- `(userId, requestBodyHash, status)` for duplicate create detection.
+
+### Create Short URL Flow
 
 ```mermaid
 sequenceDiagram
     participant Client
-    participant Controller as UrlShortenerController
+    participant Guard as JwtAuthGuard + ValidationPipe
+    participant Ctrl as UrlShortenerController\nPOST /v1/short-urls
+    participant Service as UrlShortenerService
+    participant Users as MongoDB users
+    participant ShortUrls as MongoDB short_urls
+    participant Redis
+
+    Client->>Guard: POST /v1/short-urls\n{ longUrl, customAlias? }
+    Guard->>Ctrl: req.user + validated DTO
+    Ctrl->>Service: createShortUrl(user, dto)
+    Service->>Users: exists({ _id: user.sub })
+    Service->>Service: normalize longUrl\nhash request body
+    Service->>ShortUrls: exists({ userId, requestBodyHash, status:active })
+    alt active duplicate exists
+        Service-->>Ctrl: throw ShortUrlDuplicateRequestException
+    else custom alias provided
+        Service->>Service: normalize and validate alias\nregex + length + reserved words
+    else auto alias
+        Service->>Service: generate 8-char alias\nretry up to 12 duplicate collisions
+    end
+    Service->>ShortUrls: create({ userId, requestBodyHash, longUrl, alias, status:active })
+    ShortUrls-->>Service: created shortUrl
+    Service->>Redis: SET short-url:lookup:{alias} JSON\nbest effort
+    Service->>Redis: HSET short-url:analytics:{alias}\ncount=0 lastClickedAt=null\nbest effort
+    Service-->>Ctrl: serialized short URL\npendingClicks=0 totalClicks=0
+    Ctrl-->>Client: success envelope
+```
+
+### Read, List, and Analytics Flow
+
+Protected reads always confirm that the authenticated user still exists, then
+query only active short URLs owned by that user. Response click totals are
+computed as:
+
+```text
+totalClicks = clicksPersisted from MongoDB + pending count from Redis
+```
+
+If Redis cannot be read, pending analytics are treated as zero so the API still
+returns durable MongoDB data.
+
+```mermaid
+flowchart TD
+    Start["Protected request\nGET list/detail/analytics"]
+    Auth["Validate JWT and req.user"]
+    User["MongoDB users\nconfirm user exists"]
+    Query["MongoDB short_urls\nactive records owned by user"]
+    RedisRead["Redis HGETALL\nshort-url:analytics:{alias}"]
+    RedisFail{"Redis available?"}
+    Merge["Merge clicksPersisted + pending count\nchoose Redis lastClickedAt if present"]
+    Response["Return serialized short URL(s)\nor analytics summary"]
+
+    Start --> Auth --> User --> Query --> RedisRead --> RedisFail
+    RedisFail -- yes --> Merge
+    RedisFail -- no --> Merge
+    Merge --> Response
+```
+
+### Update Short URL Flow
+
+Update accepts `longUrl`, `customAlias`, or both. It rejects empty updates,
+not-found documents, disabled documents, and records owned by another user.
+
+When only `longUrl` changes, MongoDB is updated and the Redis lookup cache is
+refreshed best-effort.
+
+When alias changes, the service must preserve pending analytics from the old
+alias before moving to the new alias:
+
+1. Read pending analytics for the old alias from Redis.
+2. Add pending count into `clicksPersisted`.
+3. Copy pending `lastClickedAt` into MongoDB if present.
+4. Save the document with the new alias and/or destination.
+5. Delete old Redis lookup and analytics keys.
+6. Create new lookup and analytics keys for the new alias.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as UrlShortenerController\nPUT /v1/short-urls/:id
     participant Service as UrlShortenerService
     participant Mongo as MongoDB short_urls
     participant Redis
 
-    note over Controller,Service: all routes — JwtAuthGuard verifies user still exists in Mongo
-
-    Client->>Controller: POST /v1/short-urls { longUrl, customAlias? }
-    Controller->>Service: createShortUrl(user, dto)
-    Service->>Mongo: exists({ userId, requestBodyHash, status:active }) — duplicate guard
-    Service->>Mongo: create({ userId, requestBodyHash, longUrl, alias, status:active })
-    Service->>Redis: SET short_url:lookup:{alias} JSON
-    Service->>Redis: HSET short_url:analytics:{alias} { count:0, lastClickedAt:null }
-    Controller-->>Client: 201 { message, shortUrl }
-
-    Client->>Controller: GET /v1/short-urls?page=P&limit=N
-    Controller->>Service: getPaginatedData(user, query)
-    Service->>Mongo: find({ userId, status:active }).sort(-_id).skip((P-1)*N).limit(N+1)
-    loop for each shortUrl
-        Service->>Redis: HGETALL short_url:analytics:{alias}
-    end
-    Controller-->>Client: { items, pagination: { totalItems, totalPages, hasMore, page, limit, cursor } }
-
-    Client->>Controller: PUT /v1/short-urls/:id { longUrl?, customAlias? }
-    Controller->>Service: updateShortUrl(user, id, dto)
-    Service->>Mongo: findById + ownership check
+    Client->>Ctrl: PUT /v1/short-urls/:id\n{ longUrl?, customAlias? }
+    Ctrl->>Service: updateShortUrl(user, id, dto)
+    Service->>Mongo: findById(id)
+    Service->>Service: require active status and owner match
+    Service->>Service: validate non-empty update\nnormalize longUrl / alias
     alt alias changed
-        Service->>Redis: HGETALL analytics for old alias — flush pending count to clicksPersisted
-        Service->>Mongo: shortUrl.save() with new alias + flushed clicks
-        Service->>Redis: DEL old lookup + analytics keys
-        Service->>Redis: SET new lookup JSON
-        Service->>Redis: HSET new analytics { count:0, lastClickedAt:null }
-    else only longUrl changed
-        Service->>Mongo: shortUrl.save()
-        Service->>Redis: SET lookup JSON (updated longUrl)
+        Service->>Redis: HGETALL short-url:analytics:{oldAlias}
+        Service->>Mongo: save new alias and/or longUrl\nclicksPersisted += pending count
+        Service->>Redis: DEL short-url:lookup:{oldAlias}\nDEL short-url:analytics:{oldAlias}
+        Service->>Redis: SET short-url:lookup:{newAlias} JSON
+        Service->>Redis: HSET short-url:analytics:{newAlias}\ncount=0 lastClickedAt=null
+    else alias unchanged
+        Service->>Mongo: save updated longUrl if provided
+        Service->>Redis: SET short-url:lookup:{alias} JSON
+        Service->>Redis: HGETALL short-url:analytics:{alias}
     end
-    Controller-->>Client: 200 { message, shortUrl }
+    Service-->>Ctrl: updated serialized short URL
+    Ctrl-->>Client: success envelope
+```
 
-    Client->>Controller: DELETE /v1/short-urls/:id
-    Controller->>Service: deleteShortUrl(user, id)
-    Service->>Mongo: findById + ownership check
-    Service->>Redis: HGETALL analytics — flush pending count
-    Service->>Mongo: set status=disabled + clicksPersisted += pendingCount, save()
-    Service->>Redis: DEL lookup + analytics keys
-    Controller-->>Client: 200 { message, deleted, flushedPendingClicks, shortUrl }
+### Delete Short URL Flow
+
+Delete is a soft-delete. The document remains in MongoDB with
+`status=disabled`, and public redirects treat disabled aliases as not found.
+Before disabling the record, the service flushes pending Redis analytics into
+the document so the final returned object includes the latest known count.
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant Ctrl as UrlShortenerController\nDELETE /v1/short-urls/:id
+    participant Service as UrlShortenerService
+    participant Mongo as MongoDB short_urls
+    participant Redis
+
+    Client->>Ctrl: DELETE /v1/short-urls/:id
+    Ctrl->>Service: deleteShortUrl(user, id)
+    Service->>Mongo: findById(id)
+    Service->>Service: require active status and owner match
+    Service->>Redis: HGETALL short-url:analytics:{alias}
+    Service->>Mongo: status=disabled\nclicksPersisted += pending count\nlastClickedAt = pending last click if present
+    Service->>Redis: DEL short-url:lookup:{alias}\nDEL short-url:analytics:{alias}
+    Service-->>Ctrl: { deleted:true, flushedPendingClicks, shortUrl }
+    Ctrl-->>Client: success envelope
+```
+
+### Public Redirect Flow with Redis Fallback
+
+The redirect route is public and bypasses the standard success envelope because
+it returns a raw HTTP redirect.
+
+Redirect resolution is designed so Redis is helpful but not required:
+
+- If Redis lookup cache is available and has an active payload, the service
+  redirects using the cached `longUrl`.
+- If Redis cache misses or Redis is unavailable, the service queries MongoDB by
+  `{ alias, status: active }`.
+- After a MongoDB cache miss recovery, Redis lookup warming is best-effort.
+- Click analytics are recorded with one Redis Lua script when Redis is
+  available.
+- If Redis click tracking fails, MongoDB is updated directly with atomic
+  `$inc clicksPersisted` and `$set lastClickedAt`.
+
+```mermaid
+sequenceDiagram
+    participant Visitor
+    participant RedirectCtrl as UrlShortenerRedirectController\nGET /r/:alias
+    participant Service as UrlShortenerService.resolveShortUrl
+    participant Redis
+    participant Mongo as MongoDB short_urls
+
+    Visitor->>RedirectCtrl: GET /r/{alias}
+    RedirectCtrl->>Service: resolveShortUrl(alias)
+    Service->>Service: normalize alias\nvalidate regex
+    alt invalid alias
+        Service-->>RedirectCtrl: throw ShortUrlNotFoundException
+    else valid alias
+        Service->>Redis: GET short-url:lookup:{alias}
+        alt Redis cache hit and active
+            Redis-->>Service: cached longUrl
+        else Redis miss or Redis unavailable
+            Service->>Mongo: findOne({ alias, status:active })
+            alt not found
+                Service-->>RedirectCtrl: throw ShortUrlNotFoundException
+            else found
+                Mongo-->>Service: shortUrl.longUrl
+                Service->>Redis: SET short-url:lookup:{alias} JSON\nbest effort
+            end
+        end
+        Service->>Redis: EVAL record click\nHINCRBY count + HSET lastClickedAt
+        alt Redis click write fails
+            Service->>Mongo: updateOne({ alias, status:active })\n$inc clicksPersisted + $set lastClickedAt
+        end
+        RedirectCtrl-->>Visitor: HTTP 302 redirect to longUrl
+    end
+```
+
+### Atomic Redis Click Recording
+
+Click recording uses a Redis Lua script instead of separate `HINCRBY` and
+`HSET` calls. This makes the pending click count and latest timestamp update one
+atomic Redis operation.
+
+```text
+EVAL:
+  count = HINCRBY short-url:analytics:{alias} count 1
+  HSET short-url:analytics:{alias} lastClickedAt clickedAt
+  return count
+```
+
+Why this matters:
+
+- Two simultaneous visitors clicking the same alias both increment the counter.
+- Redis executes commands/scripts one at a time, so the final count is correct.
+- If Redis fails before the script is accepted, the service writes the click to
+  MongoDB directly.
+- The redirect response should not depend on Redis being healthy.
+
+```mermaid
+flowchart LR
+    Count5["Redis count = 5"]
+    ClickA["Visitor A click\nLua HINCRBY + HSET"]
+    Count6["Redis count = 6"]
+    ClickB["Visitor B click\nLua HINCRBY + HSET"]
+    Count7["Redis count = 7"]
+
+    Count5 --> ClickA --> Count6 --> ClickB --> Count7
+```
+
+### Analytics Persistence Cron with Lua Drain
+
+The cron job persists pending Redis analytics into MongoDB. It cannot safely use
+separate read and reset commands because a click can arrive between those two
+commands and then be erased by the reset.
+
+The current implementation drains each analytics hash with Lua:
+
+```text
+EVAL:
+  if key does not exist:
+    return nil
+  count = HGET short-url:analytics:{alias} count
+  lastClickedAt = HGET short-url:analytics:{alias} lastClickedAt
+  HSET short-url:analytics:{alias} count 0 lastClickedAt null
+  return count, lastClickedAt
+```
+
+Because Redis runs the script atomically, clicks that arrive after the drain
+script are counted in Redis for the next cron run instead of being overwritten.
+
+```mermaid
+sequenceDiagram
+    participant Scheduler
+    participant CronCtrl as CronController\nGET /v1/api/cron/url-shortener
+    participant CronService as CronJobService
+    participant Mongo as MongoDB short_urls
+    participant Redis
+
+    Scheduler->>CronCtrl: Authorization: Bearer {CRON_SECRET}
+    CronCtrl->>CronCtrl: validate CRON_SECRET
+    CronCtrl->>CronService: flushShortedURLRedisAnalyticsToMongo()
+    CronService->>Mongo: find({ status:active }).select("_id alias")
+    loop each active short URL
+        CronService->>Redis: EVAL drain analytics hash\nread count + lastClickedAt + reset to zero
+        alt no Redis analytics hash
+            CronService->>CronService: skip alias
+        else drained count or timestamp exists
+            CronService->>Mongo: updateOne({_id})\n$inc clicksPersisted + $set lastClickedAt
+            alt Mongo update fails
+                CronService->>Redis: HINCRBY count by drained count\nbest-effort requeue
+                CronService->>CronService: mark alias failed
+            else Mongo update succeeds
+                CronService->>CronService: mark alias updated
+            end
+        end
+    end
+    CronCtrl-->>Scheduler: { processed, updated, failed }
+```
+
+### Redis Outage Behavior
+
+Redis is not the source of truth. If Redis loses data or becomes unavailable:
+
+- Created short URLs remain in MongoDB.
+- Public redirects can still resolve active aliases from MongoDB.
+- Missing lookup cache is rebuilt best-effort after MongoDB lookup.
+- Pending click counts that existed only in Redis can be lost if Redis crashes
+  before cron drains them.
+- New clicks during Redis outage are written directly to MongoDB with `$inc`.
+- Read APIs still return MongoDB persisted click counts, with pending Redis
+  clicks treated as zero when Redis cannot be read.
+
+For stronger protection against Redis process restarts, Redis persistence such
+as AOF or managed durable Redis should be enabled. The Lua drain still remains
+necessary because persistence does not solve read-then-reset races during cron.
+
+### High-Level URL Shortener Architecture
+
+```mermaid
+flowchart TD
+    subgraph ProtectedAPI["Protected API /v1/short-urls"]
+        Create["Create"]
+        List["List"]
+        Detail["Get by id"]
+        Update["Update"]
+        Delete["Delete"]
+        Analytics["User analytics"]
+    end
+
+    subgraph PublicAPI["Public API"]
+        Redirect["GET /r/:alias"]
+    end
+
+    subgraph Services["Services"]
+        UrlSvc["UrlShortenerService"]
+        CronSvc["CronJobService"]
+    end
+
+    subgraph Stores["Stores"]
+        Mongo["MongoDB short_urls\nsource of truth"]
+        Users["MongoDB users\nauthenticated user check"]
+        Lookup["Redis string\nshort-url:lookup:{alias}"]
+        Pending["Redis hash\nshort-url:analytics:{alias}"]
+    end
+
+    subgraph Scheduler["Scheduled persistence"]
+        Cron["GET /v1/api/cron/url-shortener\nCRON_SECRET"]
+    end
+
+    Create --> UrlSvc
+    List --> UrlSvc
+    Detail --> UrlSvc
+    Update --> UrlSvc
+    Delete --> UrlSvc
+    Analytics --> UrlSvc
+    Redirect --> UrlSvc
+    UrlSvc --> Users
+    UrlSvc --> Mongo
+    UrlSvc -. best effort .-> Lookup
+    UrlSvc -. pending clicks .-> Pending
+    Cron --> CronSvc
+    CronSvc --> Mongo
+    CronSvc --> Pending
 ```
 
 ---
@@ -721,8 +1076,8 @@ Primary data stores: `short_urls`, Redis lookup cache and analytics hash.
 - Service checks MongoDB `short_urls` for an active duplicate by user and hash.
 - If duplicate exists, service throws duplicate request exception.
 - Service validates/generates alias and creates active `short_urls` document.
-- Service stores redirect cache in Redis key `short_url:lookup:{alias}`.
-- Service creates analytics hash `short_url:analytics:{alias}` with count and
+- Service stores redirect cache in Redis key `short-url:lookup:{alias}`.
+- Service creates analytics hash `short-url:analytics:{alias}` with count and
   last-click state.
 - Controller returns generated short URL.
 
@@ -748,12 +1103,12 @@ Primary data stores: `short_urls`, Redis lookup cache and analytics hash.
 - Visitor sends `GET /r/:alias`.
 - Request passes through middleware and public guard path.
 - Redirect controller calls `UrlShortenerService.resolveShortUrl`.
-- Service checks Redis key `short_url:lookup:{alias}`.
+- Service checks Redis key `short-url:lookup:{alias}`.
 - If cache exists and status is active, service uses cached long URL.
 - If cache is missing, service checks MongoDB `short_urls` by alias and active
   status, then repopulates Redis lookup cache.
-- Service increments Redis hash `short_url:analytics:{alias}` count and updates
-  `lastClickedAt`.
+- Service records the click in Redis with an atomic Lua script. If Redis is
+  unavailable, service falls back to MongoDB `$inc` and `$set`.
 - Controller returns raw HTTP redirect to long URL.
 
 | Endpoint | Controller flow | Service/data flow | Handled edges |
@@ -764,7 +1119,7 @@ Primary data stores: `short_urls`, Redis lookup cache and analytics hash.
 | `GET /v1/short-urls/:id` | Protected id lookup | Convert id, confirm ownership and active status, merge analytics | Invalid id, not found, access denied |
 | `PUT /v1/short-urls/:id` | Protected update DTO | Confirm ownership; when alias changes, flush old Redis analytics to Mongo, replace lookup keys, reset new pending analytics | No owner access, alias conflict, stale cache cleanup |
 | `DELETE /v1/short-urls/:id` | Protected | Confirm ownership, flush pending click count, soft-delete, delete Redis lookup/analytics | Idempotent soft-delete protection through not-found on deleted records |
-| `GET /r/:alias` | Public raw redirect | Read Redis lookup or Mongo fallback, cache miss hydration, increment Redis analytics, redirect to long URL | Missing/disabled alias, cache miss, pending analytics stored even before cron flush |
+| `GET /r/:alias` | Public raw redirect | Read Redis lookup or Mongo fallback, cache miss hydration, atomically record click in Redis or Mongo fallback, redirect to long URL | Missing/disabled alias, cache miss, Redis outage, pending analytics stored before cron flush |
 
 ```mermaid
 sequenceDiagram
@@ -789,7 +1144,10 @@ sequenceDiagram
         Service->>Mongo: find active alias
         Service->>Redis: SET lookup JSON
     end
-    Service->>Redis: HINCRBY count + HSET lastClickedAt
+    Service->>Redis: EVAL click script\nHINCRBY count + HSET lastClickedAt
+    alt Redis unavailable
+        Service->>Mongo: $inc clicksPersisted + $set lastClickedAt
+    end
     Redirect-->>Visitor: 302 original URL
 ```
 
@@ -1224,16 +1582,19 @@ Primary stores: `short_urls`, Redis analytics hashes.
 - If secret is invalid or missing, controller rejects request.
 - Controller calls `CronJobService.flushShortedURLRedisAnalyticsToMongo`.
 - Service reads active MongoDB `short_urls` aliases.
-- For each alias, service reads Redis hash `short_url:analytics:{alias}`.
+- For each alias, service atomically drains Redis hash
+  `short-url:analytics:{alias}` with Lua.
 - If pending count or last click exists, service increments MongoDB
-  `clicksPersisted`, updates `lastClickedAt`, and resets Redis analytics count.
+  `clicksPersisted` and updates `lastClickedAt`.
+- If MongoDB update fails after the drain, service attempts to requeue the
+  drained count back into Redis with `HINCRBY`.
 - Service records processed, updated, and failed counts without stopping the
   whole flush for one alias failure.
 - Controller returns cron run summary.
 
 | Endpoint | Controller flow | Service/data flow | Handled edges |
 | --- | --- | --- | --- |
-| `GET /v1/api/cron/url-shortener` | Public route with explicit `Authorization: Bearer {CRON_SECRET}` check | Iterate active short URLs, read Redis analytics, increment persisted clicks, update `lastClickedAt`, reset Redis count | Missing/invalid cron secret, per-alias failure counted without stopping whole flush |
+| `GET /v1/api/cron/url-shortener` | Public route with explicit `Authorization: Bearer {CRON_SECRET}` check | Iterate active short URLs, Lua-drain Redis analytics, increment persisted clicks, update `lastClickedAt`, requeue count on Mongo failure | Missing/invalid cron secret, per-alias failure counted without stopping whole flush, concurrent clicks preserved |
 
 ### RedisStringController and RedisHashController — `/v1/redis/*`
 
@@ -1267,7 +1628,7 @@ Primary store: Redis. These routes are public to the JWT guard but protected by
 
 Controller: `UrlShortenerRedirectController` at `GET /r/:alias`
 Decorator: `@Public()` + `@SkipResponseInterceptor()`
-Redis: `short_url:lookup:{alias}`, `short_url:analytics:{alias}`
+Redis: `short-url:lookup:{alias}`, `short-url:analytics:{alias}`
 MongoDB: `short_urls` (cache miss only)
 
 ```mermaid
@@ -1280,16 +1641,18 @@ sequenceDiagram
 
     Visitor->>RedirectCtrl: GET /r/{alias}
     RedirectCtrl->>Service: resolveShortUrl(alias)
-    Service->>Redis: GET short_url:lookup:{alias}
+    Service->>Redis: GET short-url:lookup:{alias}
     alt cache hit and status=active
         Redis-->>Service: { longUrl }
     else cache miss
         Service->>Mongo: findOne({ alias, status:active })
         Mongo-->>Service: shortUrl
-        Service->>Redis: SET short_url:lookup:{alias} JSON
+        Service->>Redis: SET short-url:lookup:{alias} JSON
     end
-    Service->>Redis: HINCRBY short_url:analytics:{alias} count 1
-    Service->>Redis: HSET short_url:analytics:{alias} lastClickedAt now
+    Service->>Redis: EVAL click script\nHINCRBY short-url:analytics:{alias} count 1\nHSET lastClickedAt now
+    alt Redis click write fails
+        Service->>Mongo: updateOne $inc clicksPersisted + $set lastClickedAt
+    end
     RedirectCtrl-->>Visitor: HTTP 302 redirect to longUrl
 ```
 
@@ -1301,7 +1664,7 @@ Controller: `CronController` at `GET /v1/api/cron/url-shortener`
 Decorator: `@Public()` — uses its own `Authorization: Bearer {CRON_SECRET}` check
 Service: `CronJobService`
 MongoDB: `short_urls`
-Redis: `short_url:analytics:{alias}` (Hash)
+Redis: `short-url:analytics:{alias}` (Hash)
 
 ```mermaid
 sequenceDiagram
@@ -1316,10 +1679,12 @@ sequenceDiagram
     CronCtrl->>CronService: flushShortedURLRedisAnalyticsToMongo()
     CronService->>Mongo: find({ status:active }).select("_id alias")
     loop for each active short URL
-        CronService->>Redis: HGETALL short_url:analytics:{alias}
+        CronService->>Redis: EVAL drain script\nread count + lastClickedAt\nreset count=0 lastClickedAt=null
         alt count > 0 or lastClickedAt present
             CronService->>Mongo: updateOne $inc clicksPersisted + $set lastClickedAt
-            CronService->>Redis: HSET count=0, lastClickedAt=null
+            alt Mongo update fails
+                CronService->>Redis: HINCRBY count by drained count
+            end
         end
     end
     CronCtrl-->>Scheduler: { success, result: { processed, updated, failed }, ranAt }

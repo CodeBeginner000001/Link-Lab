@@ -122,3 +122,65 @@ export async function incrementHashField({
 }): Promise<number> {
   return await client.hincrby(key, field, by);
 }
+
+export type DrainedShortUrlAnalytics = {
+  count: string | null;
+  lastClickedAt: string | null;
+};
+
+export async function recordShortUrlAnalyticsClick({
+  client,
+  key,
+  clickedAt,
+}: {
+  client: Redis;
+  key: string;
+  clickedAt: string;
+}): Promise<number> {
+  const count = await client.eval(
+    `
+      local count = redis.call('HINCRBY', KEYS[1], 'count', 1)
+      redis.call('HSET', KEYS[1], 'lastClickedAt', ARGV[1])
+      return count
+    `,
+    1,
+    key,
+    clickedAt,
+  );
+
+  return Number(count);
+}
+
+export async function drainShortUrlAnalyticsHash({
+  client,
+  key,
+}: {
+  client: Redis;
+  key: string;
+}): Promise<DrainedShortUrlAnalytics | null> {
+  const result = (await client.eval(
+    `
+      if redis.call('EXISTS', KEYS[1]) == 0 then
+        return nil
+      end
+
+      local count = redis.call('HGET', KEYS[1], 'count')
+      local lastClickedAt = redis.call('HGET', KEYS[1], 'lastClickedAt')
+
+      redis.call('HSET', KEYS[1], 'count', '0', 'lastClickedAt', 'null')
+
+      return { count, lastClickedAt }
+    `,
+    1,
+    key,
+  )) as [string | null, string | null] | null;
+
+  if (!result) {
+    return null;
+  }
+
+  return {
+    count: result[0],
+    lastClickedAt: result[1],
+  };
+}
