@@ -68,6 +68,24 @@ type LinkProbeResponse = {
   contentDisposition: string | null;
 };
 
+type LinkHealthResult = {
+  finalUrl: string;
+  statusCode: number | null;
+  isBroken: boolean;
+  errorMessage: string | null;
+  redirectCount: number;
+  contentType: string | null;
+  contentLength: number | null;
+  contentDisposition: string | null;
+};
+
+type SafetyResult = {
+  isUnsafe: boolean;
+  safetyStatus: BrokenLinkSafetyStatus;
+  safetyProvider: string | null;
+  threatTypes: string[];
+};
+
 @Injectable()
 export class BrokenLinkCheckerService {
   constructor(
@@ -80,49 +98,40 @@ export class BrokenLinkCheckerService {
 
   async checkLink(user: JwtPayload, dto: CheckBrokenLinkDto) {
     const userId = await this.getAuthenticatedUserId(user);
+
     const url = normalizeHttpUrl({
       value: dto.url,
       fieldName: 'URL',
     });
-    const result = await this.resolveLinkHealth(url);
-    const reputation = await this.inspectThreats([url, result.finalUrl]);
-    const localThreatTypes = this.getLocalThreatTypes(result);
-    const threatTypes = [
-      ...new Set([...reputation.threatTypes, ...localThreatTypes]),
-    ];
-    const isUnsafe = reputation.isUnsafe || localThreatTypes.length > 0;
-    const safetyStatus = isUnsafe
-      ? BrokenLinkSafetyStatus.UNSAFE
-      : reputation.status;
+
+    const healthResult = await this.checkLinkHealth(url);
+    const safetyResult = await this.checkLinkSafety(url, healthResult);
+
     const linkCheck = await this.brokenLinkCheckerModel.create({
       userId,
       url,
-      finalUrl: result.finalUrl,
-      statusCode: result.statusCode,
-      status: result.isBroken
+      finalUrl: healthResult.finalUrl,
+      statusCode: healthResult.statusCode,
+      status: healthResult.isBroken
         ? BrokenLinkCheckStatus.BROKEN
         : BrokenLinkCheckStatus.WORKING,
-      isBroken: result.isBroken,
-      isUnsafe,
-      safetyStatus,
-      safetyProvider: this.mergeSafetyProviders(
-        reputation.provider,
-        localThreatTypes.length > 0 ? 'linklab-static-download-policy' : null,
-      ),
-      threatTypes,
-      contentType: result.contentType,
-      contentLength: result.contentLength,
-      contentDisposition: result.contentDisposition,
-      errorMessage: result.errorMessage,
-      redirectCount: result.redirectCount,
+      isBroken: healthResult.isBroken,
+      isUnsafe: safetyResult.isUnsafe,
+      safetyStatus: safetyResult.safetyStatus,
+      safetyProvider: safetyResult.safetyProvider,
+      threatTypes: safetyResult.threatTypes,
+      contentType: healthResult.contentType,
+      contentLength: healthResult.contentLength,
+      contentDisposition: healthResult.contentDisposition,
+      errorMessage: healthResult.errorMessage,
+      redirectCount: healthResult.redirectCount,
     });
 
     return {
-      message: isUnsafe
-        ? 'Link check completed. This link is flagged as unsafe.'
-        : result.isBroken
-          ? 'Link check completed. This link appears broken.'
-          : 'Link check completed. This link is working.',
+      message: this.getLinkCheckMessage(
+        healthResult.isBroken,
+        safetyResult.isUnsafe,
+      ),
       linkCheck: this.serializeLinkCheck(linkCheck),
     };
   }
@@ -138,6 +147,7 @@ export class BrokenLinkCheckerService {
       ? toObjectId(query.cursor, 'Cursor id is invalid')
       : null;
     const skip = cursorId ? 0 : (currentPage - 1) * limit;
+
     const baseFilter = {
       userId,
       status: { $ne: BrokenLinkCheckStatus.DELETED },
@@ -177,6 +187,7 @@ export class BrokenLinkCheckerService {
 
   async getAnalytics(user: JwtPayload) {
     const userId = await this.getAuthenticatedUserId(user);
+
     const [checked, broken, unsafe] = await Promise.all([
       this.brokenLinkCheckerModel
         .countDocuments({
@@ -221,16 +232,8 @@ export class BrokenLinkCheckerService {
     };
   }
 
-  private async resolveLinkHealth(url: string): Promise<{
-    finalUrl: string;
-    statusCode: number | null;
-    isBroken: boolean;
-    errorMessage: string | null;
-    redirectCount: number;
-    contentType: string | null;
-    contentLength: number | null;
-    contentDisposition: string | null;
-  }> {
+  // functions for above operations
+  private async checkLinkHealth(url: string): Promise<LinkHealthResult> {
     try {
       const response = await this.followRedirects(url);
       const isBroken = !response.ok;
@@ -266,6 +269,39 @@ export class BrokenLinkCheckerService {
     }
   }
 
+  private async checkLinkSafety(
+    originalUrl: string,
+    healthResult: LinkHealthResult,
+  ): Promise<SafetyResult> {
+    const reputation = await this.checkGoogleSafeBrowsing([
+      originalUrl,
+      healthResult.finalUrl,
+    ]);
+
+    const localThreatTypes = this.getLocalThreatTypes(healthResult);
+    const threatTypes = [
+      ...new Set([...reputation.threatTypes, ...localThreatTypes]),
+    ];
+
+    const isUnsafe = reputation.isUnsafe || localThreatTypes.length > 0;
+    const safetyStatus = isUnsafe
+      ? BrokenLinkSafetyStatus.UNSAFE
+      : reputation.status;
+
+    const providers = [
+      reputation.provider,
+      localThreatTypes.length > 0 ? 'linklab-static-download-policy' : null,
+    ].filter((provider): provider is string => Boolean(provider));
+
+    return {
+      isUnsafe,
+      safetyStatus,
+      safetyProvider:
+        providers.length > 0 ? [...new Set(providers)].join(',') : null,
+      threatTypes,
+    };
+  }
+
   private async followRedirects(url: string): Promise<{
     finalUrl: string;
     redirectCount: number;
@@ -285,38 +321,36 @@ export class BrokenLinkCheckerService {
       await this.assertPublicDestination(currentUrl);
 
       const response = await this.fetchWithoutRedirect(currentUrl, 'HEAD');
-      const fallbackResponse =
-        response.status === 405
+      const finalResponse =
+        response.status === 405 
           ? await this.fetchWithoutRedirect(currentUrl, 'GET')
           : response;
 
-      if (!this.isRedirectStatus(fallbackResponse.status)) {
+      if (!this.isRedirectStatus(finalResponse.status)) {
         return {
           finalUrl: currentUrl,
           redirectCount,
-          ok: fallbackResponse.ok,
-          status: fallbackResponse.status,
-          contentType: fallbackResponse.contentType,
-          contentLength: fallbackResponse.contentLength,
-          contentDisposition: fallbackResponse.contentDisposition,
+          ok: finalResponse.ok,
+          status: finalResponse.status,
+          contentType: finalResponse.contentType,
+          contentLength: finalResponse.contentLength,
+          contentDisposition: finalResponse.contentDisposition,
         };
       }
 
-      const location = fallbackResponse.location;
-
-      if (!location) {
+      if (!finalResponse.location) {
         return {
           finalUrl: currentUrl,
           redirectCount,
           ok: false,
-          status: fallbackResponse.status,
-          contentType: fallbackResponse.contentType,
-          contentLength: fallbackResponse.contentLength,
-          contentDisposition: fallbackResponse.contentDisposition,
+          status: finalResponse.status,
+          contentType: finalResponse.contentType,
+          contentLength: finalResponse.contentLength,
+          contentDisposition: finalResponse.contentDisposition,
         };
       }
 
-      currentUrl = new URL(location, currentUrl).toString();
+      currentUrl = new URL(finalResponse.location, currentUrl).toString();
     }
 
     return {
@@ -353,8 +387,9 @@ export class BrokenLinkCheckerService {
         redirect: 'manual',
         signal: controller.signal,
       });
+
       const contentLengthHeader = response.headers.get('content-length');
-      const contentLength = contentLengthHeader
+      const parsedContentLength = contentLengthHeader
         ? Number(contentLengthHeader)
         : null;
 
@@ -366,8 +401,8 @@ export class BrokenLinkCheckerService {
         location: response.headers.get('location'),
         contentType: response.headers.get('content-type'),
         contentLength:
-          contentLength !== null && Number.isFinite(contentLength)
-            ? contentLength
+          parsedContentLength !== null && Number.isFinite(parsedContentLength)
+            ? parsedContentLength
             : null,
         contentDisposition: response.headers.get('content-disposition'),
       };
@@ -380,78 +415,7 @@ export class BrokenLinkCheckerService {
     return [301, 302, 303, 307, 308].includes(status);
   }
 
-  private getLocalThreatTypes(result: {
-    finalUrl: string;
-    contentType: string | null;
-    contentDisposition: string | null;
-  }) {
-    const threatTypes = new Set<string>();
-    const contentType = result.contentType?.toLowerCase() ?? '';
-    const contentDisposition = result.contentDisposition?.toLowerCase() ?? '';
-    const pathname = new URL(result.finalUrl).pathname.toLowerCase();
-    const riskyContentTypes = [
-      'application/octet-stream',
-      'application/x-msdownload',
-      'application/vnd.microsoft.portable-executable',
-      'application/x-msdos-program',
-      'application/x-executable',
-      'application/x-dosexec',
-      'application/java-archive',
-      'application/x-sh',
-      'application/x-bat',
-      'application/x-msi',
-      'application/vnd.android.package-archive',
-      'application/x-apple-diskimage',
-      'application/zip',
-      'application/x-7z-compressed',
-      'application/vnd.rar',
-      'application/x-rar-compressed',
-    ];
-    const riskyExtensions = [
-      '.apk',
-      '.app',
-      '.bat',
-      '.cmd',
-      '.com',
-      '.dmg',
-      '.exe',
-      '.iso',
-      '.jar',
-      '.js',
-      '.msi',
-      '.pkg',
-      '.ps1',
-      '.rar',
-      '.scr',
-      '.sh',
-      '.vbs',
-      '.wsf',
-      '.zip',
-      '.7z',
-    ];
-
-    if (contentDisposition.includes('attachment')) {
-      threatTypes.add('downloadable_content');
-    }
-
-    if (riskyContentTypes.some((type) => contentType.includes(type))) {
-      threatTypes.add('risky_content_type');
-    }
-
-    if (riskyExtensions.some((extension) => pathname.endsWith(extension))) {
-      threatTypes.add('risky_file_extension');
-    }
-
-    return [...threatTypes];
-  }
-
-  private mergeSafetyProviders(...providers: Array<string | null>) {
-    const mergedProviders = [...new Set(providers.filter(Boolean))];
-
-    return mergedProviders.length > 0 ? mergedProviders.join(',') : null;
-  }
-
-  private async inspectThreats(urls: string[]): Promise<{
+  private async checkGoogleSafeBrowsing(urls: string[]): Promise<{
     isUnsafe: boolean;
     status: BrokenLinkSafetyStatus;
     provider: string | null;
@@ -472,6 +436,7 @@ export class BrokenLinkCheckerService {
 
     try {
       const threatEntries = [...new Set(urls)].map((url) => ({ url }));
+
       const response = await fetch(
         `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
         {
@@ -536,23 +501,95 @@ export class BrokenLinkCheckerService {
     }
   }
 
-  private async assertPublicDestination(url: string) {
-    const parsedUrl = new URL(url);
-    const host = parsedUrl.hostname.toLowerCase();
+  private getLocalThreatTypes(result: {
+    finalUrl: string;
+    contentType: string | null;
+    contentDisposition: string | null;
+  }) {
+    const threatTypes = new Set<string>();
+    const contentType = result.contentType?.toLowerCase() ?? '';
+    const contentDisposition = result.contentDisposition?.toLowerCase() ?? '';
+    const pathname = new URL(result.finalUrl).pathname.toLowerCase();
 
-    if (this.isBlockedHost(host)) {
+    const riskyContentTypes = [
+      'application/octet-stream',
+      'application/x-msdownload',
+      'application/vnd.microsoft.portable-executable',
+      'application/x-msdos-program',
+      'application/x-executable',
+      'application/x-dosexec',
+      'application/java-archive',
+      'application/x-sh',
+      'application/x-bat',
+      'application/x-msi',
+      'application/vnd.android.package-archive',
+      'application/x-apple-diskimage',
+      'application/zip',
+      'application/x-7z-compressed',
+      'application/vnd.rar',
+      'application/x-rar-compressed',
+    ];
+
+    const riskyExtensions = [
+      '.apk',
+      '.app',
+      '.bat',
+      '.cmd',
+      '.com',
+      '.dmg',
+      '.exe',
+      '.iso',
+      '.jar',
+      '.js',
+      '.msi',
+      '.pkg',
+      '.ps1',
+      '.rar',
+      '.scr',
+      '.sh',
+      '.vbs',
+      '.wsf',
+      '.zip',
+      '.7z',
+    ];
+
+    if (contentDisposition.includes('attachment')) {
+      threatTypes.add('downloadable_content');
+    }
+
+    if (riskyContentTypes.some((type) => contentType.includes(type))) {
+      threatTypes.add('risky_content_type');
+    }
+
+    if (riskyExtensions.some((extension) => pathname.endsWith(extension))) {
+      threatTypes.add('risky_file_extension');
+    }
+
+    return [...threatTypes];
+  }
+
+  private async assertPublicDestination(url: string) {
+    const parsedUrl = new URL(url); // this is used to parse the url and get the hostname
+    const host = parsedUrl.hostname.toLowerCase(); // this is used to get the hostname and convert it to lowercase
+
+    if (this.isBlockedHost(host)) { // this is used to check if the host is blocked
       throw new BadRequestException({
         message: 'URL must point to a public internet host',
-        error: 'Bad Request',
+        error: 'Bad Request', // this is used to return a bad request exception
       });
     }
 
-    if (isIP(host)) {
-      return;
+    if (isIP(host)) { // this is used to check if the host is an IP address
+      return; // this is used to return if the host is an IP address
     }
 
     try {
-      const addresses = await lookup(host, { all: true });
+      const addresses = await lookup(host, { all: true }); // this is used to lookup the host and get the addresses
+      // lookup is done using the dns module which is a promise based dns lookup
+      // it returns an array of addresses
+      // we need to check if any of the addresses are blocked
+      // if any of the addresses are blocked, we need to throw a bad request exception
+      // if none of the addresses are blocked, we need to return
 
       if (addresses.some((address) => this.isBlockedHost(address.address))) {
         throw new BadRequestException({
@@ -566,7 +603,7 @@ export class BrokenLinkCheckerService {
       }
     }
   }
-
+  // this is used to check if the host is blocked
   private isBlockedHost(host: string) {
     if (
       host === 'localhost' ||
@@ -577,32 +614,47 @@ export class BrokenLinkCheckerService {
     ) {
       return true;
     }
-
+    // this is used to check if the host is an IP address
     const ipVersion = isIP(host);
 
     if (ipVersion === 4) {
+      // this is used to check if the host is a private IP address
       const parts = host.split('.').map((part) => Number(part));
       const [first, second] = parts;
 
       return (
-        first === 10 ||
-        first === 127 ||
-        (first === 169 && second === 254) ||
-        (first === 172 && second >= 16 && second <= 31) ||
-        (first === 192 && second === 168)
+        first === 10 || // 10.0.0.0/8
+        first === 127 || // 127.0.0.0/8
+        (first === 169 && second === 254) || // 169.254.0.0/16
+        (first === 172 && second >= 16 && second <= 31) || // 172.16.0.0/12
+        (first === 192 && second === 168) // 192.168.0.0/16
       );
     }
 
     if (ipVersion === 6) {
+      // ipv6 address is the same as ipv4 address, but it is 128 bits long
       return (
-        host.startsWith('fc') ||
-        host.startsWith('fd') ||
-        host.startsWith('fe80:') ||
-        host === '::ffff:127.0.0.1'
+        // this is used to check if the host is a link-local address
+        host.startsWith('fc') || // fc00::/7
+        host.startsWith('fd') || // fd00::/8  link-local addresses
+        host.startsWith('fe80:') || // fe80::/10
+        host === '::ffff:127.0.0.1' // ::ffff:127.0.0.1  loopback address
       );
     }
 
     return false;
+  }
+
+  private getLinkCheckMessage(isBroken: boolean, isUnsafe: boolean) {
+    if (isUnsafe) {
+      return 'Link check completed. This link is flagged as unsafe.';
+    }
+
+    if (isBroken) {
+      return 'Link check completed. This link appears broken.';
+    }
+
+    return 'Link check completed. This link is working.';
   }
 
   private serializeLinkCheck(
