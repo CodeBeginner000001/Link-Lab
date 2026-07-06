@@ -6,7 +6,6 @@ import sharp from 'sharp';
 import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 import {
   BarcodeAccessDeniedException,
-  BarcodeActivityDateInvalidException,
   BarcodeContentInvalidException,
   BarcodeDuplicateRequestException,
   BarcodeNotFoundException,
@@ -19,10 +18,10 @@ import {
 } from 'src/models/barcode.schema';
 import { User, UserDocument } from 'src/models/user.schema';
 import { isDuplicateKeyError, toObjectId } from '../utils/common.utils';
+import { getActivityRange } from '../utils/activity-range.utils';
 import { prepareBarcodeContent } from './barcode-content.utils';
 import {
   BARCODE_FORMATS,
-  BarcodeActivityPeriod,
   BarcodeDownloadType,
   BarcodeFormat,
   BarcodeStatus,
@@ -34,15 +33,6 @@ import {
   GetPaginatedBarcodesDto,
   UpdateBarcodeDto,
 } from './dto/barcode-generator.dto';
-
-type ActivityRange = {
-  start: Date;
-  end: Date;
-  previousStart: Date;
-  previousEnd: Date;
-  labels: string[];
-  mongoDateFormat: string;
-};
 
 type BarcodeInput = {
   format: BarcodeFormat;
@@ -110,14 +100,7 @@ export class BarcodeGeneratorService {
     const existingBarcode = await this.barcodeModel
       .exists({
         userId,
-        format: barcodeInput.format,
-        content: barcodeInput.content,
-        barWidth: barcodeInput.barWidth,
-        height: barcodeInput.height,
-        margin: barcodeInput.margin,
-        barColor: barcodeInput.barColor,
-        backgroundColor: barcodeInput.backgroundColor,
-        showValue: barcodeInput.showValue,
+        requestBodyHash,
         status: { $ne: BarcodeStatus.DELETED },
       })
       .exec();
@@ -477,21 +460,17 @@ export class BarcodeGeneratorService {
 
   async getActivity(user: JwtPayload, query: GetBarcodeActivityDto) {
     const userId = await this.getAuthenticatedUserId(user);
-    const range = this.getActivityRange(query.period, query.date);
+    const range = getActivityRange(query.period, query.date);
+    const activeFilter = {
+      userId,
+      status: { $ne: BarcodeStatus.DELETED },
+    };
+    const createdAtFilter = { $gte: range.start, $lt: range.end };
 
     const [rows, currentTotal, previousTotal] = await Promise.all([
       this.barcodeModel
         .aggregate<{ _id: string; count: number }>([
-          {
-            $match: {
-              userId,
-              status: { $ne: BarcodeStatus.DELETED },
-              createdAt: {
-                $gte: range.start,
-                $lt: range.end,
-              },
-            },
-          },
+          { $match: { ...activeFilter, createdAt: createdAtFilter } },
           {
             $group: {
               _id: {
@@ -504,33 +483,16 @@ export class BarcodeGeneratorService {
               count: { $sum: 1 },
             },
           },
-          {
-            $sort: {
-              _id: 1,
-            },
-          },
+          { $sort: { _id: 1 } },
         ])
         .exec(),
-
       this.barcodeModel
-        .countDocuments({
-          userId,
-          status: { $ne: BarcodeStatus.DELETED },
-          createdAt: {
-            $gte: range.start,
-            $lt: range.end,
-          },
-        })
+        .countDocuments({ ...activeFilter, createdAt: createdAtFilter })
         .exec(),
-
       this.barcodeModel
         .countDocuments({
-          userId,
-          status: { $ne: BarcodeStatus.DELETED },
-          createdAt: {
-            $gte: range.previousStart,
-            $lt: range.previousEnd,
-          },
+          ...activeFilter,
+          createdAt: { $gte: range.previousStart, $lt: range.previousEnd },
         })
         .exec(),
     ]);
@@ -601,139 +563,6 @@ export class BarcodeGeneratorService {
       percentage:
         total > 0 ? Number(((row.count / total) * 100).toFixed(1)) : 0,
     }));
-  }
-
-  private getActivityRange(
-    period: BarcodeActivityPeriod,
-    value: string,
-  ): ActivityRange {
-    if (period === BarcodeActivityPeriod.WEEK) {
-      return this.getWeekRange(value);
-    }
-
-    if (period === BarcodeActivityPeriod.MONTH) {
-      return this.getMonthRange(value);
-    }
-
-    return this.getYearRange(value);
-  }
-
-  private getWeekRange(value: string): ActivityRange {
-    const match = /^(\d{4})-W(\d{2})$/.exec(value);
-
-    if (!match) {
-      throw new BarcodeActivityDateInvalidException('week');
-    }
-
-    const year = Number(match[1]);
-    const week = Number(match[2]);
-
-    if (year < 1000 || year > 9999 || week < 1 || week > 53) {
-      throw new BarcodeActivityDateInvalidException('week');
-    }
-
-    const januaryFourth = new Date(Date.UTC(year, 0, 4));
-    const januaryFourthDay = januaryFourth.getUTCDay() || 7;
-    const firstMonday = new Date(januaryFourth);
-
-    firstMonday.setUTCDate(januaryFourth.getUTCDate() - januaryFourthDay + 1);
-
-    const start = new Date(firstMonday);
-    start.setUTCDate(firstMonday.getUTCDate() + (week - 1) * 7);
-
-    const end = new Date(start);
-    end.setUTCDate(start.getUTCDate() + 7);
-
-    const weekThursday = new Date(start);
-    weekThursday.setUTCDate(start.getUTCDate() + 3);
-
-    if (weekThursday.getUTCFullYear() !== year) {
-      throw new BarcodeActivityDateInvalidException('week');
-    }
-
-    const previousStart = new Date(start);
-    previousStart.setUTCDate(start.getUTCDate() - 7);
-
-    return {
-      start,
-      end,
-      previousStart,
-      previousEnd: new Date(start),
-      labels: this.getDailyLabels(start, 7),
-      mongoDateFormat: '%Y-%m-%d',
-    };
-  }
-
-  private getMonthRange(value: string): ActivityRange {
-    const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
-
-    if (!match) {
-      throw new BarcodeActivityDateInvalidException('month');
-    }
-
-    const year = Number(match[1]);
-    const monthIndex = Number(match[2]) - 1;
-
-    if (year < 1000 || year > 9999) {
-      throw new BarcodeActivityDateInvalidException('month');
-    }
-
-    const start = new Date(Date.UTC(year, monthIndex, 1));
-    const end = new Date(Date.UTC(year, monthIndex + 1, 1));
-    const previousStart = new Date(Date.UTC(year, monthIndex - 1, 1));
-
-    const days = Math.round(
-      (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
-    );
-
-    return {
-      start,
-      end,
-      previousStart,
-      previousEnd: new Date(start),
-      labels: this.getDailyLabels(start, days),
-      mongoDateFormat: '%Y-%m-%d',
-    };
-  }
-
-  private getYearRange(value: string): ActivityRange {
-    if (!/^\d{4}$/.test(value)) {
-      throw new BarcodeActivityDateInvalidException('year');
-    }
-
-    const year = Number(value);
-
-    if (year < 1000 || year > 9999) {
-      throw new BarcodeActivityDateInvalidException('year');
-    }
-
-    const start = new Date(Date.UTC(year, 0, 1));
-    const end = new Date(Date.UTC(year + 1, 0, 1));
-    const previousStart = new Date(Date.UTC(year - 1, 0, 1));
-
-    const labels = Array.from(
-      { length: 12 },
-      (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`,
-    );
-
-    return {
-      start,
-      end,
-      previousStart,
-      previousEnd: new Date(start),
-      labels,
-      mongoDateFormat: '%Y-%m',
-    };
-  }
-
-  private getDailyLabels(start: Date, count: number): string[] {
-    return Array.from({ length: count }, (_, index) => {
-      const date = new Date(start);
-
-      date.setUTCDate(start.getUTCDate() + index);
-
-      return date.toISOString().slice(0, 10);
-    });
   }
 
   private async getAuthenticatedUserId(

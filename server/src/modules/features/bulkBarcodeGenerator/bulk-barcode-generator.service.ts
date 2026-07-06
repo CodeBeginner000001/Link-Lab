@@ -1,3 +1,4 @@
+import { randomBytes, randomInt } from 'crypto';
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
@@ -11,14 +12,13 @@ import {
   BulkBarcodeStatus,
 } from 'src/models/bulk-barcode.schema';
 import { User, UserDocument } from 'src/models/user.schema';
-import {
-  getBarcodeContentValidationError,
-  normalizeBarcodeContent,
-} from '../barcodeGenerator/barcode-content.utils';
-import {
-  BarcodeFormat,
-} from '../barcodeGenerator/barcode-generator.constants';
+import { prepareBarcodeContent } from '../barcodeGenerator/barcode-content.utils';
+import { BarcodeFormat } from '../barcodeGenerator/barcode-generator.constants';
 import { BarcodeRendererService } from '../barcodeGenerator/barcode-renderer.service';
+import {
+  ActivityPeriod,
+  getActivityRange,
+} from '../utils/activity-range.utils';
 import { toObjectId } from '../utils/common.utils';
 import {
   BULK_BARCODE_ALLOWED_EXTENSIONS,
@@ -43,27 +43,10 @@ type BulkValidationError = {
   message: string;
 };
 
-type BarcodeRenderInput = {
-  format: BarcodeFormat;
-  content: string;
-  barWidth: number;
-  height: number;
-  margin: number;
-  barColor: string;
-  backgroundColor: string;
-  showValue: boolean;
-};
-
-type BulkBarcodeActivityPeriod = 'week' | 'month' | 'year';
-
-type ActivityRange = {
-  start: Date;
-  end: Date;
-  previousStart: Date;
-  previousEnd: Date;
-  labels: string[];
-  mongoDateFormat: string;
-};
+const activeBulkBarcodeFilter = (userId: Types.ObjectId) => ({
+  userId,
+  status: { $ne: BulkBarcodeStatus.DELETED },
+});
 
 export type SerializedBulkBarcode = {
   id: string;
@@ -110,8 +93,8 @@ export class BulkBarcodeGeneratorService {
     file?: UploadedBarcodeFile,
   ) {
     const userId = await this.getAuthenticatedUserId(user);
-    const generationMode = dto.generationMode ?? (file ? 'upload' : 'auto');
-    const isAutoGenerate = generationMode === 'auto';
+    const isAutoGenerate =
+      (dto.generationMode ?? (file ? 'upload' : 'auto')) === 'auto';
     let fileName = 'auto-generated-barcodes';
     let rows: ParsedBarcodeRow[];
 
@@ -169,23 +152,18 @@ export class BulkBarcodeGeneratorService {
     query: GetPaginatedBulkBarcodesDto,
   ): Promise<PaginatedBulkBarcodesResponse> {
     const userId = await this.getAuthenticatedUserId(user);
-    const page = query.page;
-    const limit = query.limit;
+    const { page, limit } = query;
     const skip = (page - 1) * limit;
+    const filter = activeBulkBarcodeFilter(userId);
 
     const [bulkBarcodes, total] = await Promise.all([
       this.bulkBarcodeModel
-        .find({ userId, status: { $ne: BulkBarcodeStatus.DELETED } })
+        .find(filter)
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit)
         .exec(),
-      this.bulkBarcodeModel
-        .countDocuments({
-          userId,
-          status: { $ne: BulkBarcodeStatus.DELETED },
-        })
-        .exec(),
+      this.bulkBarcodeModel.countDocuments(filter).exec(),
     ]);
 
     const items = bulkBarcodes.map((item) => this.serializeBulkBarcode(item));
@@ -205,22 +183,13 @@ export class BulkBarcodeGeneratorService {
 
   async getAnalytics(user: JwtPayload) {
     const userId = await this.getAuthenticatedUserId(user);
+    const filter = activeBulkBarcodeFilter(userId);
 
     const [batches, totals] = await Promise.all([
+      this.bulkBarcodeModel.countDocuments(filter).exec(),
       this.bulkBarcodeModel
-        .countDocuments({
-          userId,
-          status: { $ne: BulkBarcodeStatus.DELETED },
-        })
-        .exec(),
-      this.bulkBarcodeModel
-      .aggregate<{ generated: number; rows: number; downloads: number }>([
-          {
-            $match: {
-              userId,
-              status: { $ne: BulkBarcodeStatus.DELETED },
-            },
-          },
+        .aggregate<{ generated: number; rows: number; downloads: number }>([
+          { $match: filter },
           {
             $group: {
               _id: null,
@@ -245,12 +214,7 @@ export class BulkBarcodeGeneratorService {
     const userId = await this.getAuthenticatedUserId(user);
     const [totals] = await this.bulkBarcodeModel
       .aggregate<{ zip: number; pdf: number }>([
-        {
-          $match: {
-            userId,
-            status: { $ne: BulkBarcodeStatus.DELETED },
-          },
-        },
+        { $match: activeBulkBarcodeFilter(userId) },
         {
           $group: {
             _id: null,
@@ -261,45 +225,35 @@ export class BulkBarcodeGeneratorService {
         { $project: { _id: 0, zip: 1, pdf: 1 } },
       ])
       .exec();
-    const exportTypeDistribution = [
-      { format: 'ZIP', count: totals?.zip ?? 0 },
-      { format: 'PDF', count: totals?.pdf ?? 0 },
-    ];
-    const total = exportTypeDistribution.reduce(
-      (sum, item) => sum + item.count,
-      0,
-    );
+
+    const zip = totals?.zip ?? 0;
+    const pdf = totals?.pdf ?? 0;
+    const total = zip + pdf;
+    const toPercentage = (count: number) =>
+      total > 0 ? Number(((count / total) * 100).toFixed(1)) : 0;
 
     return {
-      exportTypeDistribution: exportTypeDistribution.map((item) => ({
-        ...item,
-        percentage:
-          total > 0 ? Number(((item.count / total) * 100).toFixed(1)) : 0,
-      })),
-      downloadFormatDistribution: {
-        zip: totals?.zip ?? 0,
-        pdf: totals?.pdf ?? 0,
-      },
+      exportTypeDistribution: [
+        { format: 'ZIP', count: zip, percentage: toPercentage(zip) },
+        { format: 'PDF', count: pdf, percentage: toPercentage(pdf) },
+      ],
+      downloadFormatDistribution: { zip, pdf },
     };
   }
 
   async getActivity(
     user: JwtPayload,
-    query: { period: BulkBarcodeActivityPeriod; date: string },
+    query: { period: ActivityPeriod; date: string },
   ) {
     const userId = await this.getAuthenticatedUserId(user);
-    const range = this.getActivityRange(query.period, query.date);
+    const range = getActivityRange(query.period, query.date);
+    const filter = activeBulkBarcodeFilter(userId);
+    const createdAtFilter = { $gte: range.start, $lt: range.end };
 
     const [rows, currentTotal, previousTotal] = await Promise.all([
       this.bulkBarcodeModel
         .aggregate<{ _id: string; count: number }>([
-          {
-            $match: {
-              userId,
-              status: { $ne: BulkBarcodeStatus.DELETED },
-              createdAt: { $gte: range.start, $lt: range.end },
-            },
-          },
+          { $match: { ...filter, createdAt: createdAtFilter } },
           {
             $group: {
               _id: {
@@ -316,23 +270,16 @@ export class BulkBarcodeGeneratorService {
         ])
         .exec(),
       this.bulkBarcodeModel
-        .countDocuments({
-          userId,
-          status: { $ne: BulkBarcodeStatus.DELETED },
-          createdAt: { $gte: range.start, $lt: range.end },
-        })
+        .countDocuments({ ...filter, createdAt: createdAtFilter })
         .exec(),
       this.bulkBarcodeModel
         .countDocuments({
-          userId,
-          status: { $ne: BulkBarcodeStatus.DELETED },
-          createdAt: {
-            $gte: range.previousStart,
-            $lt: range.previousEnd,
-          },
+          ...filter,
+          createdAt: { $gte: range.previousStart, $lt: range.previousEnd },
         })
         .exec(),
     ]);
+
     const growth =
       previousTotal === 0
         ? currentTotal > 0
@@ -375,8 +322,7 @@ export class BulkBarcodeGeneratorService {
       .updateOne(
         {
           _id: bulkBarcode._id,
-          userId: bulkBarcode.userId,
-          status: { $ne: BulkBarcodeStatus.DELETED },
+          ...activeBulkBarcodeFilter(bulkBarcode.userId),
         },
         {
           $inc: {
@@ -446,9 +392,12 @@ export class BulkBarcodeGeneratorService {
       });
     }
 
+    const seen = new Set<string>();
+
     return Array.from({ length: count }, (_, index) => {
       const rowNumber = index + 1;
-      const content = this.buildAutoContent(format, rowNumber);
+      const content = this.buildRandomAutoContent(format, seen);
+      seen.add(content);
 
       return {
         row: rowNumber,
@@ -459,26 +408,52 @@ export class BulkBarcodeGeneratorService {
     });
   }
 
-  private buildAutoContent(format: BarcodeFormat, index: number): string {
-    const numericSeed = String(index).padStart(6, '0');
+  private buildRandomAutoContent(
+    format: BarcodeFormat,
+    seen: Set<string>,
+  ): string {
+    const maxAttempts = 100;
 
-    if (format === BarcodeFormat.CODE128) {
-      return `AUTO-${numericSeed}`;
+    for (let attempt = 0; attempt < maxAttempts; attempt++) {
+      const preparedContent = prepareBarcodeContent(
+        format,
+        this.generateRandomRawContent(format),
+      );
+
+      if (!preparedContent.success || seen.has(preparedContent.content)) {
+        continue;
+      }
+
+      return preparedContent.content;
     }
 
-    if (format === BarcodeFormat.CODE39) {
-      return `AUTO-${numericSeed}`;
+    throw new BadRequestException({
+      message:
+        'Failed to generate unique barcode content. Try reducing the count.',
+      error: 'Bad Request',
+    });
+  }
+
+  private generateRandomRawContent(format: BarcodeFormat): string {
+    const randomToken = randomBytes(8).toString('hex').toUpperCase();
+
+    if (format === BarcodeFormat.CODE128 || format === BarcodeFormat.CODE39) {
+      return `AUTO-${randomToken}`;
     }
 
     if (format === BarcodeFormat.EAN13) {
-      return normalizeBarcodeContent(format, `200000${numericSeed}`);
+      return `200${this.randomDigits(9)}`;
     }
 
     if (format === BarcodeFormat.UPCA) {
-      return normalizeBarcodeContent(format, `10000${numericSeed}`);
+      return `100${this.randomDigits(8)}`;
     }
 
-    return normalizeBarcodeContent(format, `1000000${numericSeed}`);
+    return `10${this.randomDigits(11)}`;
+  }
+
+  private randomDigits(length: number): string {
+    return Array.from({ length }, () => randomInt(0, 10)).join('');
   }
 
   private buildBulkItems(
@@ -489,9 +464,9 @@ export class BulkBarcodeGeneratorService {
     const seen = new Map<string, number>();
     const items = rows
       .map((row) => {
+        const format = row.format as BarcodeFormat;
         const hasSupportedFormat =
-          row.format &&
-          Object.values(BarcodeFormat).includes(row.format as BarcodeFormat);
+          row.format && Object.values(BarcodeFormat).includes(format);
 
         if (!row.content) {
           errors.push({
@@ -515,21 +490,32 @@ export class BulkBarcodeGeneratorService {
           });
         }
 
-        if (!row.content || !row.format || !hasSupportedFormat) {
+        if (!row.content || !hasSupportedFormat) {
           return null;
         }
 
-        const input = this.normalizeBarcodeInput({
-          format: row.format as BarcodeFormat,
-          content: row.content,
+        const preparedContent = prepareBarcodeContent(format, row.content);
+
+        if (!preparedContent.success) {
+          errors.push({
+            row: row.row,
+            field: 'content',
+            message: preparedContent.error,
+          });
+          return null;
+        }
+
+        const renderInput = {
+          format,
+          content: preparedContent.content.trim(),
           barWidth: dto.barWidth,
           height: dto.height,
           margin: dto.margin,
-          barColor: dto.barColor,
-          backgroundColor: dto.backgroundColor,
+          barColor: dto.barColor.toLowerCase(),
+          backgroundColor: dto.backgroundColor.toLowerCase(),
           showValue: dto.showValue,
-        });
-        const duplicateKey = `${input.format}:${input.content}`;
+        };
+        const duplicateKey = `${renderInput.format}:${renderInput.content}`;
         const firstRow = seen.get(duplicateKey);
 
         if (firstRow) {
@@ -542,163 +528,18 @@ export class BulkBarcodeGeneratorService {
         }
 
         seen.set(duplicateKey, row.row);
-        const contentError = this.getContentValidationError(
-          input.format,
-          input.content,
-        );
-
-        if (contentError) {
-          errors.push({
-            row: row.row,
-            field: 'content',
-            message: contentError,
-          });
-          return null;
-        }
 
         return {
           row: row.row,
-          content: input.content,
-          format: input.format,
+          content: renderInput.content,
+          format: renderInput.format,
           label: row.label || null,
-          svg: this.renderer.renderSvg(input),
+          svg: this.renderer.renderSvg(renderInput),
         };
       })
       .filter((item): item is NonNullable<typeof item> => item !== null);
 
     return { items, errors };
-  }
-
-  private getContentValidationError(
-    format: BarcodeFormat,
-    content: string,
-  ): string | null {
-    return getBarcodeContentValidationError(format, content);
-  }
-
-  private normalizeBarcodeInput(input: BarcodeRenderInput): BarcodeRenderInput {
-    return {
-      ...input,
-      content: normalizeBarcodeContent(input.format, input.content),
-      barColor: input.barColor.toLowerCase(),
-      backgroundColor: input.backgroundColor.toLowerCase(),
-    };
-  }
-
-  private getActivityRange(
-    period: BulkBarcodeActivityPeriod,
-    value: string,
-  ): ActivityRange {
-    if (period === 'week') {
-      return this.getWeekRange(value);
-    }
-
-    if (period === 'month') {
-      return this.getMonthRange(value);
-    }
-
-    if (period === 'year') {
-      return this.getYearRange(value);
-    }
-
-    throw new BadRequestException({
-      message: 'Period must be week, month, or year',
-      error: 'Bad Request',
-    });
-  }
-
-  private getWeekRange(value: string): ActivityRange {
-    const match = /^(\d{4})-W(\d{2})$/.exec(value);
-    if (!match) {
-      throw this.invalidActivityDate('week');
-    }
-
-    const year = Number(match[1]);
-    const week = Number(match[2]);
-    if (year < 1000 || year > 9999 || week < 1 || week > 53) {
-      throw this.invalidActivityDate('week');
-    }
-
-    const januaryFourth = new Date(Date.UTC(year, 0, 4));
-    const januaryFourthDay = januaryFourth.getUTCDay() || 7;
-    const firstMonday = new Date(januaryFourth);
-    firstMonday.setUTCDate(januaryFourth.getUTCDate() - januaryFourthDay + 1);
-
-    const start = new Date(firstMonday);
-    start.setUTCDate(firstMonday.getUTCDate() + (week - 1) * 7);
-    const end = new Date(start);
-    end.setUTCDate(start.getUTCDate() + 7);
-
-    return {
-      start,
-      end,
-      previousStart: new Date(start.getTime() - 7 * 86400000),
-      previousEnd: new Date(start),
-      labels: this.getDailyLabels(start, 7),
-      mongoDateFormat: '%Y-%m-%d',
-    };
-  }
-
-  private getMonthRange(value: string): ActivityRange {
-    const match = /^(\d{4})-(0[1-9]|1[0-2])$/.exec(value);
-    if (!match) {
-      throw this.invalidActivityDate('month');
-    }
-
-    const year = Number(match[1]);
-    const monthIndex = Number(match[2]) - 1;
-    const start = new Date(Date.UTC(year, monthIndex, 1));
-    const end = new Date(Date.UTC(year, monthIndex + 1, 1));
-    const previousStart = new Date(Date.UTC(year, monthIndex - 1, 1));
-    const days = Math.round(
-      (end.getTime() - start.getTime()) / (24 * 60 * 60 * 1000),
-    );
-
-    return {
-      start,
-      end,
-      previousStart,
-      previousEnd: new Date(start),
-      labels: this.getDailyLabels(start, days),
-      mongoDateFormat: '%Y-%m-%d',
-    };
-  }
-
-  private getYearRange(value: string): ActivityRange {
-    if (!/^\d{4}$/.test(value)) {
-      throw this.invalidActivityDate('year');
-    }
-
-    const year = Number(value);
-    const start = new Date(Date.UTC(year, 0, 1));
-    const end = new Date(Date.UTC(year + 1, 0, 1));
-
-    return {
-      start,
-      end,
-      previousStart: new Date(Date.UTC(year - 1, 0, 1)),
-      previousEnd: new Date(start),
-      labels: Array.from(
-        { length: 12 },
-        (_, index) => `${year}-${String(index + 1).padStart(2, '0')}`,
-      ),
-      mongoDateFormat: '%Y-%m',
-    };
-  }
-
-  private getDailyLabels(start: Date, count: number): string[] {
-    return Array.from({ length: count }, (_, index) => {
-      const date = new Date(start);
-      date.setUTCDate(start.getUTCDate() + index);
-      return date.toISOString().slice(0, 10);
-    });
-  }
-
-  private invalidActivityDate(period: string) {
-    return new BadRequestException({
-      message: `Date is invalid for the selected ${period} period`,
-      error: 'Bad Request',
-    });
   }
 
   private async getAuthenticatedUserId(

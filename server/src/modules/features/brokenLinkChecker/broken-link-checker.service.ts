@@ -322,7 +322,7 @@ export class BrokenLinkCheckerService {
 
       const response = await this.fetchWithoutRedirect(currentUrl, 'HEAD');
       const finalResponse =
-        response.status === 405 
+        response.status === 405
           ? await this.fetchWithoutRedirect(currentUrl, 'GET')
           : response;
 
@@ -572,14 +572,16 @@ export class BrokenLinkCheckerService {
     const parsedUrl = new URL(url); // this is used to parse the url and get the hostname
     const host = parsedUrl.hostname.toLowerCase(); // this is used to get the hostname and convert it to lowercase
 
-    if (this.isBlockedHost(host)) { // this is used to check if the host is blocked
+    if (this.isBlockedHost(host)) {
+      // this is used to check if the host is blocked
       throw new BadRequestException({
         message: 'URL must point to a public internet host',
         error: 'Bad Request', // this is used to return a bad request exception
       });
     }
 
-    if (isIP(host)) { // this is used to check if the host is an IP address
+    if (isIP(host)) {
+      // this is used to check if the host is an IP address
       return; // this is used to return if the host is an IP address
     }
 

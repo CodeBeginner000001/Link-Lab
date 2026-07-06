@@ -22,6 +22,7 @@ import {
   BulkBarcodeGeneratorService,
   PaginatedBulkBarcodesResponse,
 } from './bulk-barcode-generator.service';
+import { UploadedBarcodeFile } from './bulk-barcode-parser.service';
 import { BulkBarcodeTemplateService } from './bulk-barcode-template.service';
 import {
   GenerateBulkBarcodeDto,
@@ -30,13 +31,6 @@ import {
 
 type AuthenticatedRequest = Request & {
   user?: JwtPayload;
-};
-
-type UploadedCsvFile = {
-  originalname: string;
-  mimetype: string;
-  size: number;
-  buffer: Buffer;
 };
 
 @Controller('v1/bulk-barcodes')
@@ -53,7 +47,7 @@ export class BulkBarcodeGeneratorController {
     }),
   )
   generate(
-    @UploadedFile() file: UploadedCsvFile | undefined,
+    @UploadedFile() file: UploadedBarcodeFile | undefined,
     @Body() dto: GenerateBulkBarcodeDto,
     @Req() req: AuthenticatedRequest,
   ) {

@@ -45,7 +45,17 @@ async function bootstrap() {
   app.useLogger(logger);
   app.enableCors({
     origin: [process.env.CORS_ALLOWED_ORIGINS],
-    methods: 'GET,PUT,PATCH,POST,DELETE',
+    methods: 'GET,PUT,PATCH,POST,DELETE, OPTIONS',
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'X-Requested-With',
+      'X-Internal-Api-Key',
+    ],
+    exposedHeaders: ['Content-Range', 'X-Total-Count'],
+    maxAge: 600,
+    optionsSuccessStatus: 204,
+    preflightContinue: false,
     credentials: true,
   });
 

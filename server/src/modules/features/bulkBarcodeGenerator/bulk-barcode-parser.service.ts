@@ -48,24 +48,8 @@ export class BulkBarcodeParserService {
       return [];
     }
 
-    const headers = this.parseCsvLine(lines[0]).map((header) =>
-      header.trim().toLowerCase(),
-    );
-    const contentIndex = headers.indexOf('content');
-    const formatIndex = headers.indexOf('format');
-    const labelIndex = headers.indexOf('label');
-
-    this.assertRequiredHeaders(contentIndex, formatIndex);
-
-    return lines.slice(1).map((line, index) => {
-      const cells = this.parseCsvLine(line);
-      return {
-        row: index + 2,
-        content: cells[contentIndex]?.trim() ?? '',
-        format: cells[formatIndex]?.trim().toUpperCase() ?? '',
-        label: labelIndex >= 0 ? cells[labelIndex]?.trim() : undefined,
-      };
-    });
+    const tableRows = lines.map((line) => this.parseCsvLine(line));
+    return this.mapTableRows(tableRows);
   }
 
   private parseJson(contents: string): ParsedBarcodeRow[] {
@@ -90,24 +74,33 @@ export class BulkBarcodeParserService {
 
     if (!rows) {
       throw new BadRequestException({
-        message: 'JSON template must be an array or an object with an items array',
+        message:
+          'JSON template must be an array or an object with an items array',
         error: 'Bad Request',
       });
     }
 
     return rows.map((item, index) => {
-      const row = item && typeof item === 'object' ? item : {};
-      const record = row as Record<string, unknown>;
+      const record =
+        item && typeof item === 'object'
+          ? (item as Record<string, unknown>)
+          : {};
+      const content =
+        typeof record.content === 'string' || typeof record.content === 'number'
+          ? String(record.content).trim()
+          : '';
+      const format =
+        typeof record.format === 'string' || typeof record.format === 'number'
+          ? String(record.format).trim().toUpperCase()
+          : '';
+      const label =
+        record.label === undefined || record.label === null
+          ? undefined
+          : typeof record.label === 'string' || typeof record.label === 'number'
+            ? String(record.label).trim()
+            : undefined;
 
-      return {
-        row: index + 1,
-        content: String(record.content ?? '').trim(),
-        format: String(record.format ?? '').trim().toUpperCase(),
-        label:
-          record.label === undefined || record.label === null
-            ? undefined
-            : String(record.label).trim(),
-      };
+      return { row: index + 1, content, format, label };
     });
   }
 
@@ -131,12 +124,21 @@ export class BulkBarcodeParserService {
       return [];
     }
 
+    return this.mapTableRows(rows);
+  }
+
+  private mapTableRows(rows: string[][]): ParsedBarcodeRow[] {
     const headers = rows[0].map((header) => header.trim().toLowerCase());
     const contentIndex = headers.indexOf('content');
     const formatIndex = headers.indexOf('format');
     const labelIndex = headers.indexOf('label');
 
-    this.assertRequiredHeaders(contentIndex, formatIndex);
+    if (contentIndex === -1 || formatIndex === -1) {
+      throw new BadRequestException({
+        message: 'Upload must include content and format columns',
+        error: 'Bad Request',
+      });
+    }
 
     return rows.slice(1).map((row, index) => ({
       row: index + 2,
@@ -158,8 +160,14 @@ export class BulkBarcodeParserService {
         const attributes = cellMatch[1];
         const body = cellMatch[2];
         const reference = /r="([A-Z]+)\d+"/.exec(attributes)?.[1];
-        const columnIndex = reference ? columnNameToIndex(reference) - 1 : rowCells.length;
-        rowCells[columnIndex] = this.getCellValue(attributes, body, sharedStrings);
+        const columnIndex = reference
+          ? columnNameToIndex(reference) - 1
+          : rowCells.length;
+        rowCells[columnIndex] = this.getCellValue(
+          attributes,
+          body,
+          sharedStrings,
+        );
       }
 
       rows.push(rowCells);
@@ -236,15 +244,6 @@ export class BulkBarcodeParserService {
     return cells;
   }
 
-  private assertRequiredHeaders(contentIndex: number, formatIndex: number) {
-    if (contentIndex === -1 || formatIndex === -1) {
-      throw new BadRequestException({
-        message: 'Upload must include content and format columns',
-        error: 'Bad Request',
-      });
-    }
-  }
-
   private getExtension(filename: string) {
     const lowerName = filename.trim().toLowerCase();
     const dotIndex = lowerName.lastIndexOf('.');
@@ -274,7 +273,8 @@ function readZip(buffer: Buffer) {
       .toString('utf8');
     const localNameLength = buffer.readUInt16LE(localHeaderOffset + 26);
     const localExtraLength = buffer.readUInt16LE(localHeaderOffset + 28);
-    const dataStart = localHeaderOffset + 30 + localNameLength + localExtraLength;
+    const dataStart =
+      localHeaderOffset + 30 + localNameLength + localExtraLength;
     const dataEnd = dataStart + compressedSize;
     const data = buffer.subarray(dataStart, dataEnd);
 

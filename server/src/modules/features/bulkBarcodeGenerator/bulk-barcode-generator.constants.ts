@@ -7,4 +7,4 @@ export const BULK_BARCODE_ALLOWED_EXTENSIONS = [
   '.json',
 ] as const;
 export const DEFAULT_BULK_BARCODE_PAGE_LIMIT = 10;
-export const MAX_BULK_BARCODE_PAGE_LIMIT = 50;
+export const MAX_BULK_BARCODE_PAGE_LIMIT = 100;
