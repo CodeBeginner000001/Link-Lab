@@ -403,12 +403,13 @@ sequenceDiagram
 ## URL Shortener Flow
 
 Pages involved:
-- `src/app/(protected)/dashboard/url-shortener/page.tsx`
-- `src/modules/dashboard/pages/URLShortener.tsx` — async server component, fetches initial list
-- `src/modules/dashboard/component/url-shortener/URLShortenerForm.tsx` — create link
-- `src/modules/dashboard/component/url-shortener/URLShortenerUrlsPanel.tsx` — list links
-- `src/modules/dashboard/component/url-shortener/URLShortenerAnalyticsPanel.tsx` — click analytics
-- `src/modules/dashboard/component/url-shortener/URLShortenerDeleteModal.tsx` — confirm delete
+- `src/app/(protected)/dashboard/[slug]/page.tsx`
+- `src/modules/dashboard/schema-driven/SchemaToolPage.tsx` — renders schema-configured tool pages
+- `src/modules/dashboard/schema-driven/examples/url-shortener.schema.ts` — URL shortener schema
+- `src/modules/dashboard/schema-driven/SchemaForm.tsx` — create link from schema fields
+- `src/modules/dashboard/schema-driven/SchemaDataPanel.tsx` — schema-configured list and pagination
+- `src/modules/dashboard/schema-driven/custom-slots/URLShortenerLinksDataSlot.tsx` — URL shortener list details
+- `src/modules/dashboard/schema-driven/custom-slots/url-shortener/URLShortenerDeleteModal.tsx` — confirm delete
 - `src/service/dashboard/url-shortener/index.ts` — `GetUserShortUrls`, `CreateShortUrl`, `DeleteShortUrl`
 - `src/service/request-with-refresh.ts` — wraps all feature calls, retries on 401
 
@@ -422,8 +423,8 @@ Pages involved:
 ```mermaid
 sequenceDiagram
     actor User
-    participant Page as URLShortener server component
-    participant Form as URLShortenerForm client component
+    participant Page as Schema-driven page
+    participant Form as SchemaForm client component
     participant FeatureProxy as /api/features
     participant AuthProxy as /api/auth/backend
     participant NestJS as NestJS /v1
@@ -431,7 +432,7 @@ sequenceDiagram
     Note over Page: server render — forward Cookie header
     Page->>NestJS: GET /short-urls (direct, with Cookie)
     NestJS-->>Page: list of short URLs with analytics
-    Page-->>User: render form + URL list + analytics panel
+    Page-->>User: render schema form + data + analytics panels
 
     User->>Form: enter longUrl and optional alias
     Form->>FeatureProxy: POST /short-urls { longUrl, customAlias }

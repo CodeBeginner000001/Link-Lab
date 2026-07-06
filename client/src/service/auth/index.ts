@@ -1,4 +1,4 @@
-import { BACKEND_API_URL_ENV } from "@/config/api";
+import { BACKEND_API_URL } from "@/utils/env";
 import {
   ApiErrorResponse,
   ApiSuccessResponse,
@@ -14,7 +14,6 @@ import {
   VerifySignUpOTPApiSuccessResponse,
 } from "@/service/auth/types";
 
-const BACKEND_API_URL = BACKEND_API_URL_ENV;
 const FRONTEND_AUTH_API_URL = "/api/auth/backend";
 
 const createServiceUnavailableError = (path: string): ApiErrorResponse => ({

@@ -12,6 +12,7 @@ export interface ErrorResponse {
   statusCode: number;
   message: string | string[];
   error: string;
+  saved?: boolean;
   timeStamp: string;
   path: string;
 }

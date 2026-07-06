@@ -45,7 +45,7 @@ export default function LoginForm() {
 
     if (loginResult.result?.success) {
       notify(loginResult.result.data.message, "success");
-      router.replace("/dashboard/url-shortener");
+      router.replace("/dashboard");
       router.refresh();
       return;
     }

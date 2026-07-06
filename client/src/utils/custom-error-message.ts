@@ -1,4 +1,19 @@
-import { CustomErrorApiResponse } from "@/service/auth/types";
+import { ApiErrorResponse, CustomErrorApiResponse } from "@/service/auth/types";
+
+type ApiErrorLike = Partial<ApiErrorResponse> & {
+  message?: unknown;
+  error?: unknown;
+  details?: unknown;
+};
+
+type ApiResultLike = {
+  error?: ApiErrorLike;
+  result?: {
+    data?: {
+      message?: unknown;
+    };
+  };
+};
 
 type FormFieldErrors<TField extends string> = Partial<Record<TField, string>>;
 
@@ -21,6 +36,70 @@ export function parseErrorMessage(message: string) {
   };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function collectDetailMessages(details: unknown): string[] {
+  if (!Array.isArray(details)) {
+    return [];
+  }
+
+  return details.flatMap((detail) => {
+    if (!isRecord(detail)) {
+      return [];
+    }
+
+    const constraints = detail.constraints;
+    const childMessages = collectDetailMessages(detail.children);
+
+    if (isRecord(constraints)) {
+      const messages = Object.values(constraints).filter(
+        (message): message is string => typeof message === "string",
+      );
+
+      return [...messages, ...childMessages];
+    }
+
+    return childMessages;
+  });
+}
+
+export function getApiErrorMessages(error: ApiErrorLike | null | undefined) {
+  if (!error) {
+    return [];
+  }
+
+  const message = error.message;
+
+  if (Array.isArray(message)) {
+    return message
+      .flatMap((item) => (typeof item === "string" ? [item] : []))
+      .filter(Boolean);
+  }
+
+  if (typeof message === "string" && message.trim()) {
+    return [message];
+  }
+
+  const detailMessages = collectDetailMessages(error.details);
+
+  if (detailMessages.length) {
+    return detailMessages;
+  }
+
+  return typeof error.error === "string" && error.error.trim()
+    ? [error.error]
+    : [];
+}
+
+export function getApiErrorMessage(
+  error: ApiErrorLike | null | undefined,
+  fallback = "Request failed. Please try again.",
+) {
+  return getApiErrorMessages(error)[0] ?? fallback;
+}
+
 export function getFormFieldErrors<TField extends string>(
   res: CustomErrorApiResponse,
   fields: readonly TField[],
@@ -32,9 +111,7 @@ export function getFormFieldErrors<TField extends string>(
     return null;
   }
 
-  const messages = Array.isArray(res.error.message)
-    ? res.error.message
-    : [res.error.message];
+  const messages = getApiErrorMessages(res.error);
   const allowedFields = new Set(fields);
   const fieldErrors: FormFieldErrors<TField> = {};
 
@@ -74,16 +151,14 @@ export function handleFormFieldErrors<TField extends string>(
   return true;
 }
 
-export function getUserFriendlyMessage(res: CustomErrorApiResponse) {
+export function getUserFriendlyMessage(
+  res: CustomErrorApiResponse | ApiResultLike,
+) {
   if ("error" in res) {
-    const message = res.error.message as string[] | string;
-
-    if (Array.isArray(message)) {
-      return message[0] || "Service unavailable";
-    }
-
-    return message || "Service unavailable";
+    return getApiErrorMessage(res.error, "Service unavailable");
   }
 
-  return res.result.data?.message;
+  const successMessage = res.result?.data?.message;
+
+  return typeof successMessage === "string" ? successMessage : "";
 }

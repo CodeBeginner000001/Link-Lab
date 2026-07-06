@@ -1,8 +1,8 @@
 // src/services/api/requestWithRefresh.ts
-import { BACKEND_API_URL_ENV } from "@/config/api";
+import { BACKEND_API_URL } from "@/utils/env";
+import { getApiErrorMessage } from "@/utils/custom-error-message";
 import { ApiErrorResponse } from "./auth/types";
 
-const BACKEND_API_URL = BACKEND_API_URL_ENV;
 const FRONTEND_AUTH_API_URL = "/api/auth/backend";
 export type ApiResult<T> =
   | { statusCode: number; result: T }
@@ -35,13 +35,7 @@ const safeJson = async <T>(response: Response): Promise<T | null> => {
 };
 
 const getErrorMessage = (error: ApiErrorResponse | null): string | null => {
-  if (!error) {
-    return null;
-  }
-
-  return Array.isArray(error.message)
-    ? error.message[0] ?? null
-    : error.message ?? null;
+  return getApiErrorMessage(error, "") || null;
 };
 
 const shouldRefreshToken = (

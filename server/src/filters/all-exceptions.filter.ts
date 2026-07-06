@@ -14,11 +14,17 @@ const VALIDATION_CONSTRAINT_PRIORITY = [
   'isNotEmpty',
   'isNotEmptyObject',
   'isString',
+  'isUrl',
+  'isEnum',
+  'isBoolean',
+  'isInt',
   'isEmail',
   'minLength',
   'length',
   'matches',
   'maxLength',
+  'min',
+  'max',
 ] as const;
 
 function pickValidationMessage(
@@ -92,6 +98,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message?: string | string[];
           error?: string;
           details?: unknown;
+          saved?: boolean;
         };
 
         if (isValidationErrorArray(exceptionObj.details)) {
@@ -115,6 +122,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode,
       message,
       error,
+      ...(exception instanceof HttpException &&
+      typeof exception.getResponse() === 'object' &&
+      exception.getResponse() !== null &&
+      (exception.getResponse() as { saved?: boolean }).saved === true
+        ? { saved: true }
+        : {}),
       timeStamp: new Date().toISOString(),
       path: request.originalUrl || request.url,
     };

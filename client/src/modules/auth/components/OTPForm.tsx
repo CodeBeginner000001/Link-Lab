@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/InputOTP";
 import { ResendOTP, VerifySignUpOTP } from "@/service/auth";
 import {
+  getApiErrorMessages,
   parseErrorMessage,
   getUserFriendlyMessage,
 } from "@/utils/custom-error-message";
@@ -47,7 +48,7 @@ export default function SignUpOTPForm({
     }
     notify(getUserFriendlyMessage(resendOTP), "error");
     if (
-      resendOTP.error?.message.some(
+      getApiErrorMessages(resendOTP.error).some(
         (message) =>
           parseErrorMessage(message).error ===
           "Session expired, Please start again",
@@ -71,13 +72,13 @@ export default function SignUpOTPForm({
     setLoading(false);
     if (verifyOTP.result) {
       notify(verifyOTP.result.data.message, "success");
-      router.replace("/dashboard/url-shortener");
+      router.replace("/dashboard");
       router.refresh();
       return;
     }
     notify(getUserFriendlyMessage(verifyOTP), "error");
     if (
-      verifyOTP.error?.message.some(
+      getApiErrorMessages(verifyOTP.error).some(
         (message) =>
           parseErrorMessage(message).error ===
           "Session expired, Please start again",

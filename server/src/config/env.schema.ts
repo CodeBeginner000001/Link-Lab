@@ -7,8 +7,8 @@ export const envSchema = z
     PORT: z.coerce.number().int().positive().default(3000),
     // URLs
     CORS_ALLOWED_ORIGINS: z.string().optional(),
-    BACKEND_URL: z.string().default('https://linklab-server.vercel.app/v1'),
-    FRONTEND_URL: z.string().default('https://linklab-solutions.vercel.app'),
+    BACKEND_URL: z.string(),
+    FRONTEND_URL: z.string(),
     // MongoDB connection
     MONGO_URI: z.string().trim().min(1).default('mongodb://127.0.0.1:27017'),
     MONGO_DB: z.string().trim().min(1).default('linklab'),
@@ -76,6 +76,7 @@ export const envSchema = z
     SIGNUP_SESSION_TTL_MINUTES: z.coerce.number().positive().default(60),
     FORGOT_PASSWORD_TTL_MINUTES: z.coerce.number().positive().default(10),
     CRON_SECRET: z.coerce.string(),
+    GOOGLE_SAFE_BROWSING_API_KEY: z.string().trim().optional(),
   })
   .superRefine((env, ctx) => {
     if (!env.REDIS_HOST && !env.UPSTASH_REDIS_URL) {

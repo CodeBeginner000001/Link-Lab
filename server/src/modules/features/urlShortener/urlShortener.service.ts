@@ -36,7 +36,7 @@ import {
   deleteCacheKeys,
   getHashFields,
   getJsonCache,
-  incrementHashField,
+  recordShortUrlAnalyticsClick,
   setHashFields,
   warmJsonCache,
 } from '../utils/redis-helper.utils';
@@ -51,7 +51,7 @@ import {
 } from './urlShortener.constants';
 import {
   CreateShortUrlDto,
-  GetUserShortUrlsDto,
+  GetPaginatedShortUrlsDto,
   UpdateShortUrlDto,
 } from './dto/short-url.dto';
 
@@ -80,6 +80,12 @@ type SerializedShortUrl = {
   lastClickedAt: string | Date | null;
   createdAt: Date | null;
   updatedAt: Date | null;
+};
+
+type ShortUrlAnalyticsSummary = {
+  total: number;
+  totalClicks: number;
+  topAlias: string | null;
 };
 
 @Injectable()
@@ -184,26 +190,36 @@ export class UrlShortenerService {
     throw new ShortUrlAliasGenerationFailedException();
   }
 
-  async getUserShortUrls(user: JwtPayload, query: GetUserShortUrlsDto) {
+  async getPaginatedData(user: JwtPayload, query: GetPaginatedShortUrlsDto) {
     const userId = await this.getAuthenticatedUserId(user);
 
-    const limit = query.limit ?? DEFAULT_SHORT_URL_PAGE_LIMIT;
+    const limit: number = query.limit ?? DEFAULT_SHORT_URL_PAGE_LIMIT;
+    const currentPage: number = query.page ?? 1;
     const cursorId = query.cursor
       ? toObjectId(query.cursor, 'Cursor id is invalid')
       : null;
+    const skip = cursorId ? 0 : (currentPage - 1) * limit;
 
-    const shortUrls = await this.shortUrlModel
-      .find({
-        userId,
-        status: ShortUrlStatus.ACTIVE,
-        ...(cursorId ? { _id: { $lt: cursorId } } : {}),
-      })
-      .sort({ _id: -1 })
-      .limit(limit + 1)
-      .exec();
+    const baseFilter = {
+      userId,
+      status: ShortUrlStatus.ACTIVE,
+    };
 
-    const hasmore = shortUrls.length > limit;
-    const currentPageItems = hasmore ? shortUrls.slice(0, limit) : shortUrls;
+    const [shortUrls, total] = await Promise.all([
+      this.shortUrlModel
+        .find({
+          ...baseFilter,
+          ...(cursorId ? { _id: { $lt: cursorId } } : {}),
+        })
+        .sort({ _id: -1 })
+        .skip(skip)
+        .limit(limit + 1)
+        .exec(),
+      this.shortUrlModel.countDocuments(baseFilter).exec(),
+    ]);
+
+    const hasMore = shortUrls.length > limit;
+    const currentPageItems = hasMore ? shortUrls.slice(0, limit) : shortUrls;
     const items: SerializedShortUrl[] = [];
 
     for (const shortUrl of currentPageItems) {
@@ -223,10 +239,53 @@ export class UrlShortenerService {
     return {
       items,
       pagination: {
-        hasmore,
+        totalItems: total,
+        totalPages: Math.ceil(total / limit),
+        hasMore,
+        page: currentPage,
         limit,
         cursor: nextCursor,
       },
+    };
+  }
+
+  async getShortUrlAnalytics(
+    user: JwtPayload,
+  ): Promise<ShortUrlAnalyticsSummary> {
+    const userId = await this.getAuthenticatedUserId(user);
+    const shortUrls = await this.shortUrlModel
+      .find({
+        userId,
+        status: ShortUrlStatus.ACTIVE,
+      })
+      .sort({ _id: -1 })
+      .exec();
+
+    let totalClicks = 0;
+    let topShortUrl: SerializedShortUrl | null = null;
+
+    for (const shortUrl of shortUrls) {
+      const analytics = await this.getAnalytics(shortUrl.alias);
+      const serialized = this.serializeShortUrl(
+        shortUrl,
+        analytics.count,
+        analytics.lastClickedAt,
+      );
+
+      totalClicks += serialized.totalClicks;
+
+      if (
+        topShortUrl === null ||
+        serialized.totalClicks > topShortUrl.totalClicks
+      ) {
+        topShortUrl = serialized;
+      }
+    }
+
+    return {
+      total: shortUrls.length,
+      totalClicks,
+      topAlias: topShortUrl?.alias ?? null,
     };
   }
 
@@ -398,20 +457,7 @@ export class UrlShortenerService {
     const clickedAt = new Date().toISOString();
 
     if (cached?.status === ShortUrlStatus.ACTIVE) {
-      await incrementHashField({
-        client: this.redisService.client,
-        key: getShortUrlAnalyticsKey(alias),
-        field: 'count',
-        by: 1,
-      });
-
-      await setHashFields({
-        client: this.redisService.client,
-        key: getShortUrlAnalyticsKey(alias),
-        value: {
-          lastClickedAt: clickedAt,
-        },
-      });
+      await this.recordClick(alias, clickedAt);
 
       return cached.longUrl;
     }
@@ -425,21 +471,7 @@ export class UrlShortenerService {
     }
 
     await this.warmCache(shortUrl);
-
-    await incrementHashField({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      field: 'count',
-      by: 1,
-    });
-
-    await setHashFields({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      value: {
-        lastClickedAt: clickedAt,
-      },
-    });
+    await this.recordClick(alias, clickedAt);
 
     return shortUrl.longUrl;
   }
@@ -514,32 +546,46 @@ export class UrlShortenerService {
       status: shortUrl.status,
     };
 
-    await warmJsonCache({
-      client: this.redisService.client,
-      key: getShortUrlLookupKey(shortUrl.alias),
-      value: payload,
-    });
+    try {
+      await warmJsonCache({
+        client: this.redisService.client,
+        key: getShortUrlLookupKey(shortUrl.alias),
+        value: payload,
+      });
+    } catch {
+      return;
+    }
   }
 
   private async initializeAnalytics(alias: string): Promise<void> {
-    await setHashFields({
-      client: this.redisService.client,
-      key: getShortUrlAnalyticsKey(alias),
-      value: {
-        count: 0,
-        lastClickedAt: null,
-      },
-    });
+    try {
+      await setHashFields({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        value: {
+          count: 0,
+          lastClickedAt: null,
+        },
+      });
+    } catch {
+      return;
+    }
   }
 
   private async getAnalytics(alias: string): Promise<{
     count: number;
     lastClickedAt: string | null;
   }> {
-    const analytics = await getHashFields<ShortUrlAnalytics>(
-      this.redisService.client,
-      getShortUrlAnalyticsKey(alias),
-    );
+    let analytics: ShortUrlAnalytics | null = null;
+
+    try {
+      analytics = await getHashFields<ShortUrlAnalytics>(
+        this.redisService.client,
+        getShortUrlAnalyticsKey(alias),
+      );
+    } catch {
+      analytics = null;
+    }
 
     const count = parseNonNegativeInt(
       analytics?.count !== undefined && analytics?.count !== null
@@ -569,10 +615,16 @@ export class UrlShortenerService {
   private async getCachedShortUrl(
     alias: string,
   ): Promise<ShortUrlCacheEntry | null> {
-    const parsed = await getJsonCache<Partial<ShortUrlCacheEntry>>(
-      this.redisService.client,
-      getShortUrlLookupKey(alias),
-    );
+    let parsed: Partial<ShortUrlCacheEntry> | null = null;
+
+    try {
+      parsed = await getJsonCache<Partial<ShortUrlCacheEntry>>(
+        this.redisService.client,
+        getShortUrlLookupKey(alias),
+      );
+    } catch {
+      parsed = null;
+    }
 
     if (!parsed) {
       return null;
@@ -597,5 +649,27 @@ export class UrlShortenerService {
           ? ShortUrlStatus.DISABLED
           : ShortUrlStatus.ACTIVE,
     };
+  }
+
+  private async recordClick(alias: string, clickedAt: string): Promise<void> {
+    try {
+      await recordShortUrlAnalyticsClick({
+        client: this.redisService.client,
+        key: getShortUrlAnalyticsKey(alias),
+        clickedAt,
+      });
+
+      return;
+    } catch {
+      await this.shortUrlModel
+        .updateOne(
+          { alias, status: ShortUrlStatus.ACTIVE },
+          {
+            $inc: { clicksPersisted: 1 },
+            $set: { lastClickedAt: new Date(clickedAt) },
+          },
+        )
+        .exec();
+    }
   }
 }

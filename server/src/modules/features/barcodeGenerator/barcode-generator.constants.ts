@@ -29,6 +29,11 @@ export const BARCODE_FORMATS = [
     label: 'Code 128',
     description: 'General-purpose barcode for text and numbers.',
     contentRule: 'Any text up to 128 characters',
+    rules: [
+      'Accepts letters, numbers, symbols, and spaces.',
+      'Use 1 to 128 characters.',
+      'No check digit is required from the user.',
+    ],
     input: {
       inputMode: 'text',
       placeholder: 'LINKLAB-2025',
@@ -42,7 +47,13 @@ export const BARCODE_FORMATS = [
     value: BarcodeFormat.EAN13,
     label: 'EAN-13',
     description: 'Retail product barcode used internationally.',
-    contentRule: '12 or 13 digits',
+    contentRule:
+      '12 digits to auto-generate the final check digit, or 13 digits with a valid final check digit',
+    rules: [
+      'Use digits only.',
+      'Enter 12 digits and Link Lab will calculate the 13th check digit.',
+      'If you enter 13 digits, the last digit must be the valid EAN-13 check digit.',
+    ],
     input: {
       inputMode: 'numeric',
       placeholder: '5901234123457',
@@ -56,7 +67,13 @@ export const BARCODE_FORMATS = [
     value: BarcodeFormat.UPCA,
     label: 'UPC-A',
     description: 'Retail product barcode commonly used in North America.',
-    contentRule: '11 or 12 digits',
+    contentRule:
+      '11 digits to auto-generate the final check digit, or 12 digits with a valid final check digit',
+    rules: [
+      'Use digits only.',
+      'Enter 11 digits and Link Lab will calculate the 12th check digit.',
+      'If you enter 12 digits, the last digit must be the valid UPC-A check digit.',
+    ],
     input: {
       inputMode: 'numeric',
       placeholder: '012345678905',
@@ -71,6 +88,11 @@ export const BARCODE_FORMATS = [
     label: 'Code 39',
     description: 'Alphanumeric barcode for inventory and industrial use.',
     contentRule: 'Uppercase letters, digits, space, and -.$/+%',
+    rules: [
+      'Accepts uppercase letters A-Z, digits, spaces, and - . $ / + %.',
+      'Lowercase letters are converted to uppercase before generation.',
+      'No check digit is required from the user.',
+    ],
     input: {
       inputMode: 'text',
       placeholder: 'PRODUCT-001',
@@ -84,7 +106,13 @@ export const BARCODE_FORMATS = [
     value: BarcodeFormat.ITF14,
     label: 'ITF-14',
     description: 'Shipping-container barcode for trade items.',
-    contentRule: '13 or 14 digits',
+    contentRule:
+      '13 digits to auto-generate the final check digit, or 14 digits with a valid final check digit',
+    rules: [
+      'Use digits only.',
+      'Enter 13 digits and Link Lab will calculate the 14th check digit.',
+      'If you enter 14 digits, the last digit must be the valid ITF-14 check digit.',
+    ],
     input: {
       inputMode: 'numeric',
       placeholder: '12345678901231',

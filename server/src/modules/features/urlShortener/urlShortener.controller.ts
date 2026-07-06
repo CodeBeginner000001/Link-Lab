@@ -15,7 +15,7 @@ import { JwtPayload } from 'src/interfaces/auth.interface';
 import { UrlShortenerService } from './urlShortener.service';
 import {
   CreateShortUrlDto,
-  GetUserShortUrlsDto,
+  GetPaginatedShortUrlsDto,
   UpdateShortUrlDto,
 } from './dto/short-url.dto';
 
@@ -40,15 +40,24 @@ export class UrlShortenerController {
   }
 
   @Get()
-  async getUserShortUrls(
-    @Query() query: GetUserShortUrlsDto,
+  async getPaginatedData(
+    @Query() query: GetPaginatedShortUrlsDto,
     @Req() req: AuthenticatedRequest,
   ) {
     if (!req.user) {
       throw new AccessTokenExpired();
     }
 
-    return this.urlShortenerService.getUserShortUrls(req.user, query);
+    return this.urlShortenerService.getPaginatedData(req.user, query);
+  }
+
+  @Get('analytics')
+  async getShortUrlAnalytics(@Req() req: AuthenticatedRequest) {
+    if (!req.user) {
+      throw new AccessTokenExpired();
+    }
+
+    return this.urlShortenerService.getShortUrlAnalytics(req.user);
   }
 
   @Get(':id')

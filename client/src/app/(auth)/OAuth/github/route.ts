@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/OAuth";
-
-const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL!;
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL!;
+import { APP_URL, BACKEND_API_URL } from "@/utils/env";
 
 export async function GET() {
   try {
@@ -15,7 +13,7 @@ export async function GET() {
       );
     }
 
-    const backendRes = await fetch(`${BACKEND_URL}/auth/oauth/github/exchange`, {
+    const backendRes = await fetch(`${BACKEND_API_URL}/auth/oauth/github/exchange`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -54,7 +52,7 @@ export async function GET() {
       );
     }
 
-    const response = NextResponse.redirect(new URL("/dashboard/url-shortener", APP_URL));
+    const response = NextResponse.redirect(new URL("/dashboard", APP_URL));
 
     response.cookies.set("access_token", data.accessToken, {
       httpOnly: true,
