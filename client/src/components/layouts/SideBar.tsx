@@ -60,7 +60,7 @@ export default function SideBar({
       </div>
 
       <nav className="flex flex-col gap-2 flex-1 overflow-y-auto p-4">
-        {/* <Link
+        <Link
           href="/dashboard"
           onClick={() => setIsMobileOpen(false)}
           className={cn(
@@ -79,7 +79,7 @@ export default function SideBar({
           >
             Dashboard
           </span>
-        </Link> */}
+        </Link>
 
         <div
           className={cn(
@@ -116,7 +116,7 @@ export default function SideBar({
         ))}
       </nav>
 
-      <div className="p-4">
+      {/* <div className="p-4">
         <Link
           href="/dashboard/settings"
           onClick={() => setIsMobileOpen(false)}
@@ -137,7 +137,7 @@ export default function SideBar({
             Settings
           </span>
         </Link>
-      </div>
+      </div> */}
     </aside>
   );
 }

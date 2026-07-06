@@ -82,7 +82,7 @@ const UserAvatar = () => {
           <p className="text-sm font-medium">{user?.name}</p>
           <p className="text-xs text-muted-foreground">{user?.email}</p>
         </div>
-        <DropdownMenuSeparator />
+        {/* <DropdownMenuSeparator />
         <DropdownMenuItem asChild>
           <Link
             href="#"
@@ -92,11 +92,11 @@ const UserAvatar = () => {
             Profile Settings
           </Link>
         </DropdownMenuItem>
-        <DropdownMenuSeparator />
+        <DropdownMenuSeparator /> */}
         <DropdownMenuItem
           onSelect={handleLogOut}
           disabled={isLoggingOut}
-          className="text-[hsl(var(--destructive))] flex items-center focus:text-[hsl(var(--destructive))] cursor-pointer px-4 py-2 focus-visible:outline-none hover:bg-[hsl(var(--secondary))] disabled:pointer-events-none disabled:opacity-60"
+          className="text-[hsl(var(--destructive))] flex items-center focus:text-[hsl(var(--destructive))] border-t border-[hsl(var(--sidebar-border))] cursor-pointer px-4 py-2 focus-visible:outline-none hover:bg-[hsl(var(--secondary))] disabled:pointer-events-none disabled:opacity-60"
         >
           <LogOut className="h-4 w-4 mr-2" />
           {isLoggingOut ? "Signing Out..." : "Sign Out"}

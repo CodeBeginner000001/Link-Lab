@@ -20,7 +20,7 @@ export default async function AuthLayout({
   const user = accessToken ? await GetCurrentUser(accessToken) : null;
 
   if (user) {
-    redirect("/dashboard/url-shortener");
+    redirect("/dashboard");
   }
 
   return (

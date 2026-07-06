@@ -14,6 +14,7 @@ import { RequestContextMiddleware } from './middleware/request-context.middlewar
 import { AuthModule } from './modules/auth/auth.module';
 import { AvatarModule } from './modules/avatar/avatar.module';
 import { CronJobModule } from './modules/cron-job/cron-job.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { BarcodeGeneratorModule } from './modules/features/barcodeGenerator/barcode-generator.module';
 import { BrokenLinkCheckerModule } from './modules/features/brokenLinkChecker/broken-link-checker.module';
 import { BulkBarcodeGeneratorModule } from './modules/features/bulkBarcodeGenerator/bulk-barcode-generator.module';
@@ -33,6 +34,7 @@ import { RedisModule } from './modules/redis/redis.module';
     JwtModule.register({}),
     AuthModule,
     AvatarModule,
+    DashboardModule,
     UrlShortenerModule,
     OneTimeLinkModule,
     BarcodeGeneratorModule,
