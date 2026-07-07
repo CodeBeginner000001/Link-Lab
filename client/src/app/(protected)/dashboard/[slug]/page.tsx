@@ -14,7 +14,7 @@ type SchemaToolRouteProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export const revalidate = 10;
+export const revalidate = false;
 
 export function generateStaticParams() {
   return schemaSlugs.map((slug) => ({ slug }));

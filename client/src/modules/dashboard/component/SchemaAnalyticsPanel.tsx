@@ -1,3 +1,5 @@
+"use client";
+
 import ToolFeaturePill from "../component/ToolFeaturePill";
 import ToolMetricCard from "../component/ToolMetricCard";
 import ToolPanel from "../component/ToolPanel";

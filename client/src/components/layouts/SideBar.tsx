@@ -62,6 +62,7 @@ export default function SideBar({
       <nav className="flex flex-col gap-2 flex-1 overflow-y-auto p-4">
         <Link
           href="/dashboard"
+          prefetch={false}
           onClick={() => setIsMobileOpen(false)}
           className={cn(
             "flex items-center gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",
@@ -96,6 +97,7 @@ export default function SideBar({
           <Link
             key={name}
             href={href}
+            prefetch={false}
             onClick={() => setIsMobileOpen(false)}
             className={cn(
               "flex items-center text-sm gap-2 py-2 rounded-lg min-h-10 transition-all text-muted-foreground hover:bg-gray-400/15",

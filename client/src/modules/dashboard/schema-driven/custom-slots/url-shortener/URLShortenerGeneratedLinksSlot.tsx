@@ -10,7 +10,9 @@ type URLShortenerGeneratedLinksSlotProps = {
 const getRedirectPath = (item: Record<string, unknown>) => {
   const alias = String(item.alias ?? "");
 
-  return alias ? `/r/${encodeURIComponent(alias)}` : String(item.shortUrl ?? "#");
+  return alias
+    ? `/api/r/${encodeURIComponent(alias)}`
+    : String(item.shortUrl ?? "#");
 };
 
 export default function URLShortenerGeneratedLinksSlot({

@@ -57,7 +57,9 @@ function toPreview(item: Record<string, unknown>, index: number) {
 }
 
 function getVisitHref(item: OneTimeLinkPreview) {
-  return item.oneTimeUrl || `/ot/${encodeURIComponent(item.alias)}`;
+  return item.alias
+    ? `/api/ot/${encodeURIComponent(item.alias)}`
+    : item.oneTimeUrl || "#";
 }
 
 export default function OneTimeLinkGeneratedLinkSlot({
@@ -115,7 +117,7 @@ export default function OneTimeLinkGeneratedLinkSlot({
         >
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-[hsl(var(--primary))]">
-              {item.oneTimeUrl || `/ot/${item.alias}`}
+              {getVisitHref(item)}
             </p>
             <p className="mt-1 truncate text-xs text-[hsl(var(--muted-foreground))]">
               {item.passwordProtected ? "Password protected" : "Single use"} ·{" "}

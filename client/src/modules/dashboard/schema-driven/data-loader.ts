@@ -47,7 +47,7 @@ async function fetchSchemaEndpoint(
     const response = await fetch(url.toString(), {
       method: "GET",
       headers,
-      next: { revalidate: 10, tags: endpoint.cacheTags },
+      cache: "no-store",
     });
 
     if (!response.ok) {

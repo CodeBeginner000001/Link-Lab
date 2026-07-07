@@ -11,7 +11,7 @@ import {
   BarcodeRawSymbol,
   BarcodeRendererService,
 } from '../barcodeGenerator/barcode-renderer.service';
-import { BULK_BARCODE_PDF_IMAGE_BATCH_SIZE } from './bulk-barcode-generator.constants';
+import { BULK_BARCODE_PDF_IMAGE_BATCH_SIZE, BULK_BARCODE_ZIP_RENDER_CONCURRENCY } from './bulk-barcode-generator.constants';
 
 type BulkBarcodeExportItem = Pick<
   BulkBarcodeItem,
@@ -188,11 +188,11 @@ export class BulkBarcodeExportService {
   private getPdfLayout(): PdfLayout {
     const pageWidth = 612;
     const pageHeight = 792;
-    const margin = 20;
-    const columns = 4;
-    const gap = 6;
+    const margin = 16;
+    const columns = 6;
+    const gap = 4;
     const cardWidth = (pageWidth - margin * 2 - gap * (columns - 1)) / columns;
-    const cardHeight = 70;
+    const cardHeight = 62;
 
     return {
       pageWidth,
@@ -202,7 +202,7 @@ export class BulkBarcodeExportService {
       gap,
       cardWidth,
       cardHeight,
-      barcodeHeight: 34,
+      barcodeHeight: 30,
     };
   }
 
@@ -411,11 +411,13 @@ export class BulkBarcodeExportService {
     ];
     let offset = 0;
     let fileCount = 0;
+    let pendingBatch: BulkBarcodeExportItem[] = [];
 
-    try {
-      for await (const item of items) {
+    const flushRenderedBatch = async (
+      renderedItems: Array<{ item: BulkBarcodeExportItem; data: Buffer }>,
+    ) => {
+      for (const { item, data } of renderedItems) {
         const filename = this.buildItemFilename(item);
-        const data = Buffer.from(this.getItemSvg(item), 'utf8');
         const entry = createZipEntry(`barcodes/${filename}`, data, offset);
         centralParts.push(entry.centralHeader, entry.name);
         offset += entry.size;
@@ -440,6 +442,47 @@ export class BulkBarcodeExportService {
             'utf8',
           ),
         );
+      }
+    };
+
+    const renderZipBatch = async (batch: BulkBarcodeExportItem[]) => {
+      const renderedItems: Array<{ item: BulkBarcodeExportItem; data: Buffer }> =
+        [];
+
+      for (
+        let index = 0;
+        index < batch.length;
+        index += BULK_BARCODE_ZIP_RENDER_CONCURRENCY
+      ) {
+        const slice = batch.slice(
+          index,
+          index + BULK_BARCODE_ZIP_RENDER_CONCURRENCY,
+        );
+        const renderedSlice = await Promise.all(
+          slice.map(async (item) => ({
+            item,
+            data: Buffer.from(this.getItemSvg(item), 'utf8'),
+          })),
+        );
+
+        renderedItems.push(...renderedSlice);
+      }
+
+      await flushRenderedBatch(renderedItems);
+    };
+
+    try {
+      for await (const item of items) {
+        pendingBatch.push(item);
+
+        if (pendingBatch.length >= BULK_BARCODE_ZIP_RENDER_CONCURRENCY) {
+          await renderZipBatch(pendingBatch);
+          pendingBatch = [];
+        }
+      }
+
+      if (pendingBatch.length > 0) {
+        await renderZipBatch(pendingBatch);
       }
 
       const summary = Buffer.concat(summaryParts);

@@ -1,7 +1,7 @@
 "use client";
 
 import type { AuthUser } from "@/service/auth/types";
-import { createContext, useContext } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 type AuthContextType = AuthUser | null;
 export const AuthContext = createContext<AuthContextType>(null);
@@ -13,7 +13,17 @@ export function AuthUserProvider({
   user: AuthUser | null;
   children: React.ReactNode;
 }) {
-  return <AuthContext.Provider value={user}>{children}</AuthContext.Provider>;
+  const [stableUser, setStableUser] = useState(user);
+
+  useEffect(() => {
+    if (user) {
+      setStableUser(user);
+    }
+  }, [user]);
+
+  return (
+    <AuthContext.Provider value={stableUser}>{children}</AuthContext.Provider>
+  );
 }
 
 export const useAuth = () => useContext(AuthContext);

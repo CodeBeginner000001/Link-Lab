@@ -12,6 +12,9 @@ type BulkBarcodeUploadRowSlotProps = {
   deleteAction?: SchemaDeleteAction;
 };
 
+const LARGE_EXPORT_ROW_THRESHOLD = 500;
+const STREAMING_DOWNLOAD_CLEAR_MS = 120_000;
+
 function formatDate(value: unknown) {
   if (typeof value !== "string" || !value) {
     return "-";
@@ -35,13 +38,6 @@ async function refreshAccessToken() {
   });
 
   return response.ok;
-}
-
-async function fetchBulkBarcodeExport(id: string, type: "zip" | "pdf") {
-  return fetch(downloadUrl(id, type), {
-    credentials: "include",
-    cache: "no-store",
-  });
 }
 
 function getDownloadFilename(disposition: string | null, fallback: string) {
@@ -70,11 +66,30 @@ function getDownloadFilename(disposition: string | null, fallback: string) {
   return plainMatch?.[1]?.trim() || fallback;
 }
 
-async function downloadBulkBarcode(id: string, type: "zip" | "pdf") {
-  let response = await fetchBulkBarcodeExport(id, type);
+function triggerStreamingDownload(url: string) {
+  const iframe = document.createElement("iframe");
+
+  iframe.style.display = "none";
+  iframe.src = url;
+  iframe.setAttribute("aria-hidden", "true");
+  document.body.appendChild(iframe);
+
+  window.setTimeout(() => {
+    iframe.remove();
+  }, STREAMING_DOWNLOAD_CLEAR_MS);
+}
+
+async function downloadViaBlob(id: string, type: "zip" | "pdf") {
+  let response = await fetch(downloadUrl(id, type), {
+    credentials: "include",
+    cache: "no-store",
+  });
 
   if (response.status === 401 && (await refreshAccessToken())) {
-    response = await fetchBulkBarcodeExport(id, type);
+    response = await fetch(downloadUrl(id, type), {
+      credentials: "include",
+      cache: "no-store",
+    });
   }
 
   if (!response.ok) {
@@ -100,6 +115,20 @@ async function downloadBulkBarcode(id: string, type: "zip" | "pdf") {
   window.setTimeout(() => URL.revokeObjectURL(objectUrl), 30_000);
 }
 
+async function downloadBulkBarcode(
+  id: string,
+  type: "zip" | "pdf",
+  totalRows: number,
+) {
+  if (totalRows >= LARGE_EXPORT_ROW_THRESHOLD) {
+    await refreshAccessToken();
+    triggerStreamingDownload(downloadUrl(id, type));
+    return;
+  }
+
+  await downloadViaBlob(id, type);
+}
+
 export default function BulkBarcodeUploadRowSlot({
   item,
   deleteAction,
@@ -122,11 +151,20 @@ export default function BulkBarcodeUploadRowSlot({
     setDownloadingType(type);
 
     try {
-      await downloadBulkBarcode(id, type);
+      await downloadBulkBarcode(id, type, totalRows);
+
+      if (totalRows >= LARGE_EXPORT_ROW_THRESHOLD) {
+        notify(
+          "Your export is being prepared. The download should begin shortly.",
+          "success",
+        );
+      }
     } catch {
       notify("Unable to download this export. Please try again.", "error");
     } finally {
-      setDownloadingType(null);
+      window.setTimeout(() => {
+        setDownloadingType(null);
+      }, totalRows >= LARGE_EXPORT_ROW_THRESHOLD ? 8_000 : 0);
     }
   };
 
