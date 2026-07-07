@@ -53,7 +53,9 @@ function toOneTimeLinkItem(
 }
 
 function getVisitHref(item: OneTimeLinkItem) {
-  return item.oneTimeUrl || `/ot/${encodeURIComponent(item.alias)}`;
+  return item.alias
+    ? `/api/ot/${encodeURIComponent(item.alias)}`
+    : item.oneTimeUrl || "#";
 }
 
 function OneTimeStatusChip({ status }: { status: string }) {
@@ -121,7 +123,7 @@ export default function OneTimeLinkDataSlot({
                   Link
                 </p>
                 <p className="truncate text-sm font-semibold text-[hsl(var(--primary))]">
-                  /ot/{item.alias}
+                  /api/ot/{item.alias}
                 </p>
                 <p
                   title={item.originalUrl}
@@ -215,7 +217,7 @@ export default function OneTimeLinkDataSlot({
                       title={item.oneTimeUrl}
                       className="mt-2 truncate text-xs leading-5 text-[hsl(var(--primary))]"
                     >
-                      {item.oneTimeUrl || `/ot/${item.alias}`}
+                      {getVisitHref(item)}
                     </p>
                   </div>
 
@@ -258,7 +260,7 @@ export default function OneTimeLinkDataSlot({
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--secondary)/0.82)] px-3 py-1.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">
                     <Link2 className="h-3.5 w-3.5" />
-                    /ot/{item.alias}
+                    /api/ot/{item.alias}
                   </span>
                 </div>
               </div>

@@ -73,6 +73,31 @@ async function handler(
           : await request.arrayBuffer(),
       cache: "no-store",
     });
+
+    const isBulkDownload =
+      request.method === "GET" &&
+      endpoint.startsWith("bulk-barcodes/") &&
+      endpoint.endsWith("/download");
+
+    if (isBulkDownload && backendResponse.ok && backendResponse.body) {
+      const responseHeaders = new Headers();
+
+      for (const [headerName, headerValue] of backendResponse.headers.entries()) {
+        if (EXCLUDED_RESPONSE_HEADERS.has(headerName.toLowerCase())) {
+          continue;
+        }
+
+        responseHeaders.set(headerName, headerValue);
+      }
+
+      revalidateFeatureTags(endpoint);
+
+      return new NextResponse(backendResponse.body, {
+        status: backendResponse.status,
+        headers: responseHeaders,
+      });
+    }
+
     const responseBody = await backendResponse.arrayBuffer();
 
     const response = new NextResponse(responseBody, {
@@ -85,13 +110,8 @@ async function handler(
         endpoint.startsWith("bulk-barcodes") ||
         endpoint.startsWith("link-expanders") ||
         endpoint.startsWith("broken-link-checkers"));
-    const isBulkDownload =
-      request.method === "GET" &&
-      backendResponse.ok &&
-      endpoint.startsWith("bulk-barcodes/") &&
-      endpoint.endsWith("/download");
 
-    if (shouldRevalidate || isBulkDownload) {
+    if (shouldRevalidate) {
       revalidateFeatureTags(endpoint);
     }
 

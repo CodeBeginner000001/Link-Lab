@@ -13,13 +13,29 @@ import { LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { Avatar, AvatarImage } from "../ui/Avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { Logout } from "@/service/auth";
 import { getApiErrorMessage } from "@/utils/custom-error-message";
 
 const USER_MENU_TRIGGER_ID = "dashboard-user-menu-trigger";
 const USER_MENU_CONTENT_ID = "dashboard-user-menu-content";
+
+function getUserInitials(name?: string | null, email?: string | null) {
+  const source = name?.trim() || email?.trim() || "";
+
+  if (!source) {
+    return "?";
+  }
+
+  const parts = source.split(/\s+/).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  }
+
+  return source.slice(0, 2).toUpperCase();
+}
 
 const UserAvatar = () => {
   const user = useAuth();
@@ -69,6 +85,9 @@ const UserAvatar = () => {
               src={user?.avatar || undefined}
               className="h-full w-full object-cover"
             />
+            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-[hsl(var(--primary))]">
+              {getUserInitials(user?.name, user?.email)}
+            </AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>

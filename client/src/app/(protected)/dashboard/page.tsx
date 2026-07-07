@@ -279,6 +279,7 @@ export default async function DashboardPage() {
               <Link
                 key={`quick-${tool.key}`}
                 href={tool.href}
+                prefetch={false}
                 className="glass-card-hover group flex min-h-28 flex-col items-center justify-center gap-3 p-4 text-center"
               >
                 <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-[hsl(var(--primary))] transition-colors group-hover:bg-primary/20">
@@ -306,6 +307,7 @@ export default async function DashboardPage() {
               <Link
                 key={tool.key}
                 href={tool.href}
+                prefetch={false}
                 className="glass-card-hover group min-h-28 p-3.5"
               >
                 <div className="mb-4 flex items-center justify-between gap-3">

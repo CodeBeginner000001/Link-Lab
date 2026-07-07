@@ -18,10 +18,11 @@ const PROTECTED_ROUTES = [
   "/dashboard/barcode-decoder",
   "/dashboard/barcode-generator",
   "/dashboard/broken-link-checker",
+  "/dashboard/bulk-barcode-generator",
   "/dashboard/dns-checker",
   "/dashboard/dynamic-qr",
   "/dashboard/link-expander",
-  "/dashboard/one-time-link",
+  "/dashboard/onetime-link",
   "/dashboard/qr-code-generator",
   "/dashboard/qr-scanner",
   "/dashboard/settings",
@@ -35,7 +36,9 @@ export function isPublicRoute(pathname: string): boolean {
 }
 
 export function isProtectedRoute(pathname: string): boolean {
-  return PROTECTED_ROUTES.some((route) => pathname === route);
+  return PROTECTED_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
 }
 
 export function isKnownRoute(pathname: string): boolean {

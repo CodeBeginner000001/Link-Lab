@@ -39,7 +39,8 @@ const ShortUrlStatusChip = ({ status }: { status: ShortUrlStatus }) => (
 );
 
 const toNumber = (value: unknown) => Number(value ?? 0) || 0;
-const getRedirectPath = (alias: string) => `/r/${encodeURIComponent(alias)}`;
+const getRedirectPath = (alias: string) =>
+  `/api/r/${encodeURIComponent(alias)}`;
 
 const toShortUrlItem = (item: Record<string, unknown>, index: number) => {
   const alias = String(item.alias ?? "");
@@ -212,7 +213,7 @@ export default function URLShortenerLinksDataSlot({
                       Alias
                     </p>
                     <p className="mt-2 break-all text-xs leading-5 text-[hsl(var(--foreground))] max-[350px]:text-[11px] sm:truncate sm:break-normal">
-                      /{item.alias}
+                      /api/r/{item.alias}
                     </p>
                   </div>
 
@@ -267,7 +268,7 @@ export default function URLShortenerLinksDataSlot({
                       {getClicks(item)} clicks
                     </span>
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-[hsl(var(--secondary)/0.82)] px-3 py-1.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))] max-[350px]:px-2.5 max-[350px]:py-1 max-[350px]:text-[9px] dark:bg-[hsl(var(--secondary)/0.72)]">
-                      /{item.alias}
+                      /api/r/{item.alias}
                     </span>
                   </div>
                 </div>

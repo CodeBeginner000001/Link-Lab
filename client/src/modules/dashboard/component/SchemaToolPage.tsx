@@ -4,8 +4,7 @@ import type {
     SchemaForm as SchemaFormConfig,
     SchemaPaginationState,
 } from "../schema-driven/types";
-import SchemaAnalyticsPanel from "./SchemaAnalyticsPanel";
-import SchemaAutoRefresh from "./SchemaAutoRefresh";
+import SchemaAnalyticsPoller from "./SchemaAnalyticsPoller";
 import SchemaDataPanel from "./SchemaDataPanel";
 import SchemaForm from "./SchemaForm";
 import SchemaPanel from "./SchemaPanel";
@@ -52,6 +51,23 @@ export default function SchemaToolPage<
     },
   };
 
+  const analyticsRefreshEvents = [
+    successEvent,
+    schema.panels.data.deleteAction?.successEvent,
+    ...(schema.panels.analytics.sections
+      ?.map((section) =>
+        section.type === "activity" ? section.refreshEvent : undefined,
+      )
+      .filter((event): event is string => Boolean(event)) ?? []),
+  ].filter((event, index, events): event is string =>
+    Boolean(event) && events.indexOf(event) === index,
+  );
+
+  const analyticsDistributionApis =
+    schema.panels.analytics.sections?.flatMap((section) =>
+      section.type === "distribution" && section.api ? [section.api] : [],
+    ) ?? [];
+
   return (
     <ToolPageShell
       icon={schema.header.icon}
@@ -61,8 +77,6 @@ export default function SchemaToolPage<
       iconClassName="h-6 w-6 shrink-0 text-[hsl(var(--primary))] max-[350px]:h-5 max-[350px]:w-5"
       paraClassName="text-sm max-[350px]:text-xs max-[350px]:leading-5 sm:text-base"
     >
-      <SchemaAutoRefresh intervalMs={10000} />
-
       <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
         <SchemaPanel
           title={schema.panels.form.title}
@@ -82,10 +96,13 @@ export default function SchemaToolPage<
         </SchemaPanel>
       </div>
 
-      <SchemaAnalyticsPanel
-        schema={schema.panels.analytics}
-        data={analytics}
+      <SchemaAnalyticsPoller
+        slug={schema.slug}
+        initialData={analytics}
+        mainApi={schema.panels.analytics.api}
+        distributionApis={analyticsDistributionApis}
         activitySlot={slots?.activity}
+        refreshEvents={analyticsRefreshEvents}
       />
 
       <SchemaDataPanel
