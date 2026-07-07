@@ -103,7 +103,7 @@ export default function ToolConfirmModal({
             value={confirmValue}
             onChange={(event) => onConfirmValueChange(event.target.value)}
             placeholder={confirmKeyword}
-            className="h-9 text-sm sm:h-10"
+            className="h-9 text-base placeholder:text-sm sm:text-sm sm:h-10"
           />
         </div>
 

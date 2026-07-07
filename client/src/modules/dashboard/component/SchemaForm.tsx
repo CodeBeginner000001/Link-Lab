@@ -431,14 +431,15 @@ function SchemaFieldControl({
   }
 
   return (
-    <div className={cn("grid gap-2", className)}>
-      <Label htmlFor={field.name}>{field.label}</Label>
+    <div className={cn("grid sm:gap-2", className)}>
+      <Label htmlFor={field.name} className="max-sm:text-xs max-sm:mb-2">{field.label}</Label>
       <Input
         id={field.name}
         name={field.name}
         type={field.type}
         required={field.required}
         placeholder={placeholder}
+        className="text-base placeholder:text-sm sm:placeholder:text-base"
         pattern={validation.pattern}
         min={validation.min}
         max={validation.max}
@@ -553,7 +554,7 @@ function SchemaUploadControl({
 
 function FieldDescription({ text }: { text: string }) {
   return (
-    <p className="text-xs leading-5 text-[hsl(var(--muted-foreground)/0.85)]">
+    <p className="text-[10px] sm:text-xs leading-5 text-[hsl(var(--muted-foreground)/0.85)]">
       {text}
     </p>
   );

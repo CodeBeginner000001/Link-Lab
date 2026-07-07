@@ -245,7 +245,7 @@ export default async function DashboardPage() {
       <section className="space-y-4">
         <h2 className="text-xl font-bold tracking-tight">Quick Analytics</h2>
 
-        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-3 grid-cols-2 xl:grid-cols-4">
           {stats.map((stat) => {
             const Icon = stat.icon;
 
@@ -298,7 +298,7 @@ export default async function DashboardPage() {
           <h2 className="text-xl font-bold tracking-tight">Tools</h2>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 ">
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 ">
           {tools.map((tool) => {
             const Icon = tool.icon;
 

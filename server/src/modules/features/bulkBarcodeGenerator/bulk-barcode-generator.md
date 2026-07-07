@@ -6,10 +6,43 @@ The bulk barcode generator creates many barcode images in one request. A user
 can either upload a file that already contains barcode rows, or ask the server
 to generate random unique barcode content automatically.
 
-Each generated batch is stored as one `bulk_barcodes` document. The document
-keeps the original file name, row counts, generated SVG strings, download
-counts, status, and timestamps. The user can later list batches, download a
-batch as `zip` or `pdf`, view analytics, or soft-delete the batch.
+Each generated batch is stored as one `bulk_barcodes` document, and its barcode
+rows are stored separately in `bulk_barcode_items`. The batch document keeps
+the original file name, row counts, download counts, status, and timestamps.
+The item documents keep row/content/format/label plus render settings. New
+bulk items do not eagerly store SVG strings; SVG or PDF vector output is
+rendered on demand during export.
+
+## Quick old vs new difference
+
+The old approach was simple, but it became slow for large batches:
+
+- One MongoDB document stored the batch and all barcode items together.
+- Every barcode SVG was rendered during generation.
+- ZIP download built the full ZIP buffer before sending it.
+- PDF download converted every SVG into PNG, then embedded every PNG.
+
+The new approach separates storage and delays expensive work until export:
+
+- `bulk_barcodes` stores only batch metadata.
+- `bulk_barcode_items` stores each barcode row separately.
+- Generation stores render settings, not full SVG output.
+- ZIP download streams files while rows are read from MongoDB.
+- PDF download draws barcode bars directly as vector rectangles.
+
+The main difference is timing and memory:
+
+| Area | Old approach | New approach |
+| --- | --- | --- |
+| Generation | Render all SVGs immediately. | Validate rows and store render inputs. |
+| MongoDB | One large document with embedded items/SVGs. | Small batch document plus separate item documents. |
+| ZIP | Build whole ZIP in memory, then send. | Open ZIP stream, write files one by one. |
+| PDF | Convert SVG to PNG and embed images. | Draw barcode bars directly in the PDF. |
+| Large batches | Slow and memory-heavy. | Faster and more scalable. |
+
+In short: the old version did too much work early and kept too much data in one
+place. The new version stores lightweight data, reads rows in batches, streams
+ZIP output, and uses vector PDF drawing for speed.
 
 ## Why this feature exists
 
@@ -34,10 +67,10 @@ This feature solves these problems:
 | `bulk-barcode-generator.controller.ts` | Defines the `/v1/bulk-barcodes` routes and sends validated requests to services. |
 | `bulk-barcode-generator.service.ts` | Owns generation, validation, listing, analytics, download accounting, ownership checks, and deletion. |
 | `bulk-barcode-parser.service.ts` | Parses uploaded `.csv`, `.xlsx`, and `.json` files into normalized row objects. |
-| `bulk-barcode-export.service.ts` | Builds downloadable `zip` and `pdf` files from stored barcode SVGs. |
+| `bulk-barcode-export.service.ts` | Builds downloadable ZIP streams and PDF files from stored item render inputs. |
 | `bulk-barcode-template.service.ts` | Builds sample templates in `csv`, `xlsx`, and `json` formats. |
 | `bulk-barcode-generator.dto.ts` | Validates request body and pagination query values. |
-| `bulk-barcode.schema.ts` | Defines the MongoDB `bulk_barcodes` document shape. |
+| `bulk-barcode.schema.ts` | Defines the MongoDB `bulk_barcodes` batch schema and `bulk_barcode_items` item schema. |
 
 ## Endpoint summary
 
@@ -76,9 +109,11 @@ options.
 | `page` | Optional integer, minimum `1`, default `1`. | Controls which page of batches to return. |
 | `limit` | Optional integer, minimum `1`, maximum `100`, default `10`. | Prevents very large list responses. |
 
-## MongoDB document
+## MongoDB documents
 
-The `bulk_barcodes` collection stores one document per generated batch.
+The `bulk_barcodes` collection stores one document per generated batch. It is
+the metadata and analytics document, not the storage location for every barcode
+row.
 
 | Field | Purpose |
 | --- | --- |
@@ -93,13 +128,37 @@ The `bulk_barcodes` collection stores one document per generated batch.
 | `lastDownloadType` | Last export format used: `zip` or `pdf`. |
 | `lastDownloadedAt` | Timestamp of the latest download. |
 | `status` | `completed` or `deleted`. Delete is a soft delete. |
-| `items` | Array of generated barcode rows with `row`, `content`, `format`, optional `label`, and rendered `svg`. |
 | `deletedAt` | Timestamp set when the batch is soft-deleted. |
 
 Important index:
 
 - `{ userId: 1, status: 1, createdAt: -1 }` supports listing active batches for
   one user in newest-first order.
+
+The `bulk_barcode_items` collection stores the generated rows for each batch.
+
+| Field | Purpose |
+| --- | --- |
+| `bulkBarcodeId` | Parent batch id. Used to stream/export all items for one batch. |
+| `userId` | Owner id copied onto the item for scoped reads and cleanup. |
+| `row` | Original row number from upload mode, or generated row number from auto mode. |
+| `content` | Prepared barcode content after format-specific normalization/check-digit handling. |
+| `format` | Barcode format such as `CODE128`, `EAN13`, `UPCA`, `CODE39`, or `ITF14`. |
+| `label` | Optional display label. |
+| `barWidth` | Render width option captured from the generation request. |
+| `height` | Render height option captured from the generation request. |
+| `margin` | Render margin/quiet-zone option captured from the generation request. |
+| `barColor` | Normalized hex bar/text color. |
+| `backgroundColor` | Normalized hex background color. |
+| `showValue` | Whether the value should be included when rendering SVG/PNG exports. |
+| `svg` | Optional legacy/fallback SVG. New bulk rows normally keep this `null`. |
+
+Important item indexes:
+
+- `{ bulkBarcodeId: 1, row: 1 }` is unique and keeps one item per source row in
+  each batch.
+- `{ userId: 1, bulkBarcodeId: 1, row: 1 }` supports owned export reads in row
+  order.
 
 ## Shared authentication and ownership steps
 
@@ -158,10 +217,12 @@ Service flow:
 2. Decide generation mode.
 3. Build rows from auto generation or parse uploaded rows.
 4. Enforce the global row count range.
-5. Validate and render each row.
+5. Validate each row and build item render inputs.
 6. Reject the whole batch if any row has validation errors.
-7. Save the completed batch in MongoDB.
-8. Return a serialized batch summary.
+7. Save the completed batch document in MongoDB.
+8. Insert barcode item documents in batches of `200`, with controlled insert
+   concurrency.
+9. Return a serialized batch summary.
 
 ### Generation mode decision
 
@@ -574,16 +635,29 @@ The same text could be valid in different formats. The duplicate check includes
 format so `CODE128:12345` and `CODE39:12345` are treated as different barcode
 definitions.
 
-Step 8: Render SVG.
+Step 8: Store render inputs, not eager SVG output.
 
 ```ts
-svg: this.renderer.renderSvg(renderInput)
+return {
+  row: row.row,
+  content: renderInput.content,
+  format: renderInput.format,
+  label: row.label || null,
+  barWidth: renderInput.barWidth,
+  height: renderInput.height,
+  margin: renderInput.margin,
+  barColor: renderInput.barColor,
+  backgroundColor: renderInput.backgroundColor,
+  showValue: renderInput.showValue,
+};
 ```
 
 Why this is used:
 
-The batch stores finished SVG strings. Later downloads can be built from the
-saved batch without rerunning barcode validation or rendering.
+Rendering thousands of SVG strings inside the generation request is expensive.
+The service stores the validated render inputs instead, then renders the needed
+output format during export. ZIP renders SVG on demand; PDF uses a faster vector
+barcode path for new item documents.
 
 Step 9: Reject the whole request if any errors exist.
 
@@ -593,7 +667,7 @@ Bulk generation should not silently save a partial batch when the uploaded file
 has bad rows. The user receives `Bulk barcode validation failed` with row-level
 details.
 
-Step 10: Save the batch.
+Step 10: Save the batch document.
 
 The saved document includes:
 
@@ -603,12 +677,22 @@ The saved document includes:
 - `generatedCount`
 - `failedCount: 0`
 - `status: completed`
-- `items`
 
 Why this is used:
 
-MongoDB becomes the durable source of truth for future list, analytics, export,
-and delete operations.
+MongoDB keeps the batch metadata separate from the potentially large item list,
+so listing and analytics do not read thousands of barcode rows.
+
+Step 11: Insert item documents in batches.
+
+The service uses `BULK_BARCODE_INSERT_BATCH_SIZE = 200` and
+`BULK_BARCODE_INSERT_CONCURRENCY = 5`.
+
+Why this is used:
+
+The server avoids one huge insert request while still writing multiple chunks
+in parallel. If any insert batch fails, the service deletes the parent batch
+and any item documents already written for that batch.
 
 ## GET `/v1/bulk-barcodes`
 
@@ -629,7 +713,7 @@ Flow:
 ```
 
 5. Run two MongoDB queries in parallel:
-   - `find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)`
+   - `find(filter).select('-items').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)`
    - `countDocuments(filter)`
 6. Serialize every document.
 7. Return items plus pagination metadata.
@@ -840,7 +924,8 @@ Controller flow:
 3. Extract authenticated user.
 4. Call `bulkBarcodeService.download(user, id, type)`.
 5. Set file response headers.
-6. Send the raw file buffer.
+6. If the export returns a stream, pipe it to the response.
+7. Otherwise send the raw file buffer.
 
 Why `SkipResponseInterceptor` is used:
 
@@ -850,10 +935,12 @@ Service flow:
 
 1. Validate `type` is `zip` or `pdf`.
 2. Load the owned, non-deleted batch.
-3. Call `exporter.buildExport(bulkBarcode, type)`.
-4. Increment download counters.
-5. Set `lastDownloadType` and `lastDownloadedAt`.
-6. Return the generated file.
+3. Open a Mongo cursor over `bulk_barcode_items`, sorted by `row`, with read
+   batch size `500`.
+4. Call `exporter.buildExport(bulkBarcode, type, itemCursor)`.
+5. Increment download counters.
+6. Set `lastDownloadType` and `lastDownloadedAt`.
+7. Return the generated file.
 
 Why counters are updated after export:
 
@@ -862,7 +949,11 @@ building fails, the service should not record a download.
 
 ### ZIP export
 
-ZIP export builds:
+ZIP export opens a `PassThrough` stream and writes ZIP entries into it while
+item documents are read from MongoDB. It does not build the entire ZIP archive
+as one large buffer before the response begins.
+
+ZIP export writes:
 
 - One SVG file per barcode under `barcodes/`.
 - A `summary.csv` file with `row`, `content`, `format`, `label`, `fileName`,
@@ -886,27 +977,82 @@ filenames portable across operating systems and ZIP tools.
 
 ### PDF export
 
-PDF export:
+PDF export has two paths.
+
+For new item documents, PDF export:
 
 1. Creates a PDF document.
 2. Embeds Helvetica.
-3. Creates letter-sized pages.
-4. Converts each SVG to PNG with `sharp`.
-5. Embeds each PNG in the PDF.
-6. Draws a card border.
-7. Prints the label or content.
-8. Prints `{format} - {content}`.
-9. Adds a new page when the current page is full.
+3. Uses `bwipjs.raw()` through `BarcodeRendererService.renderRawLinear()`.
+4. Draws barcode bars directly as PDF vector rectangles.
+5. Draws a compact card frame and text labels.
+6. Uses a dense grid with `4` barcode cards per row.
+7. Adds a new page when the current page is full.
 
-Why SVG is converted to PNG:
+For legacy records that already contain stored `svg`, PDF export falls back to:
 
-`pdf-lib` embeds raster images directly. `sharp` converts the stored SVG into a
-PNG buffer that can be placed on the PDF page.
+1. Convert SVG to PNG with `sharp`.
+2. Embed the PNG with `pdf-lib`.
+3. Draw the same card/text layout.
+
+Why vector bars are used:
+
+Rendering and embedding thousands of PNG images is too slow for large exports.
+Drawing bars directly as PDF rectangles avoids image conversion and produces a
+smaller PDF with fewer expensive PDF image objects.
 
 Why cards are used:
 
-Each barcode needs enough space for the image, label, format, and content. A
-fixed card height makes the PDF predictable and printable.
+Each barcode needs enough space for the bars, label, format, and content. The
+fixed grid makes the PDF predictable and printable, while keeping page count
+low for batches up to `10,000` rows.
+
+### Export strategy options
+
+There are several possible ways to download bulk barcode output. The current
+implementation chooses different strategies for ZIP and PDF because their
+performance bottlenecks are different.
+
+| Strategy | How it works | Good for | Why it is not always best |
+| --- | --- | --- | --- |
+| Store every rendered SVG during generation | Generate all SVG strings before saving the batch, then reuse them for every export. | Small batches and simple re-downloads. | Slows down creation for 5k-10k rows and makes Mongo documents large. |
+| Store every rendered PNG during generation | Generate PNG buffers before saving the batch. | Fast later PNG/PDF downloads for small batches. | Very high CPU/storage cost, large documents/files, and unnecessary work when user only needs ZIP/PDF metadata. |
+| Build ZIP as one full buffer | Render every file, collect all ZIP parts in memory, then `res.send(buffer)`. | Small ZIP downloads. | High memory use for thousands of files and response cannot start until the entire ZIP is ready. |
+| Stream ZIP while reading items | Open a response ZIP stream, read item rows with a cursor, render SVG on demand, and write ZIP entries immediately. | Large ZIP exports. | Requires manual ZIP headers/CRC bookkeeping, but avoids large memory spikes. |
+| PDF with SVG -> PNG -> embedPng | Convert each barcode to PNG and embed each PNG in `pdf-lib`. | Legacy SVG rows and image-heavy layouts. | Too slow for 10k rows because every barcode becomes a separate image conversion and PDF image object. |
+| PDF with direct PNG generation | Use `bwipjs.toBuffer()` to make PNG and embed it. | Faster than SVG -> PNG for image PDFs. | Still creates thousands of image objects and large PDF work for 10k rows. |
+| PDF with vector bars | Use `bwipjs.raw()` and draw barcode bars as PDF rectangles. | Large printable PDFs. | Best for 1D barcodes; legacy SVG rows still need image fallback. |
+
+Why the current ZIP approach is best:
+
+- The HTTP response can begin as soon as the ZIP stream starts.
+- MongoDB reads items in batches of `500` instead of loading all item documents
+  at once.
+- The service keeps only small ZIP metadata in memory while file bytes are
+  written to the response.
+- SVG files are rendered only when ZIP is requested.
+- Backpressure is respected with the stream `drain` event.
+
+Why the current PDF approach is best:
+
+- New item documents skip PNG conversion completely.
+- `bwipjs.raw()` gives the barcode module widths directly.
+- `pdf-lib` draws rectangles instead of embedding thousands of raster images.
+- The compact grid uses `4` barcode cards per row, reducing page count.
+- Legacy SVG rows still work through the slower PNG fallback, so old batches do
+  not break.
+
+Why the old approach was not good for large batches:
+
+- Generation rendered every SVG before saving, so creating 5k-10k rows spent a
+  lot of time in synchronous barcode rendering.
+- The old batch document embedded every item and SVG, making Mongo reads and
+  writes heavier.
+- ZIP export built the whole archive in memory before sending it.
+- PDF export converted every SVG to PNG with `sharp`, then embedded every PNG
+  into the PDF one by one.
+- For 10k rows, image conversion plus thousands of PDF image objects dominated
+  export time and memory usage.
 
 ### Manual ZIP creation
 
@@ -917,7 +1063,8 @@ Why this is used:
 
 The current implementation avoids an extra ZIP dependency and only needs simple
 stored files. The ZIP includes local file headers, central directory headers,
-and the end-of-central-directory record.
+and the end-of-central-directory record. Backpressure is respected by waiting
+for the stream `drain` event when writes are faster than the response.
 
 ## DELETE `/v1/bulk-barcodes/:id`
 
@@ -974,8 +1121,8 @@ sequenceDiagram
     participant Ctrl as BulkBarcodeGeneratorController
     participant Service as BulkBarcodeGeneratorService
     participant Parser as BulkBarcodeParserService
-    participant Renderer as BarcodeRendererService
-    participant Mongo as MongoDB bulk_barcodes
+    participant MongoBatch as MongoDB bulk_barcodes
+    participant MongoItems as MongoDB bulk_barcode_items
 
     Client->>Ctrl: POST /v1/bulk-barcodes
     Ctrl->>Service: generate(user, dto, file?)
@@ -992,14 +1139,14 @@ sequenceDiagram
     loop each row
         Service->>Service: validate content + format
         Service->>Service: prepareBarcodeContent(format, content)
-        Service->>Renderer: renderSvg(renderInput)
-        Renderer-->>Service: svg
+        Service->>Service: build item render input
     end
     alt any errors
         Service-->>Ctrl: throw Bulk barcode validation failed
     else valid batch
-        Service->>Mongo: create completed batch
-        Mongo-->>Service: BulkBarcode document
+        Service->>MongoBatch: create completed batch
+        MongoBatch-->>Service: BulkBarcode document
+        Service->>MongoItems: insert item docs in batches
         Service-->>Ctrl: serialized batch summary
     end
 ```
@@ -1148,8 +1295,15 @@ async generate(
     generatedCount: items.length,
     failedCount: 0,
     status: BulkBarcodeStatus.COMPLETED,
-    items,
   });
+
+  await this.insertBulkBarcodeItemsInBatches(
+    items.map((item) => ({
+      ...item,
+      userId,
+      bulkBarcodeId: bulkBarcode._id,
+    })),
+  );
 
   return {
     message: 'Bulk barcodes generated successfully',
@@ -1631,7 +1785,12 @@ private buildBulkItems(rows: ParsedBarcodeRow[], dto: GenerateBulkBarcodeDto) {
         content: renderInput.content,
         format: renderInput.format,
         label: row.label || null,
-        svg: this.renderer.renderSvg(renderInput),
+        barWidth: renderInput.barWidth,
+        height: renderInput.height,
+        margin: renderInput.margin,
+        barColor: renderInput.barColor,
+        backgroundColor: renderInput.backgroundColor,
+        showValue: renderInput.showValue,
       };
     })
     .filter((item): item is NonNullable<typeof item> => item !== null);
@@ -1673,8 +1832,8 @@ Uses format:content so same content in different formats is allowed.
 seen.get
 Finds first row where duplicate appeared.
 
-renderer.renderSvg
-Creates the SVG.
+render input fields
+Store the settings needed to render SVG for ZIP or vector bars for PDF later.
 
 filter
 Removes null skipped rows.
@@ -1703,7 +1862,6 @@ const bulkBarcode = await this.bulkBarcodeModel.create({
   generatedCount: items.length,
   failedCount: 0,
   status: BulkBarcodeStatus.COMPLETED,
-  items,
 });
 ```
 
@@ -1722,7 +1880,7 @@ totalRows
 Number of parsed/generated rows.
 
 generatedCount
-Number of rendered barcode SVG items.
+Number of valid barcode item records.
 
 failedCount
 Always 0 for saved batch because errors reject the request before save.
@@ -1731,7 +1889,8 @@ status
 completed.
 
 items
-All generated barcode rows with SVG.
+Not stored in the batch document. Item rows are inserted into
+bulk_barcode_items after the parent batch is created.
 ```
 
 Line:
@@ -2125,7 +2284,11 @@ async download(user: JwtPayload, bulkBarcodeId: string, type: BulkBarcodeDownloa
   }
 
   const bulkBarcode = await this.getOwnedBulkBarcode(user, bulkBarcodeId);
-  const file = await this.exporter.buildExport(bulkBarcode, type);
+  const file = await this.exporter.buildExport(
+    bulkBarcode,
+    type,
+    this.getBulkBarcodeItems(bulkBarcode),
+  );
 
   await this.bulkBarcodeModel.updateOne(...).exec();
 
@@ -2143,27 +2306,29 @@ getOwnedBulkBarcode
 Verify user, id, ownership, and not-deleted status.
 
 exporter.buildExport
-Build file buffer.
+Build a PDF buffer or open a ZIP stream using the item cursor.
 
 updateOne
 Increment download analytics.
 
 return file
-Controller sends file as raw response.
+Controller pipes stream exports or sends buffer exports as raw responses.
 ```
 
 Helper:
 
 ```txt
 buildExport
-If type is pdf, call buildPdf.
-If type is zip, call buildZip.
+If type is pdf, call buildPdf with item cursor.
+If type is zip, open a PassThrough stream and write ZIP entries into it.
 
 buildPdf
-Convert SVGs to PNG with sharp and place them in PDF.
+For new item documents, draw barcode bars directly as PDF vector rectangles.
+For legacy SVG rows, fall back to SVG -> PNG -> embedPng.
 
 buildZip
-Create SVG files and summary.csv, then create ZIP buffer.
+Render SVG files on demand, write them to the ZIP stream, then append
+summary.csv and the central directory.
 ```
 
 ## `DELETE /v1/bulk-barcodes/:id`
@@ -2429,7 +2594,7 @@ Calls prepareBarcodeContent(format, row.content).
 Builds renderInput using DTO style settings.
 Lowercases colors.
 Checks duplicates inside batch.
-Calls renderer.renderSvg(renderInput).
+Returns item data with render settings.
 Returns { items, errors }.
 ```
 
@@ -2443,12 +2608,12 @@ Validates supplied check digit when full content is given.
 Returns success content or error message.
 ```
 
-Function used inside `buildBulkItems`: `renderer.renderSvg`.
+Rendering decision:
 
 ```txt
-Uses @bwip-js/node barcode renderer.
-Receives format, content, barWidth, height, margin, colors, showValue.
-Returns SVG string.
+buildBulkItems does not render SVG.
+ZIP export renders SVG on demand.
+PDF export uses raw barcode modules and draws vector bars for new item docs.
 ```
 
 Validation error handling:
@@ -2481,8 +2646,9 @@ const bulkBarcode = await this.bulkBarcodeModel.create({
   generatedCount: items.length,
   failedCount: 0,
   status: BulkBarcodeStatus.COMPLETED,
-  items,
 });
+
+await this.insertBulkBarcodeItemsInBatches(...);
 ```
 
 Saved fields:
@@ -2491,10 +2657,10 @@ Saved fields:
 userId -> owner
 fileName -> uploaded filename or auto-generated-barcodes
 totalRows -> all parsed/generated rows
-generatedCount -> rendered item count
+generatedCount -> valid item count
 failedCount -> 0 because validation errors stop the request
 status -> completed
-items -> row, content, format, label, svg
+bulk_barcode_items -> row, content, format, label, render settings, optional svg
 ```
 
 Response:
@@ -2838,10 +3004,10 @@ Function used: `buildExport`.
 
 ```txt
 If type is pdf:
-buildPdf(items), contentType application/pdf.
+buildPdf(itemCursor), contentType application/pdf.
 
 If type is zip:
-buildZip(items), contentType application/zip.
+openZipStream(itemCursor), contentType application/zip.
 
 Filename:
 bulk-barcodes-{id}.{type}
@@ -2851,9 +3017,10 @@ ZIP helpers:
 
 ```txt
 buildZip
-Creates barcodes/{filename}.svg files for each item.
-Creates summary.csv.
-Calls createZip.
+Opens a PassThrough stream.
+Writes each barcodes/{filename}.svg entry as items are read.
+Writes summary.csv.
+Writes ZIP central directory and closes the stream.
 
 buildItemFilename
 Uses label/content/row to create safe filename.
@@ -2862,7 +3029,7 @@ escapeCsvCell
 Escapes CSV values.
 
 createZip
-Writes ZIP binary structure manually.
+Replaced by streaming ZIP entry/header writers.
 crc32
 Calculates file checksum for ZIP entries.
 ```
@@ -2873,11 +3040,11 @@ PDF helpers:
 buildPdf
 Creates PDF document.
 Embeds Helvetica.
-Loops through items.
-Converts SVG to PNG using sharp.
-Embeds PNG into PDF.
-Draws card border, image, label, and format/content text.
-Adds new page when y position is too low.
+Consumes item cursor progressively.
+For new item docs, uses bwipjs.raw() and draws bars as PDF rectangles.
+For legacy SVG rows, converts SVG to PNG with sharp and embeds the PNG.
+Draws card border, barcode, label, and format/content text.
+Uses a compact grid with 4 barcode cards per row.
 Returns PDF buffer.
 ```
 
