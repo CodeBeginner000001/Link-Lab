@@ -73,8 +73,9 @@ async function handler(
           : await request.arrayBuffer(),
       cache: "no-store",
     });
+    const responseBody = await backendResponse.arrayBuffer();
 
-    const response = new NextResponse(await backendResponse.arrayBuffer(), {
+    const response = new NextResponse(responseBody, {
       status: backendResponse.status,
     });
 
@@ -100,6 +101,10 @@ async function handler(
       }
 
       response.headers.set(headerName, headerValue);
+    }
+
+    if (request.method !== "HEAD") {
+      response.headers.set("content-length", String(responseBody.byteLength));
     }
 
     return response;
