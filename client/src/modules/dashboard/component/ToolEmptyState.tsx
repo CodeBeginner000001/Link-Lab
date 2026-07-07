@@ -25,10 +25,10 @@ export default function ToolEmptyState({
       )}
     >
       <div className="mb-4 rounded-2xl bg-[hsl(var(--background))] p-4 shadow-sm">
-        <Icon className="h-10 w-10 text-[hsl(var(--muted-foreground)/0.75)]" />
+        <Icon className="h-6 w-6 sm:h-10 sm:w-10 text-[hsl(var(--muted-foreground)/0.75)]" />
       </div>
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <p className="mt-2 max-w-sm text-sm text-[hsl(var(--muted-foreground)/0.85)]">
+      <h3 className="text-base sm:text-lg font-semibold">{title}</h3>
+      <p className="mt-2 max-w-sm text-xs sm:text-sm text-[hsl(var(--muted-foreground)/0.85)]">
         {description}
       </p>
       {children ? <div className="mt-4">{children}</div> : null}

@@ -1,6 +1,11 @@
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
-import { BulkBarcode, BulkBarcodeSchema } from 'src/models/bulk-barcode.schema';
+import {
+  BulkBarcode,
+  BulkBarcodeItem,
+  BulkBarcodeItemSchema,
+  BulkBarcodeSchema,
+} from 'src/models/bulk-barcode.schema';
 import { User, UserSchema } from 'src/models/user.schema';
 import { BarcodeRendererService } from '../barcodeGenerator/barcode-renderer.service';
 import { BulkBarcodeGeneratorController } from './bulk-barcode-generator.controller';
@@ -13,6 +18,7 @@ import { BulkBarcodeTemplateService } from './bulk-barcode-template.service';
   imports: [
     MongooseModule.forFeature([
       { name: BulkBarcode.name, schema: BulkBarcodeSchema },
+      { name: BulkBarcodeItem.name, schema: BulkBarcodeItemSchema },
       { name: User.name, schema: UserSchema },
     ]),
   ],

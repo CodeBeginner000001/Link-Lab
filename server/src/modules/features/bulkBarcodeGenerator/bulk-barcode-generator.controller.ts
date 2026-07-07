@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import type { Request, Response } from 'express';
+import { pipeline } from 'stream/promises';
 import { SkipResponseInterceptor } from 'src/decorators/skip-success-interceptor.decorator';
 import { AccessTokenExpired } from 'src/exceptions/auth.exception';
 import { JwtPayload } from 'src/interfaces/auth.interface';
@@ -123,6 +124,10 @@ export class BulkBarcodeGeneratorController {
       'Content-Disposition',
       `attachment; filename="${file.filename}"`,
     );
+    if (file.stream) {
+      return pipeline(file.stream, res);
+    }
+
     return res.send(file.body);
   }
 
