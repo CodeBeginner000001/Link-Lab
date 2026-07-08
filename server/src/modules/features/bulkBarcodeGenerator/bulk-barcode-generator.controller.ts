@@ -124,11 +124,8 @@ export class BulkBarcodeGeneratorController {
       'Content-Disposition',
       `attachment; filename="${file.filename}"`,
     );
-    if (file.stream) {
-      return pipeline(file.stream, res);
-    }
 
-    return res.send(file.body);
+    return pipeline(file.stream, res);
   }
 
   private getUser(req: AuthenticatedRequest): JwtPayload {

@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { PDFDocument, PDFPage, PDFFont, StandardFonts, rgb } from 'pdf-lib';
 import { once } from 'events';
+import PDFDocument from 'pdfkit';
 import { PassThrough, Readable } from 'stream';
 import {
   BulkBarcodeDocument,
@@ -11,7 +11,10 @@ import {
   BarcodeRawSymbol,
   BarcodeRendererService,
 } from '../barcodeGenerator/barcode-renderer.service';
-import { BULK_BARCODE_PDF_IMAGE_BATCH_SIZE, BULK_BARCODE_ZIP_RENDER_CONCURRENCY } from './bulk-barcode-generator.constants';
+import {
+  BULK_BARCODE_PDF_IMAGE_BATCH_SIZE,
+  BULK_BARCODE_ZIP_RENDER_CONCURRENCY,
+} from './bulk-barcode-generator.constants';
 
 type BulkBarcodeExportItem = Pick<
   BulkBarcodeItem,
@@ -29,8 +32,7 @@ type BulkBarcodeExportItem = Pick<
 >;
 
 type ExportFile = {
-  body?: Buffer;
-  stream?: Readable;
+  stream: Readable;
   contentType: string;
   filename: string;
 };
@@ -70,6 +72,8 @@ type PdfCardFrame = {
   barcodeY: number;
 };
 
+type PdfDocumentInstance = InstanceType<typeof PDFDocument>;
+
 @Injectable()
 export class BulkBarcodeExportService {
   constructor(private readonly renderer: BarcodeRendererService) {}
@@ -81,7 +85,7 @@ export class BulkBarcodeExportService {
   ): Promise<ExportFile> {
     if (type === BulkBarcodeDownloadType.PDF) {
       return {
-        body: await this.buildPdf(items),
+        stream: this.openPdfStream(items),
         contentType: 'application/pdf',
         filename: this.buildFilename(bulkBarcode, type),
       };
@@ -94,41 +98,66 @@ export class BulkBarcodeExportService {
     };
   }
 
-  private async buildPdf(items: AsyncIterable<BulkBarcodeExportItem>) {
-    const pdf = await PDFDocument.create();
-    const font = await pdf.embedFont(StandardFonts.Helvetica);
+  private openPdfStream(items: AsyncIterable<BulkBarcodeExportItem>) {
     const layout = this.getPdfLayout();
-    let page = pdf.addPage([layout.pageWidth, layout.pageHeight]);
+    const stream = new PassThrough();
+    const doc = new PDFDocument({
+      size: [layout.pageWidth, layout.pageHeight],
+      margin: 0,
+      autoFirstPage: true,
+    });
+
+    doc.pipe(stream);
+
+    void this.writePdfStream(items, doc).then(
+      () => {
+        doc.end();
+      },
+      (error) => {
+        doc.destroy();
+        stream.destroy(error as Error);
+      },
+    );
+
+    return stream;
+  }
+
+  private async writePdfStream(
+    items: AsyncIterable<BulkBarcodeExportItem>,
+    doc: PdfDocumentInstance,
+  ) {
+    const layout = this.getPdfLayout();
+    doc.font('Helvetica');
+
     let row: PdfBarcodeRender[] = [];
     let rowHeight = 0;
-    let cursorY = layout.pageHeight - layout.margin;
+    let cursorY = layout.margin;
     let batch: BulkBarcodeExportItem[] = [];
 
-    const flushRow = async () => {
+    const flushRow = () => {
       if (row.length === 0) {
         return;
       }
 
-      if (cursorY - rowHeight < layout.margin) {
-        page = pdf.addPage([layout.pageWidth, layout.pageHeight]);
-        cursorY = layout.pageHeight - layout.margin;
+      if (cursorY + rowHeight > layout.pageHeight - layout.margin) {
+        doc.addPage({ size: [layout.pageWidth, layout.pageHeight] });
+        cursorY = layout.margin;
       }
 
       for (let index = 0; index < row.length; index += 1) {
         const render = row[index];
         const x = layout.margin + index * (layout.cardWidth + layout.gap);
-        const y = cursorY - rowHeight;
-        await this.drawPdfBarcodeRender(page, pdf, font, render, layout, x, y);
+        this.drawPdfBarcodeRender(doc, render, layout, x, cursorY);
       }
 
-      cursorY -= rowHeight + layout.gap;
+      cursorY += rowHeight + layout.gap;
       row = [];
       rowHeight = 0;
     };
 
-    const queueRender = async (render: PdfBarcodeRender) => {
+    const queueRender = (render: PdfBarcodeRender) => {
       if (row.length >= layout.columns) {
-        await flushRow();
+        flushRow();
       }
 
       row.push(render);
@@ -141,7 +170,7 @@ export class BulkBarcodeExportService {
       );
 
       for (const image of images) {
-        await queueRender(image);
+        queueRender(image);
       }
     };
 
@@ -152,7 +181,7 @@ export class BulkBarcodeExportService {
           batch = [];
         }
 
-        await queueRender({
+        queueRender({
           item,
           symbol: this.renderer.renderRawLinear({
             format: item.format,
@@ -180,9 +209,7 @@ export class BulkBarcodeExportService {
       await queueImageBatch(batch);
     }
 
-    await flushRow();
-
-    return Buffer.from(await pdf.save());
+    flushRow();
   }
 
   private getPdfLayout(): PdfLayout {
@@ -206,10 +233,8 @@ export class BulkBarcodeExportService {
     };
   }
 
-  private async drawPdfBarcodeRender(
-    page: PDFPage,
-    pdf: PDFDocument,
-    font: PDFFont,
+  private drawPdfBarcodeRender(
+    doc: PdfDocumentInstance,
     render: PdfBarcodeRender,
     layout: PdfLayout,
     x: number,
@@ -218,20 +243,17 @@ export class BulkBarcodeExportService {
     const item = render.item;
     const frame = this.getPdfCardFrame(item, layout, x, y);
 
-    this.drawPdfCardFrame(page, frame);
-    this.drawPdfBarcodeBackground(page, item, layout, frame);
+    this.drawPdfCardFrame(doc, frame);
+    this.drawPdfBarcodeBackground(doc, item, layout, frame);
 
     if ('png' in render) {
-      const image = await pdf.embedPng(render.png);
-      page.drawImage(image, {
-        x: frame.barcodeX,
-        y: frame.barcodeY,
+      doc.image(render.png, frame.barcodeX, frame.barcodeY, {
         width: layout.cardWidth - 16,
         height: layout.barcodeHeight,
       });
     } else {
       this.drawPdfRawBars(
-        page,
+        doc,
         render.symbol,
         item,
         layout,
@@ -240,8 +262,8 @@ export class BulkBarcodeExportService {
       );
     }
 
-    this.drawPdfEncodedValue(page, font, item, layout, frame);
-    this.drawPdfBarcodeText(page, font, item, layout, frame);
+    this.drawPdfEncodedValue(doc, item, layout, frame);
+    this.drawPdfBarcodeText(doc, item, layout, frame);
   }
 
   private getPdfCardHeight(item: BulkBarcodeExportItem, layout: PdfLayout) {
@@ -268,19 +290,16 @@ export class BulkBarcodeExportService {
     };
   }
 
-  private drawPdfCardFrame(page: PDFPage, frame: PdfCardFrame) {
-    page.drawRectangle({
-      x: frame.x,
-      y: frame.y,
-      width: frame.width,
-      height: frame.height,
-      borderColor: rgb(0.86, 0.88, 0.91),
-      borderWidth: 0.4,
-    });
+  private drawPdfCardFrame(doc: PdfDocumentInstance, frame: PdfCardFrame) {
+    doc
+      .lineWidth(0.4)
+      .strokeColor('#dcdee8')
+      .rect(frame.x, frame.y, frame.width, frame.height)
+      .stroke();
   }
 
   private drawPdfRawBars(
-    page: PDFPage,
+    doc: PdfDocumentInstance,
     symbol: BarcodeRawSymbol,
     item: BulkBarcodeExportItem,
     layout: PdfLayout,
@@ -293,20 +312,17 @@ export class BulkBarcodeExportService {
       ? layout.barcodeHeight - 10
       : layout.barcodeHeight;
     const moduleWidth = barcodeWidth / moduleTotal;
-    const barColor = this.toPdfRgb(item.barColor);
+    const barColor = this.toPdfHex(item.barColor);
     let cursor = x;
 
     symbol.sbs.forEach((width, index) => {
       const segmentWidth = width * moduleWidth;
 
       if (index % 2 === 0) {
-        page.drawRectangle({
-          x: cursor,
-          y,
-          width: Math.max(segmentWidth, 0.35),
-          height: barcodeHeight,
-          color: barColor,
-        });
+        doc
+          .fillColor(barColor)
+          .rect(cursor, y, Math.max(segmentWidth, 0.35), barcodeHeight)
+          .fill();
       }
 
       cursor += segmentWidth;
@@ -314,23 +330,24 @@ export class BulkBarcodeExportService {
   }
 
   private drawPdfBarcodeBackground(
-    page: PDFPage,
+    doc: PdfDocumentInstance,
     item: BulkBarcodeExportItem,
     layout: PdfLayout,
     frame: PdfCardFrame,
   ) {
-    page.drawRectangle({
-      x: frame.barcodeX,
-      y: frame.barcodeY,
-      width: layout.cardWidth - 16,
-      height: layout.barcodeHeight,
-      color: this.toPdfRgb(item.backgroundColor),
-    });
+    doc
+      .fillColor(this.toPdfHex(item.backgroundColor))
+      .rect(
+        frame.barcodeX,
+        frame.barcodeY,
+        layout.cardWidth - 16,
+        layout.barcodeHeight,
+      )
+      .fill();
   }
 
   private drawPdfEncodedValue(
-    page: PDFPage,
-    font: PDFFont,
+    doc: PdfDocumentInstance,
     item: BulkBarcodeExportItem,
     layout: PdfLayout,
     frame: PdfCardFrame,
@@ -339,19 +356,17 @@ export class BulkBarcodeExportService {
       return;
     }
 
-    page.drawText(truncatePdfText(item.content, 36), {
-      x: frame.barcodeX,
-      y: frame.barcodeY + 1,
-      size: 5,
-      font,
-      color: this.toPdfRgb(item.barColor),
-      maxWidth: layout.cardWidth - 16,
-    });
+    doc
+      .fillColor(this.toPdfHex(item.barColor))
+      .fontSize(5)
+      .text(truncatePdfText(item.content, 36), frame.barcodeX, frame.barcodeY + 1, {
+        width: layout.cardWidth - 16,
+        lineBreak: false,
+      });
   }
 
   private drawPdfBarcodeText(
-    page: PDFPage,
-    font: PDFFont,
+    doc: PdfDocumentInstance,
     item: BulkBarcodeExportItem,
     layout: PdfLayout,
     frame: PdfCardFrame,
@@ -361,25 +376,25 @@ export class BulkBarcodeExportService {
     }
 
     const label = this.getPdfDisplayLabel(item);
+    const textColor = this.toPdfHex(item.barColor);
 
     if (label) {
-      page.drawText(label, {
-        x: frame.barcodeX,
-        y: frame.y + frame.height - 10,
-        size: 6,
-        font,
-        color: this.toPdfRgb(item.barColor),
-        maxWidth: layout.cardWidth - 16,
-      });
+      doc
+        .fillColor(textColor)
+        .fontSize(6)
+        .text(label, frame.barcodeX, frame.y + 8, {
+          width: layout.cardWidth - 16,
+          lineBreak: false,
+        });
     }
 
-    page.drawText(item.format, {
-      x: frame.barcodeX,
-      y: frame.y + 8,
-      size: 6,
-      font,
-      color: this.toPdfRgb(item.barColor),
-    });
+    doc
+      .fillColor(textColor)
+      .fontSize(6)
+      .text(item.format, frame.barcodeX, frame.y + frame.height - 14, {
+        width: layout.cardWidth - 16,
+        lineBreak: false,
+      });
   }
 
   private async buildPdfBarcodeImage(
@@ -573,13 +588,14 @@ export class BulkBarcodeExportService {
     });
   }
 
-  private toPdfRgb(hexColor: string) {
-    const normalized = hexColor.replace('#', '');
-    const red = parseInt(normalized.slice(0, 2), 16) / 255;
-    const green = parseInt(normalized.slice(2, 4), 16) / 255;
-    const blue = parseInt(normalized.slice(4, 6), 16) / 255;
+  private toPdfHex(hexColor: string) {
+    const normalized = hexColor.replace('#', '').trim();
 
-    return rgb(red, green, blue);
+    if (normalized.length !== 6) {
+      return '#000000';
+    }
+
+    return `#${normalized}`;
   }
 }
 
