@@ -7,10 +7,7 @@ import {
   BulkBarcodeDownloadType,
   BulkBarcodeItem,
 } from 'src/models/bulk-barcode.schema';
-import {
-  BarcodeRawSymbol,
-  BarcodeRendererService,
-} from '../barcodeGenerator/barcode-renderer.service';
+import { BarcodeRendererService } from '../barcodeGenerator/barcode-renderer.service';
 import {
   BULK_BARCODE_PDF_IMAGE_BATCH_SIZE,
   BULK_BARCODE_ZIP_RENDER_CONCURRENCY,
@@ -37,20 +34,12 @@ type ExportFile = {
   filename: string;
 };
 
-type PdfBarcodeImage = {
+type PdfBarcodeRender = {
   item: BulkBarcodeExportItem;
   png: Buffer;
+  imageWidth: number;
+  imageHeight: number;
 };
-
-type PdfBarcodeRender =
-  | {
-      item: BulkBarcodeExportItem;
-      png: Buffer;
-    }
-  | {
-      item: BulkBarcodeExportItem;
-      symbol: BarcodeRawSymbol;
-    };
 
 type PdfLayout = {
   pageWidth: number;
@@ -59,10 +48,8 @@ type PdfLayout = {
   columns: number;
   gap: number;
   cardWidth: number;
-  cardHeight: number;
-  barcodeHeight: number;
   cardPadding: number;
-  codeGap: number;
+  maxBarcodeHeight: number;
 };
 
 type PdfCardFrame = {
@@ -72,6 +59,8 @@ type PdfCardFrame = {
   height: number;
   barcodeX: number;
   barcodeY: number;
+  barcodeWidth: number;
+  barcodeHeight: number;
 };
 
 type PdfDocumentInstance = InstanceType<typeof PDFDocument>;
@@ -163,7 +152,7 @@ export class BulkBarcodeExportService {
       }
 
       row.push(render);
-      rowHeight = Math.max(rowHeight, this.getPdfCardHeight(render.item, layout));
+      rowHeight = Math.max(rowHeight, this.getPdfCardHeight(render, layout));
     };
 
     const queueImageBatch = async (itemsBatch: BulkBarcodeExportItem[]) => {
@@ -177,28 +166,6 @@ export class BulkBarcodeExportService {
     };
 
     for await (const item of items) {
-      if (!item.svg) {
-        if (batch.length > 0) {
-          await queueImageBatch(batch);
-          batch = [];
-        }
-
-        queueRender({
-          item,
-          symbol: this.renderer.renderRawLinear({
-            format: item.format,
-            content: item.content,
-            barWidth: item.barWidth,
-            height: item.height,
-            margin: item.margin,
-            barColor: item.barColor,
-            backgroundColor: item.backgroundColor,
-            showValue: item.showValue,
-          }),
-        });
-        continue;
-      }
-
       batch.push(item);
 
       if (batch.length >= BULK_BARCODE_PDF_IMAGE_BATCH_SIZE) {
@@ -220,13 +187,8 @@ export class BulkBarcodeExportService {
     const margin = 16;
     const columns = 6;
     const gap = 3;
-    const cardPadding = 4;
-    const codeGap = 2;
+    const cardPadding = 3;
     const cardWidth = (pageWidth - margin * 2 - gap * (columns - 1)) / columns;
-    const barcodeHeight = 24;
-    const codeHeight = 8;
-    const cardHeight =
-      cardPadding + barcodeHeight + codeGap + codeHeight + cardPadding;
 
     return {
       pageWidth,
@@ -235,10 +197,8 @@ export class BulkBarcodeExportService {
       columns,
       gap,
       cardWidth,
-      cardHeight,
-      barcodeHeight,
       cardPadding,
-      codeGap,
+      maxBarcodeHeight: 72,
     };
   }
 
@@ -249,54 +209,59 @@ export class BulkBarcodeExportService {
     x: number,
     y: number,
   ) {
-    const item = render.item;
-    const frame = this.getPdfCardFrame(item, layout, x, y);
+    const frame = this.getPdfCardFrame(render, layout, x, y);
 
     this.drawPdfCardFrame(doc, frame);
-    this.drawPdfBarcodeBackground(doc, item, layout, frame);
 
-    if ('png' in render) {
-      doc.image(render.png, frame.barcodeX, frame.barcodeY, {
-        width: layout.cardWidth - layout.cardPadding * 2,
-        height: layout.barcodeHeight,
-      });
-    } else {
-      this.drawPdfRawBars(
-        doc,
-        render.symbol,
-        item,
-        layout,
-        frame.barcodeX,
-        frame.barcodeY,
-      );
-    }
-
-    this.drawPdfEncodedValue(doc, item, layout, frame);
+    doc.image(render.png, frame.barcodeX, frame.barcodeY, {
+      width: frame.barcodeWidth,
+      height: frame.barcodeHeight,
+    });
   }
 
-  private getPdfCardHeight(item: BulkBarcodeExportItem, layout: PdfLayout) {
-    if (!item.showValue) {
-      return layout.cardPadding * 2 + layout.barcodeHeight;
-    }
+  private getPdfBarcodeFit(
+    render: PdfBarcodeRender,
+    layout: PdfLayout,
+  ): { width: number; height: number } {
+    const maxWidth = layout.cardWidth - layout.cardPadding * 2;
+    const maxHeight = layout.maxBarcodeHeight;
+    const scale = Math.min(
+      maxWidth / render.imageWidth,
+      maxHeight / render.imageHeight,
+      1,
+    );
 
-    return layout.cardHeight;
+    return {
+      width: render.imageWidth * scale,
+      height: render.imageHeight * scale,
+    };
+  }
+
+  private getPdfCardHeight(render: PdfBarcodeRender, layout: PdfLayout) {
+    const fit = this.getPdfBarcodeFit(render, layout);
+    return layout.cardPadding * 2 + fit.height;
   }
 
   private getPdfCardFrame(
-    item: BulkBarcodeExportItem,
+    render: PdfBarcodeRender,
     layout: PdfLayout,
     x: number,
     y: number,
   ): PdfCardFrame {
-    const height = this.getPdfCardHeight(item, layout);
+    const fit = this.getPdfBarcodeFit(render, layout);
+    const height = layout.cardPadding * 2 + fit.height;
+    const barcodeX = x + (layout.cardWidth - fit.width) / 2;
+    const barcodeY = y + layout.cardPadding;
 
     return {
       x,
       y,
       width: layout.cardWidth,
       height,
-      barcodeX: x + layout.cardPadding,
-      barcodeY: y + layout.cardPadding,
+      barcodeX,
+      barcodeY,
+      barcodeWidth: fit.width,
+      barcodeHeight: fit.height,
     };
   }
 
@@ -308,82 +273,17 @@ export class BulkBarcodeExportService {
       .stroke();
   }
 
-  private drawPdfRawBars(
-    doc: PdfDocumentInstance,
-    symbol: BarcodeRawSymbol,
-    item: BulkBarcodeExportItem,
-    layout: PdfLayout,
-    x: number,
-    y: number,
-  ) {
-    const moduleTotal = symbol.sbs.reduce((total, width) => total + width, 0);
-    const barcodeWidth = layout.cardWidth - layout.cardPadding * 2;
-    const barcodeHeight = layout.barcodeHeight;
-    const moduleWidth = barcodeWidth / moduleTotal;
-    const barColor = this.toPdfHex(item.barColor);
-    let cursor = x;
-
-    symbol.sbs.forEach((width, index) => {
-      const segmentWidth = width * moduleWidth;
-
-      if (index % 2 === 0) {
-        doc
-          .fillColor(barColor)
-          .rect(cursor, y, Math.max(segmentWidth, 0.35), barcodeHeight)
-          .fill();
-      }
-
-      cursor += segmentWidth;
-    });
-  }
-
-  private drawPdfBarcodeBackground(
-    doc: PdfDocumentInstance,
-    item: BulkBarcodeExportItem,
-    layout: PdfLayout,
-    frame: PdfCardFrame,
-  ) {
-    doc
-      .fillColor(this.toPdfHex(item.backgroundColor))
-      .rect(
-        frame.barcodeX,
-        frame.barcodeY,
-        layout.cardWidth - layout.cardPadding * 2,
-        layout.barcodeHeight,
-      )
-      .fill();
-  }
-
-  private drawPdfEncodedValue(
-    doc: PdfDocumentInstance,
-    item: BulkBarcodeExportItem,
-    layout: PdfLayout,
-    frame: PdfCardFrame,
-  ) {
-    if (!item.showValue) {
-      return;
-    }
-
-    const text = truncatePdfText(item.content, 36);
-    const fontSize = 5;
-    doc.fontSize(fontSize);
-    const textWidth = doc.widthOfString(text);
-    const textX = frame.x + (frame.width - textWidth) / 2;
-    const textY = frame.barcodeY + layout.barcodeHeight + layout.codeGap;
-
-    doc
-      .fillColor(this.toPdfHex(item.barColor))
-      .text(text, textX, textY, {
-        lineBreak: false,
-      });
-  }
-
   private async buildPdfBarcodeImage(
     item: BulkBarcodeExportItem,
-  ): Promise<PdfBarcodeImage> {
+  ): Promise<PdfBarcodeRender> {
+    const png = await this.getItemPng(item);
+    const { width, height } = readPngSize(png);
+
     return {
       item,
-      png: await this.getItemPng(item),
+      png,
+      imageWidth: width,
+      imageHeight: height,
     };
   }
 
@@ -558,22 +458,21 @@ export class BulkBarcodeExportService {
       showValue: item.showValue,
     });
   }
-
-  private toPdfHex(hexColor: string) {
-    const normalized = hexColor.replace('#', '').trim();
-
-    if (normalized.length !== 6) {
-      return '#000000';
-    }
-
-    return `#${normalized}`;
-  }
 }
 
-function truncatePdfText(value: string, maxLength: number) {
-  return value.length > maxLength
-    ? `${value.slice(0, maxLength - 1)}...`
-    : value;
+function readPngSize(png: Buffer): { width: number; height: number } {
+  if (
+    png.length < 24 ||
+    png.readUInt32BE(0) !== 0x89504e47 ||
+    png.readUInt32BE(4) !== 0x0d0a1a0a
+  ) {
+    throw new Error('Invalid PNG barcode image');
+  }
+
+  return {
+    width: png.readUInt32BE(16),
+    height: png.readUInt32BE(20),
+  };
 }
 
 function createZipEntry(filename: string, data: Buffer, offset: number) {
