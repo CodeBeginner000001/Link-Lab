@@ -61,6 +61,8 @@ type PdfLayout = {
   cardWidth: number;
   cardHeight: number;
   barcodeHeight: number;
+  cardPadding: number;
+  codeGap: number;
 };
 
 type PdfCardFrame = {
@@ -217,9 +219,14 @@ export class BulkBarcodeExportService {
     const pageHeight = 792;
     const margin = 16;
     const columns = 6;
-    const gap = 4;
+    const gap = 3;
+    const cardPadding = 4;
+    const codeGap = 2;
     const cardWidth = (pageWidth - margin * 2 - gap * (columns - 1)) / columns;
-    const cardHeight = 62;
+    const barcodeHeight = 24;
+    const codeHeight = 8;
+    const cardHeight =
+      cardPadding + barcodeHeight + codeGap + codeHeight + cardPadding;
 
     return {
       pageWidth,
@@ -229,7 +236,9 @@ export class BulkBarcodeExportService {
       gap,
       cardWidth,
       cardHeight,
-      barcodeHeight: 30,
+      barcodeHeight,
+      cardPadding,
+      codeGap,
     };
   }
 
@@ -248,7 +257,7 @@ export class BulkBarcodeExportService {
 
     if ('png' in render) {
       doc.image(render.png, frame.barcodeX, frame.barcodeY, {
-        width: layout.cardWidth - 16,
+        width: layout.cardWidth - layout.cardPadding * 2,
         height: layout.barcodeHeight,
       });
     } else {
@@ -258,16 +267,19 @@ export class BulkBarcodeExportService {
         item,
         layout,
         frame.barcodeX,
-        item.showValue ? frame.barcodeY + 10 : frame.barcodeY,
+        frame.barcodeY,
       );
     }
 
     this.drawPdfEncodedValue(doc, item, layout, frame);
-    this.drawPdfBarcodeText(doc, item, layout, frame);
   }
 
   private getPdfCardHeight(item: BulkBarcodeExportItem, layout: PdfLayout) {
-    return item.showValue ? layout.cardHeight : layout.barcodeHeight + 16;
+    if (!item.showValue) {
+      return layout.cardPadding * 2 + layout.barcodeHeight;
+    }
+
+    return layout.cardHeight;
   }
 
   private getPdfCardFrame(
@@ -277,16 +289,14 @@ export class BulkBarcodeExportService {
     y: number,
   ): PdfCardFrame {
     const height = this.getPdfCardHeight(item, layout);
-    const frameY = y;
-    const barcodeY = item.showValue ? frameY + 22 : frameY + 8;
 
     return {
       x,
-      y: frameY,
+      y,
       width: layout.cardWidth,
       height,
-      barcodeX: x + 8,
-      barcodeY,
+      barcodeX: x + layout.cardPadding,
+      barcodeY: y + layout.cardPadding,
     };
   }
 
@@ -307,10 +317,8 @@ export class BulkBarcodeExportService {
     y: number,
   ) {
     const moduleTotal = symbol.sbs.reduce((total, width) => total + width, 0);
-    const barcodeWidth = layout.cardWidth - 16;
-    const barcodeHeight = item.showValue
-      ? layout.barcodeHeight - 10
-      : layout.barcodeHeight;
+    const barcodeWidth = layout.cardWidth - layout.cardPadding * 2;
+    const barcodeHeight = layout.barcodeHeight;
     const moduleWidth = barcodeWidth / moduleTotal;
     const barColor = this.toPdfHex(item.barColor);
     let cursor = x;
@@ -340,7 +348,7 @@ export class BulkBarcodeExportService {
       .rect(
         frame.barcodeX,
         frame.barcodeY,
-        layout.cardWidth - 16,
+        layout.cardWidth - layout.cardPadding * 2,
         layout.barcodeHeight,
       )
       .fill();
@@ -356,43 +364,16 @@ export class BulkBarcodeExportService {
       return;
     }
 
+    const text = truncatePdfText(item.content, 36);
+    const fontSize = 5;
+    doc.fontSize(fontSize);
+    const textWidth = doc.widthOfString(text);
+    const textX = frame.x + (frame.width - textWidth) / 2;
+    const textY = frame.barcodeY + layout.barcodeHeight + layout.codeGap;
+
     doc
       .fillColor(this.toPdfHex(item.barColor))
-      .fontSize(5)
-      .text(truncatePdfText(item.content, 36), frame.barcodeX, frame.barcodeY + 1, {
-        width: layout.cardWidth - 16,
-        lineBreak: false,
-      });
-  }
-
-  private drawPdfBarcodeText(
-    doc: PdfDocumentInstance,
-    item: BulkBarcodeExportItem,
-    layout: PdfLayout,
-    frame: PdfCardFrame,
-  ) {
-    if (!item.showValue) {
-      return;
-    }
-
-    const label = this.getPdfDisplayLabel(item);
-    const textColor = this.toPdfHex(item.barColor);
-
-    if (label) {
-      doc
-        .fillColor(textColor)
-        .fontSize(6)
-        .text(label, frame.barcodeX, frame.y + 8, {
-          width: layout.cardWidth - 16,
-          lineBreak: false,
-        });
-    }
-
-    doc
-      .fillColor(textColor)
-      .fontSize(6)
-      .text(item.format, frame.barcodeX, frame.y + frame.height - 14, {
-        width: layout.cardWidth - 16,
+      .text(text, textX, textY, {
         lineBreak: false,
       });
   }
@@ -550,16 +531,6 @@ export class BulkBarcodeExportService {
 
   private escapeCsvCell(value: string) {
     return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
-  }
-
-  private getPdfDisplayLabel(item: BulkBarcodeExportItem) {
-    const label = item.label?.trim();
-
-    if (!label || /^auto\s+\d+$/i.test(label)) {
-      return null;
-    }
-
-    return truncatePdfText(label, 40);
   }
 
   private getItemSvg(item: BulkBarcodeExportItem) {
