@@ -6,10 +6,10 @@ import {
   Eye,
   Palette,
   RefreshCw,
+  BarChart3,
   Sparkles,
 } from "lucide-react";
 import type { FeatureToolSchema } from "../types";
-import { barcodeGeneratorAnalyticsPanel } from "./barcode-generator.analytics";
 
 export type BarcodeGeneratorFormValues = {
   format: string;
@@ -71,8 +71,9 @@ export function createBarcodeGeneratorToolSchema(
     header: {
       icon: Barcode,
       title: "Barcode Generator",
-      description: "Design barcodes, preview the result, and review usage analytics.",
-      canonical: '/dashboard/barcode-generator',
+      description:
+        "Design barcodes, preview the result, and review usage analytics.",
+      canonical: "/dashboard/barcode-generator",
     },
     panels: {
       form: {
@@ -114,8 +115,7 @@ export function createBarcodeGeneratorToolSchema(
             type: "text",
             required: true,
             placeholder: "Enter barcode value",
-            description:
-              "Choose a barcode format to see its content rules.",
+            description: "Choose a barcode format to see its content rules.",
             dynamicByField: {
               field: "format",
               values: contentRulesByFormat,
@@ -165,7 +165,8 @@ export function createBarcodeGeneratorToolSchema(
             label: "Show encoded value",
             type: "checkbox",
             defaultValue: true,
-            description: "Display the encoded text below supported barcode formats.",
+            description:
+              "Display the encoded text below supported barcode formats.",
             layout: { row: 6, colSpan: 2 },
           },
         ],
@@ -185,11 +186,81 @@ export function createBarcodeGeneratorToolSchema(
         ],
         slot: "barcode-generator.preview",
       },
-      analytics: barcodeGeneratorAnalyticsPanel,
+      analytics: {
+        title: "Barcode Analytics",
+        description:
+          "Review generation totals, download usage, and weekly barcode activity.",
+        chips: [{ icon: BarChart3, label: "Weekly activity" }],
+        api: {
+          path: "/barcodes/analytics",
+          method: "GET",
+          responsePath: "data",
+          cacheTags: ["barcodes"],
+        },
+        cards: [
+          { icon: Barcode, label: "Generated", valuePath: "generated" },
+          { icon: Download, label: "Downloads", valuePath: "downloads" },
+          { icon: Palette, label: "Formats", valuePath: "format" },
+        ],
+        activityTitle: "Weekly activity",
+        sections: [
+          {
+            type: "activity",
+            api: {
+              path: "/barcodes/analytics/activity/:period/:date",
+              method: "GET",
+              responsePath: "data",
+              useProxy: true,
+              cacheTags: ["barcodes"],
+            },
+            defaultPeriod: "week",
+            titleByPeriod: {
+              week: "Weekly activity",
+              month: "Monthly activity",
+              year: "Yearly activity",
+            },
+            descriptionTemplate: "Barcodes generated in the selected {period}",
+            refreshEvent: "barcode-data-changed",
+          },
+          {
+            type: "distribution",
+            api: {
+              path: "/barcodes/analytics/format-mix",
+              method: "GET",
+              responsePath: "data",
+              cacheTags: ["barcodes"],
+            },
+            title: "Format mix",
+            description: "Share of generated barcodes",
+            valuePath: "formatDistribution",
+            emptyText: "Generate a barcode to see format distribution.",
+            secondary: {
+              title: "Download formats",
+              totalLabel: "Total",
+              segments: [
+                {
+                  label: "SVG",
+                  valuePath: "downloadFormatDistribution.svg",
+                  className: "bg-[hsl(var(--primary))]",
+                },
+                {
+                  label: "PNG",
+                  valuePath: "downloadFormatDistribution.png",
+                  className: "bg-indigo-500",
+                },
+              ],
+            },
+          },
+        ],
+      },
       data: {
         title: "Recent Barcodes",
-        description: "Review generated barcode records and reuse recent payloads.",
-        chips: [{ icon: Barcode, label: "Saved barcodes" }, {icon: RefreshCw, label: "Auto-Refresh in 10 second"}],
+        description:
+          "Review generated barcode records and reuse recent payloads.",
+        chips: [
+          { icon: Barcode, label: "Saved barcodes" },
+          { icon: RefreshCw, label: "Auto-Refresh in 10 second" },
+        ],
         api: {
           path: "/barcodes",
           method: "GET",

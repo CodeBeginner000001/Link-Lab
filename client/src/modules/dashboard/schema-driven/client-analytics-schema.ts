@@ -1,7 +1,6 @@
 "use client";
 
 import type { SchemaAnalyticsPanel } from "./types";
-import { barcodeGeneratorAnalyticsPanel } from "./schemas/barcode-generator.analytics";
 import { toolSchema as brokenLinkCheckerSchema } from "./schemas/broken-link-checker.schema";
 import { toolSchema as bulkBarcodeSchema } from "./schemas/bulk-barcode-generator.schema";
 import { toolSchema as linkExpanderSchema } from "./schemas/link-expander.schema";
@@ -14,7 +13,7 @@ const analyticsBySlug: Record<string, SchemaAnalyticsPanel> = {
   "broken-link-checker": brokenLinkCheckerSchema.panels.analytics,
   "onetime-link": onetimeLinkSchema.panels.analytics,
   "bulk-barcode-generator": bulkBarcodeSchema.panels.analytics,
-  "barcode-generator": barcodeGeneratorAnalyticsPanel,
+  "barcode-generator": bulkBarcodeSchema.panels.analytics,
 };
 
 export function getClientAnalyticsSchema(
